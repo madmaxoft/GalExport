@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+  <file>
+    <filename>Config.lua</filename>
+  </file>
+  <file>
+    <filename>GalExport.lua</filename>
+  </file>
+  <file>
+    <filename>GameCmdHandlers.lua</filename>
+  </file>
+  <file>
+    <filename>Info.lua</filename>
+  </file>
+  <file>
+    <filename>Storage.lua</filename>
+  </file>
+  <file>
+    <filename>Storage_SQLite.lua</filename>
+  </file>
+  <file>
+    <filename>example.cfg</filename>
+  </file>
+</project>
