@@ -25,30 +25,52 @@ end
 
 
 
---- Executes the SQL statement, substituting "?" in the SQL with the specified params
--- Calls a_Callback for each row
--- The callback receives a dictionary table containing the row values (stmt:nrows())
--- Returns false and error message on failure, or true on success
-function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
-	assert(a_SQL ~= nil)
-	assert(a_Params ~= nil)
-	assert(self.DB ~= nil)
+--- Sets the area as approved by the specified player in the specified group and with the specified export cuboid
+-- If the area is already approved, returns false, the name of the approver, date approved and the group name
+-- If any of the DB queries fail, returns nil.
+-- Returns true on success
+function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid)
+	-- Check params:
+	assert(tonumber(a_AreaID) ~= nil)
+	assert(type(a_PlayerName) == "string")
+	assert(type(a_GroupName) == "string")
+	assert(tolua.type(a_ExportCuboid) == "cCuboid")
 	
-	local Stmt, ErrCode, ErrMsg = self.DB:prepare(a_SQL)
-	if (Stmt == nil) then
-		LOGWARNING(PLUGIN_PREFIX .. "Cannot prepare SQL \"" .. a_SQL .. "\": " .. (ErrCode or "<unknown>") .. " (" .. (ErrMsg or "<no message>") .. ")")
-		LOGWARNING(PLUGIN_PREFIX .. "  Params = {" .. table.concat(a_Params, ", ") .. "}")
-		return nil, (ErrMsg or "<no message>")
-	end
-	Stmt:bind_values(unpack(a_Params))
-	if (a_Callback == nil) then
-		Stmt:step()
-	else
-		for v in Stmt:nrows() do
-			a_Callback(v)
+	-- Check if the area is already approved:
+	local Info = nil
+	local IsSuccess = self:ExecuteStatement(
+		"SELECT IsApproved, ApprovedBy, DateApproved, ExportGroupName FROM Areas WHERE ID = ?",
+		{ a_AreaID },
+		function (a_Values)
+			if ((a_Values.IsApproved ~= nil) and (tonumber(a_Values.IsApproved) ~= 0)) then
+				Info = a_Values
+			end
 		end
+	)
+	if not(IsSuccess) then
+		return nil, "DB read failed"
 	end
-	Stmt:finalize()
+	if (Info ~= nil) then
+		return false, Info.ApprovedBy, Info.DateApproved, Info.ExportGroupName
+	end
+	
+	-- Set as approved:
+	IsSuccess = self:ExecuteStatement(
+		"UPDATE Areas SET IsApproved = 1, ApprovedBy = ?, DateApproved = ?, ExportGroupName = ?, \
+		ExportMinX = ?, ExportMinY = ?, ExportMinZ = ?, ExportMaxX = ?, ExportMaxY = ?, ExportMaxZ = ? \
+		WHERE ID = ?",
+		{
+			a_PlayerName, FormatDateTime(os.time()), a_GroupName,
+			a_ExportCuboid.p1.x, a_ExportCuboid.p1.y, a_ExportCuboid.p1.z,
+			a_ExportCuboid.p2.x, a_ExportCuboid.p2.y, a_ExportCuboid.p2.z,
+			a_AreaID
+		}
+	)
+	if not(IsSuccess) then
+		return nil, "DB write failed"
+	end
+	
+	-- Report success
 	return true
 end
 
@@ -119,6 +141,77 @@ end
 
 
 
+--- Executes the SQL statement, substituting "?" in the SQL with the specified params
+-- Calls a_Callback for each row
+-- The callback receives a dictionary table containing the row values (stmt:nrows())
+-- Returns false and error message on failure, or true on success
+function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
+	assert(a_SQL ~= nil)
+	assert(a_Params ~= nil)
+	assert(self.DB ~= nil)
+	
+	local Stmt, ErrCode, ErrMsg = self.DB:prepare(a_SQL)
+	if (Stmt == nil) then
+		LOGWARNING(PLUGIN_PREFIX .. "Cannot prepare SQL \"" .. a_SQL .. "\": " .. (ErrCode or "<unknown>") .. " (" .. (ErrMsg or "<no message>") .. ")")
+		LOGWARNING(PLUGIN_PREFIX .. "  Params = {" .. table.concat(a_Params, ", ") .. "}")
+		return nil, (ErrMsg or "<no message>")
+	end
+	Stmt:bind_values(unpack(a_Params))
+	if (a_Callback == nil) then
+		Stmt:step()
+	else
+		for v in Stmt:nrows() do
+			a_Callback(v)
+		end
+	end
+	Stmt:finalize()
+	return true
+end
+
+
+
+
+
+--- Returns a table describing the area at the specified coords
+-- The table has all the attributes read from the DB row
+-- Returns nil if there's no area at those coords
+function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
+	-- Check params:
+	assert(type(a_WorldName) == "string")
+	assert(type(a_BlockX) == "number")
+	assert(type(a_BlockZ) == "number")
+	
+	-- Load from the DB:
+	local res = {}
+	if not(self:ExecuteStatement(
+		"SELECT * FROM Areas WHERE (MinX <= ?) AND (MaxX > ?) AND (MinZ < ?) AND (MaxZ > ?)",
+		{
+			a_BlockX, a_BlockX,
+			a_BlockZ, a_BlockZ,
+		},
+		function (a_Values)
+			-- Copy all values to the result table:
+			for k, v in pairs(a_Values) do
+				res[k] = v
+			end
+		end
+	)) then
+		-- DB error or no data (?)
+		return nil
+	end
+	
+	if not(res.ID) then
+		-- No data has been returned by the DB call
+		return nil
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns true if the table exists in the DB
 function SQLite:TableExists(a_TableName)
 	assert(self ~= nil)
@@ -159,17 +252,11 @@ function SQLite_CreateStorage(a_Params)
 		"ApprovedBy",                              -- Name of the admin who approved the area
 		"ExportMinX", "ExportMinY", "ExportMinZ",  -- The min coords of the exported area
 		"ExportMaxX", "ExportMaxY", "ExportMaxZ",  -- The max coords of the exported area
-		"ExportGroupID"                            -- The ID of the group to which this area belongs (ExportGroups table)
-	}
-	local ExportGroupsColumns =
-	{
-		"GroupID INTEGER PRIMARY KEY",
-		"GroupName",
+		"ExportGroupName"                          -- The name of the group to which this area belongs
 	}
 	if (
 		not(DB:TableExists("Areas")) or
-		not(DB:CreateDBTable("Areas",        AreasColumns)) or
-		not(DB:CreateDBTable("ExportGroups", ExportGroupsColumns))
+		not(DB:CreateDBTable("Areas", AreasColumns))
 	) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot create DB tables!")
 		error("Cannot create DB tables!")
