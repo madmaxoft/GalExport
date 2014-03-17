@@ -63,6 +63,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						{
 							HelpString = "Sets your WE selection to the bounding box of the area you're standing in",
 							Permission = "gallexport.bbox.show",
+							Alias = {"s", "view", "v"},
 							Handler = HandleCmdBboxShow,
 						},  -- show
 					},  -- Subcommands

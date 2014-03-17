@@ -167,6 +167,32 @@ end
 
 
 
+function HandleCmdBboxShow(a_Split, a_Player)
+	-- /ge bbox show
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area here."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Send the selection to WE:
+	local SelCuboid = cCuboid(Area.ExportMinX, Area.ExportMinY, Area.ExportMinZ, Area.ExportMaxX, Area.ExportMaxY, Area.ExportMaxZ)
+	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_Player, SelCuboid)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot set WorldEdit selection to the boundingbox"):SetMessageType(mtFailure))
+	else
+		a_Player:SendMessage(cCompositeChat("WorldEdit selection set to the boundingbox"):SetMessageType(mtInformation))
+	end
+	return true
+end
+
+
+
+
+
 function HandleCmdExportAll(a_Split, a_Player)
 	-- /ge export all <format>
 
