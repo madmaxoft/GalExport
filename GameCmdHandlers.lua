@@ -166,6 +166,43 @@ end
 
 
 
+function HandleCmdExportAll(a_Split, a_Player)
+	-- /ge export all <format>
+
+	-- Check the params:
+	if (a_Split[4] == nil) then
+		a_Player:SendMessage(cCompositeChat():SetMessageType(mtFailure)
+			:AddTextPart("Usage: ")
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " export this ", g_Config.CommandPrefix .. " export this ")
+			:AddTextPart("Format", "@2")
+		)
+		SendAvailableFormats(a_Player)
+		return true
+	end
+	local Format = a_Split[4]
+	
+	-- Check if the format is supported:
+	if not(g_Exporters[Format]) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no such format."):SetMessageType(mtFailure))
+		SendAvailableFormats(a_Player)
+		return true
+	end
+	
+	-- Get the areas:
+	local Areas = g_DB:GetAllApprovedAreas()
+	if (not(Areas) or (Areas[1] == nil)) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area approved."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Export the areas:
+	return ExportAreas(Areas, Format, a_Player, "Areas exported", "Cannot export areas")
+end
+
+
+
+
+
 function HandleCmdExportGroup(a_Split, a_Player)
 	-- /ge export group <groupname> <format>
 	-- Check the params:

@@ -172,6 +172,34 @@ end
 
 
 
+--- Returns an array of tables describing all the approved areas
+-- Each sub-table has all the attributes read from the DB row
+-- Returns an empty table if there are no approved areas
+-- Returns nil on DB error
+function SQLite:GetAllApprovedAreas()
+	-- Load from the DB:
+	local res = {}
+	if not(self:ExecuteStatement(
+		"SELECT * FROM Areas WHERE IsApproved = 1",
+		{},
+		function (a_Values)
+			-- Require the area to have at least the ID:
+			if (a_Values.ID ~= nil) then
+				table.insert(res, a_Values)
+			end
+		end
+	)) then
+		-- DB error or no data (?)
+		return nil
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns a table describing the area at the specified coords
 -- The table has all the attributes read from the DB row
 -- Returns nil if there's no area at those coords
