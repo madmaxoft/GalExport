@@ -59,6 +59,7 @@ function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 	
 	-- Remember the player name, so that we can get to them later on:
 	local PlayerName = a_Player:GetName()
+	a_Player:SendMessage(cCompositeChat("Exporting " .. #a_Areas .. " areas..."):SetMessageType(mtInformation))
 	
 	-- Create a closure that queues one area for export and leaves the rest for after the export finishes:
 	local function QueueExport(a_Areas)
