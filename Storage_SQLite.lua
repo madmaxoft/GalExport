@@ -212,6 +212,39 @@ end
 
 
 
+--- Returns an array of tables describing the approved areas in the specified group
+-- Each sub-table has all the attributes read from the DB row
+-- Returns an empty table if there are no areas in the group
+-- Returns nil on DB error
+function SQLite:GetApprovedAreasInGroup(a_GroupName)
+	-- Check params:
+	assert(type(a_GroupName) == "string")
+	
+	-- Load from the DB:
+	local res = {}
+	if not(self:ExecuteStatement(
+		"SELECT * FROM Areas WHERE IsApproved = 1 AND ExportGroupName = ? COLLATE NOCASE",
+		{
+			a_GroupName,
+		},
+		function (a_Values)
+			-- Require the area to have at least the ID:
+			if (a_Values.ID ~= nil) then
+				table.insert(res, a_Values)
+			end
+		end
+	)) then
+		-- DB error or no data (?)
+		return nil
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns true if the table exists in the DB
 function SQLite:TableExists(a_TableName)
 	assert(self ~= nil)

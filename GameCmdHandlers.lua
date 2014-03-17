@@ -39,6 +39,70 @@ end
 
 
 
+--- Exports all the areas in a_Areas into the specified format
+-- a_Areas contains an array of area idents (DB row contents)
+-- a_Format is the string specifying the format
+-- a_Player is the player who asked for the export, they will get the completion message
+-- a_MsgSuccess is the message to send on success
+-- a_MsgFail is the message to send on failure, with possibly the reason appended to it
+function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
+	-- Check params:
+	assert(type(a_Areas) == "table")
+	assert(type(a_Format) == "string")
+	assert(tolua.type(a_Player) == "cPlayer")
+	assert(type(a_MsgSuccess) == "string")
+	assert(type(a_MsgFail) == "string")
+	
+	-- Get the exporter for the format:
+	local Exporter = g_Exporters[a_Format]
+	assert(Exporter ~= nil)
+	
+	-- Remember the player name, so that we can get to them later on:
+	local PlayerName = a_Player:GetName()
+	
+	-- Create a closure that queues one area for export and leaves the rest for after the export finishes:
+	local function QueueExport(a_Areas)
+		-- If there's no more areas to export, bail out:
+		if (a_Areas[1] == nil) then
+			-- Send the success message to the player:
+			cRoot:Get():FindAndDoWithPlayer(PlayerName,
+				function (a_Player)
+					a_Player:SendMessage(cCompositeChat(a_MsgSuccess):SetMessageType(mtInformation))
+				end
+			)
+			return
+		end
+		
+		-- Queue and remove the last area from the table:
+		local Area = table.remove(a_Areas)
+		Exporter.ExportArea(Area,
+			function (a_IsSuccess)
+				-- The area has been exported
+				if (a_IsSuccess) then
+					-- Queue another area for export:
+					QueueExport(a_Areas)
+				else
+					-- Send the failure msg to the player:
+					cRoot:Get():FindAndDoWithPlayer(PlayerName,
+						function (a_Player)
+							a_Player:SendMessage(cCompositeChat(a_MsgFailure):SetMessageType(mtFailure))
+						end
+					)
+				end
+			end
+		)
+	end
+	
+	-- Queue all the areas:
+	QueueExport(a_Areas)
+	
+	return true
+end
+
+
+
+
+
 function HandleCmdApprove(a_Split, a_Player)
 	-- Check the params:
 	if (a_Split[3] == nil) then
@@ -96,6 +160,43 @@ function HandleCmdApprove(a_Split, a_Player)
 	
 	a_Player:SendMessage(cCompositeChat():SetMessageType(mtInformation):AddTextPart("Area successfully approved."))
 	return true
+end
+
+
+
+
+
+function HandleCmdExportGroup(a_Split, a_Player)
+	-- /ge export group <groupname> <format>
+	-- Check the params:
+	if ((a_Split[4] == nil) or (a_Split[5] == nil)) then
+		a_Player:SendMessage(cCompositeChat():SetMessageType(mtFailure)
+			:AddTextPart("Usage: ")
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " export group ", g_Config.CommandPrefix .. " export group ")
+			:AddTextPart("GroupName Format", "@2")
+		)
+		SendAvailableFormats(a_Player)
+		return true
+	end
+	local GroupName = a_Split[4]
+	local Format = a_Split[5]
+	
+	-- Check if the format is supported:
+	if not(g_Exporters[Format]) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no such format."):SetMessageType(mtFailure))
+		SendAvailableFormats(a_Player)
+		return true
+	end
+	
+	-- Get the area ident for each area in the group:
+	local Areas = g_DB:GetApprovedAreasInGroup(GroupName)
+	if (not(Areas) or (Areas[1] == nil)) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area in the group."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Export the areas:
+	return ExportAreas(Areas, Format, a_Player, "Group exported", "Cannot export group")
 end
 
 
