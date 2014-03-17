@@ -200,6 +200,29 @@ end
 
 
 
+--- Returns an array of all export groups stored in the DB.
+-- Returns nil on failure
+function SQLite:GetAllGroups()
+	local res = {}
+	if not(self:ExecuteStatement(
+		"SELECT DISTINCT(ExportGroupName) FROM Areas",
+		{},
+		function (a_Values)
+			if (a_Values.ExportGroupName ~= nil) then
+				table.insert(res, a_Values.ExportGroupName)
+			end
+		end
+	)) then
+		return nil
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns a table describing the area at the specified coords
 -- The table has all the attributes read from the DB row
 -- Returns nil if there's no area at those coords

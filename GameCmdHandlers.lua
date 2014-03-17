@@ -374,3 +374,24 @@ end
 
 
 
+
+function HandleCmdGroupList(a_Split, a_Player)
+	-- /ge group list
+	
+	-- Get the groups from the DB:
+	local Groups = g_DB:GetAllGroups()
+	if (not(Groups) or (Groups[1] == nil)) then
+		a_Player:SendMessage(cCompositeChat("There are no export groups."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Send to the player:
+	table.sort(Groups)
+	a_Player:SendMessage(cCompositeChat("Defined export groups: " .. table.concat(Groups, ", ")):SetMessageType(mtInformation))
+	
+	return true
+end
+
+
+
+
