@@ -19,6 +19,26 @@ end
 
 
 
+--- Sends the list of available export formats to the specified player
+local function SendAvailableFormats(a_Player)
+	-- Check params:
+	assert(tolua.type(a_Player) == "cPlayer")
+	
+	-- Get a sorted list of export formats:
+	local Formats = {}
+	for k, v in pairs(g_Exporters) do
+		table.insert(Formats, k)
+	end
+	table.sort(Formats)
+	
+	-- Send to the player:
+	a_Player:SendMessage(cCompositeChat("Available formats: " .. table.concat(Formats, ", ")):SetMessageType(mtInfo))
+end
+
+
+
+
+
 function HandleCmdApprove(a_Split, a_Player)
 	-- Check the params:
 	if (a_Split[3] == nil) then
@@ -75,6 +95,64 @@ function HandleCmdApprove(a_Split, a_Player)
 	end
 	
 	a_Player:SendMessage(cCompositeChat():SetMessageType(mtInformation):AddTextPart("Area successfully approved."))
+	return true
+end
+
+
+
+
+
+function HandleCmdExportThis(a_Split, a_Player)
+	-- /ge export this <format>
+	-- Check the params:
+	if (a_Split[4] == nil) then
+		a_Player:SendMessage(cCompositeChat():SetMessageType(mtFailure)
+			:AddTextPart("Usage: ")
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " export this ", g_Config.CommandPrefix .. " export this ")
+			:AddTextPart("Format", "@2")
+		)
+		SendAvailableFormats(a_Player)
+		return true
+	end
+	local Format = a_Split[4]
+	
+	-- Check if the format is supported:
+	if not(g_Exporters[Format]) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no such format."):SetMessageType(mtFailure))
+		SendAvailableFormats(a_Player)
+		return true
+	end
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area here."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- A callback function to notify the player that the export has finished
+	-- Note that the player may have logged off in the meantime, need to go through name-lookup
+	local PlayerName = a_Player:GetName()
+	local Notifier = function (a_IsSuccess)
+		cRoot:Get():FindAndDoWithPlayer(PlayerName,
+			function (a_Player)
+				if (a_IsSuccess) then
+					a_Player:SendMessage(cCompositeChat("Area export finished successfully."):SetMessageType(mtInformation))
+				else
+					a_Player:SendMessage(cCompositeChat("Area export failed."):SetMessageType(mtFailure))
+				end
+			end
+		)
+	end
+	
+	-- Export the area using the specified exporter:
+	local IsSuccess, Msg = g_Exporters[Format].ExportArea(Area, Notifier)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot export: " .. (Msg or "<Unknown error>")):SetMessageType(mtFailure))
+		return true
+	end
+	
 	return true
 end
 

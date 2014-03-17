@@ -128,20 +128,6 @@ and edited with the help of WorldEdit and its WECUI link.
 					Alias = {"grp", "g"},
 					Subcommands =
 					{
-						add =
-						{
-							HelpString = "Adds a new group name",
-							Handler = HandleCmdGroupAdd,
-							Alias = {"a", "create", "c"},
-							ParameterCombinations =
-							{
-								{
-									Params = "GroupName",
-									Help = "Creates a new group with the specified name",
-								},
-							},
-						},  -- add
-						
 						list =
 						{
 							HelpString = "Lists available groups",
