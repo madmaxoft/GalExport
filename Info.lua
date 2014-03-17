@@ -56,6 +56,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						{
 							HelpString = "Updates the bounding box of the area you're standing in to your current WE selection",
 							Permission = "galexport.bbox.change",
+							Alias = {"c", "update", "u"},
 							Handler = HandleCmdBboxChange,
 						},  -- change
 						

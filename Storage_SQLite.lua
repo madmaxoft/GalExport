@@ -293,6 +293,31 @@ end
 
 
 
+--- Updates the export bbox in the DB to the specified values
+-- Returns false and error message on failure, or true on success
+function SQLite:UpdateAreaBBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ)
+	-- Check the params:
+	assert(tonumber(a_AreaID) ~= nil)
+	assert(tonumber(a_MinX) ~= nil)
+	assert(tonumber(a_MinY) ~= nil)
+	assert(tonumber(a_MinZ) ~= nil)
+	assert(tonumber(a_MaxX) ~= nil)
+	assert(tonumber(a_MaxY) ~= nil)
+	assert(tonumber(a_MaxZ) ~= nil)
+	
+	-- Write into DB:
+	return self:ExecuteStatement(
+		"UPDATE Areas SET ExportMinX = ?, ExportMinY = ?, ExportMinZ = ?, ExportMaxX = ?, ExportMaxY = ?, ExportMaxZ = ? WHERE ID = ?",
+		{
+			a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ,
+			a_AreaID
+		}
+	)
+end
+
+
+
+
 function SQLite_CreateStorage(a_Params)
 	DB = SQLite
 	local DBFile = a_Params.File or "Galleries.sqlite"

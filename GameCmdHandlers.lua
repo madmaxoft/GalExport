@@ -167,6 +167,50 @@ end
 
 
 
+function HandleCmdBboxChange(a_Split, a_Player)
+	-- /ge bbox change
+
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area here."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Get the selection from WE:
+	local SelCuboid = cCuboid()
+	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "GetPlayerCuboidSelection", a_Player, SelCuboid)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot get WorldEdit selection"):SetMessageType(mtFailure))
+		return true
+	end
+	SelCuboid:Sort()
+	
+	-- Clamp the selection to the area:
+	SelCuboid:ClampX(Area.StartX, Area.EndX)
+	SelCuboid:ClampZ(Area.StartZ, Area.EndZ)
+	
+	-- Set the selection back to area in DB:
+	local Msg
+	IsSuccess, Msg = g_DB:UpdateAreaBBox(Area.ID,
+		SelCuboid.p1.x, SelCuboid.p1.y, SelCuboid.p1.z,
+		SelCuboid.p2.x, SelCuboid.p2.y, SelCuboid.p2.z
+	)
+	
+	-- Send success report:
+	if (IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Boundingbox changed"):SetMessageType(mtInformation))
+	else
+		a_Player:SendMessage(cCompositeChat("Cannot change boundingbox: " .. Msg):SetMessageType(mtFailure))
+	end
+	return true
+end
+
+
+
+
+
 function HandleCmdBboxShow(a_Split, a_Player)
 	-- /ge bbox show
 	
@@ -174,7 +218,13 @@ function HandleCmdBboxShow(a_Split, a_Player)
 	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
 	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
 	if not(Area) then
-		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area here."):SetMessageType(mtFailure))
+		a_Player:SendMessage(cCompositeChat("Cannot show boundingbox, there is no gallery area here."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Check if the area is approved:
+	if not(Area.IsApproved == 1) then
+		a_Player:SendMessage(cCompositeChat("Cannot show boundingbox, this area is not approved."):SetMessageType(mtFailure))
 		return true
 	end
 	
