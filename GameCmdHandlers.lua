@@ -395,3 +395,32 @@ end
 
 
 
+
+function HandleCmdGroupRename(a_Split, a_Player)
+	-- /ge group rename <OldName> <NewName>
+	
+	-- Check params:
+	if ((a_Split[4] == nil) or (a_Split[5] == nil)) then
+		a_Player:SendMessage(cCompositeChat():SetMessageType(mtFailure)
+			:AddTextPart("Usage: ")
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " group rename ", g_Config.CommandPrefix .. " group rename ")
+			:AddTextPart("FromName ToName", "@2")
+		)
+		return true
+	end
+	
+	-- Rename the group in the DB:
+	local IsSuccess, Msg = g_DB:RenameGroup(a_Split[4], a_Split[5])
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Failed to rename group: " .. Msg):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Send success:
+	a_Player:SendMessage(cCompositeChat("Group renamed"):SetMessageType(mtInformation))
+	return true
+end
+
+
+
+

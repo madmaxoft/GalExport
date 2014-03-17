@@ -145,8 +145,8 @@ and edited with the help of WorldEdit and its WECUI link.
 							ParameterCombinations =
 							{
 								{
-									Params = "OldName NewName",
-									Help = "Renames the group from OldName to NewName",
+									Params = "FromName ToName",
+									Help = "Renames the group from FromName to ToName",
 								},
 							},
 						},  -- rename

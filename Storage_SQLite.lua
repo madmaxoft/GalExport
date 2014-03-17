@@ -31,6 +31,7 @@ end
 -- Returns true on success
 function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid)
 	-- Check params:
+	assert(self ~= nil)
 	assert(tonumber(a_AreaID) ~= nil)
 	assert(type(a_PlayerName) == "string")
 	assert(type(a_GroupName) == "string")
@@ -81,6 +82,8 @@ end
 --- Creates the table of the specified name and columns[]
 -- If the table exists, any columns missing are added; existing data is kept
 function SQLite:CreateDBTable(a_TableName, a_Columns)
+	-- Check params:
+	assert(self ~= nil)
 	assert(a_TableName ~= nil)
 	assert(a_Columns ~= nil)
 	
@@ -146,6 +149,8 @@ end
 -- The callback receives a dictionary table containing the row values (stmt:nrows())
 -- Returns false and error message on failure, or true on success
 function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
+	-- Check params:
+	assert(self ~= nil)
 	assert(a_SQL ~= nil)
 	assert(a_Params ~= nil)
 	assert(self.DB ~= nil)
@@ -177,6 +182,9 @@ end
 -- Returns an empty table if there are no approved areas
 -- Returns nil on DB error
 function SQLite:GetAllApprovedAreas()
+	-- Check params:
+	assert(self ~= nil)
+
 	-- Load from the DB:
 	local res = {}
 	if not(self:ExecuteStatement(
@@ -203,6 +211,10 @@ end
 --- Returns an array of all export groups stored in the DB.
 -- Returns nil on failure
 function SQLite:GetAllGroups()
+	-- Check params:
+	assert(self ~= nil)
+	
+	-- Get the groups:
 	local res = {}
 	if not(self:ExecuteStatement(
 		"SELECT DISTINCT(ExportGroupName) FROM Areas",
@@ -228,6 +240,7 @@ end
 -- Returns nil if there's no area at those coords
 function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
 	-- Check params:
+	assert(self ~= nil)
 	assert(type(a_WorldName) == "string")
 	assert(type(a_BlockX) == "number")
 	assert(type(a_BlockZ) == "number")
@@ -269,6 +282,7 @@ end
 -- Returns nil on DB error
 function SQLite:GetApprovedAreasInGroup(a_GroupName)
 	-- Check params:
+	assert(self ~= nil)
 	assert(type(a_GroupName) == "string")
 	
 	-- Load from the DB:
@@ -296,11 +310,34 @@ end
 
 
 
+--- Renames the group in the DB, by overwriting the group name of all areas that use the a_FromName
+-- Returns false and error message on failure, or true on success
+function SQLite:RenameGroup(a_FromName, a_ToName)
+	-- Check params:
+	assert(self ~= nil)
+	assert(type(a_FromName) == "string")
+	assert(type(a_ToName) == "string")
+	
+	-- Rename:
+	return self:ExecuteStatement(
+		"UPDATE Areas SET ExportGroupName = ? WHERE ExportGroupName = ?",
+		{
+			a_ToName, a_FromName
+		}
+	)
+end
+
+
+
+
+
 --- Returns true if the table exists in the DB
 function SQLite:TableExists(a_TableName)
+	-- Check params:
 	assert(self ~= nil)
 	assert(type(a_TableName) == "string")
 	
+	-- Check existence:
 	local res = false
 	self:ExecuteStatement(
 		"SELECT name FROM sqlite_master WHERE type='table' AND name=?",
@@ -320,6 +357,7 @@ end
 -- Returns false and error message on failure, or true on success
 function SQLite:UpdateAreaBBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ)
 	-- Check the params:
+	assert(self ~= nil)
 	assert(tonumber(a_AreaID) ~= nil)
 	assert(tonumber(a_MinX) ~= nil)
 	assert(tonumber(a_MinY) ~= nil)
