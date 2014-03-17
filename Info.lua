@@ -36,7 +36,7 @@ and edited with the help of WorldEdit and its WECUI link.
 					HelpString = "Approves the area where you're standing",
 					Permission = "galexport.approve",
 					Handler = HandleCmdApprove,
-					Alias = {"appr", "a"},
+					Alias = {"appr", "a", "accept", "acc"},
 					ParameterCombinations =
 					{
 						{
