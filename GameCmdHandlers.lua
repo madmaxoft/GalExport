@@ -430,14 +430,14 @@ function HandleCmdListApprovedAreas(a_Split, a_Player)
 	-- /ge list [GroupName]
 	
 	local Areas = nil
-	if (#a_Split[3] ~= nil) then
+	if (a_Split[3] ~= nil) then
 		local GroupName = table.concat(a_Split, " ", 3)
 		
 		-- Get all the approved areas in the given group.
 		Areas = g_DB:GetApprovedAreasInGroup(GroupName)
 		
 		-- Check if the group actualy exists.
-		if ((Areas == nil) or (#Areas == 0)) then
+		if ((Areas == nil) or (Areas[1] == nil)) then
 			a_Player:SendMessage("The group \"" .. GroupName .. "\" doesn't have any areas.")
 			return true
 		end		
