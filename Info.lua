@@ -158,6 +158,7 @@ and edited with the help of WorldEdit and its WECUI link.
 					HelpString = "Shows a list of all the approved areas.",
 					Permission = "galexport.listapproved",
 					Alias = {"la", "list"},
+					Handler = HandleCmdListApproved,
 					ParameterCombinations =
 					{
 						{

@@ -426,7 +426,7 @@ end
 
 
 -- Shows a list of all the approved areas.
-function HandleCmdListApprovedAreas(a_Split, a_Player)
+function HandleCmdListApproved(a_Split, a_Player)
 	-- /ge list [GroupName]
 	
 	local Areas = nil
@@ -438,7 +438,7 @@ function HandleCmdListApprovedAreas(a_Split, a_Player)
 		
 		-- Check if the group actualy exists.
 		if ((Areas == nil) or (Areas[1] == nil)) then
-			a_Player:SendMessage("The group \"" .. GroupName .. "\" doesn't have any areas.")
+			a_Player:SendMessage("There are no approved areas in group \"" .. GroupName .. "\".")
 			return true
 		end		
 	else
@@ -449,28 +449,21 @@ function HandleCmdListApprovedAreas(a_Split, a_Player)
 	-- Send a message with the list of approved areas.
 	a_Player:SendMessage("There are " .. #Areas .. " approved areas:")
 	
-	-- Sort by galleryname.
+	-- Sort by ExportGroupName:
 	table.sort(Areas, 
 		function(a_Area1, a_Area2)
-			-- The galleryname is the same. Compare the index
-			if (a_Area1.GalleryName == a_Area2.GalleryName) then
-				if (a_Area1.GalleryIndex > a_Area2.GalleryIndex) then
-					return false
-				else
-					return true
-				end
+			-- If the ExportGroupName is the same, compare the ID:
+			if (a_Area1.ExportGroupName == a_Area2.ExportGroupName) then
+				return (a_Area1.ID < a_Area2.ID)
 			end
 			
-			if (a_Area1.GalleryName > a_Area2.GalleryName) then
-				return false
-			else
-				return true
-			end
+			-- The GalleryName is different, use that
+			return (a_Area1.ExportGroupName < a_Area2.ExportGroupName)
 		end
 	)
 	
 	-- Show the list of areas.
-	for Idx, Area in ipairs(Areas) do
+	for _, Area in ipairs(Areas) do
 		a_Player:SendMessage(Area.Name)
 	end
 	
