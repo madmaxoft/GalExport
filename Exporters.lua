@@ -120,7 +120,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 			end  -- for x
 			ins(Level, "\t\"")
 			ins(Level, Line)
-			ins(Level, "\",\n")
+			ins(Level, "\"\n")
 			Line = ""
 		end  -- for z
 		ins(Levels, con(Level))
