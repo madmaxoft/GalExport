@@ -86,7 +86,7 @@ function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 					-- Send the failure msg to the player:
 					cRoot:Get():FindAndDoWithPlayer(PlayerName,
 						function (a_Player)
-							a_Player:SendMessage(cCompositeChat(a_MsgFailure):SetMessageType(mtFailure))
+							a_Player:SendMessage(cCompositeChat(a_MsgFail):SetMessageType(mtFailure))
 						end
 					)
 				end
