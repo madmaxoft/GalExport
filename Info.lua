@@ -164,6 +164,11 @@ and edited with the help of WorldEdit and its WECUI link.
 							Params = "GroupName",
 							Help = "Shows only the approved areas from the given group",
 						},
+						
+						{
+							Params = "",
+							Help = "Shows all the approved areas from every group",
+						},
 					},
 				},
 			},  -- Subcommands
