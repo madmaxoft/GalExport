@@ -424,3 +424,39 @@ end
 
 
 
+
+-- Shows a list of all the approved areas.
+function HandleCmdListApprovedAreas(a_Split, a_Player)
+	-- /ge list [GroupName]
+	
+	local Areas = nil
+	if (#a_Split > 2) then
+		local GroupName = table.concat(a_Split, " ", 3)
+		
+		-- Get all the approved areas in the given group.
+		Areas = g_DB:GetApprovedAreasInGroup(GroupName)
+		
+		-- Check if the group actualy exists.
+		if (Areas == nil) then
+			a_Player:SendMessage("The group \"" .. GroupName .. "\" doesn't exist.")
+			return true
+		end		
+	else
+		-- Get all the approved areas from all the groups.
+		Areas = g_DB:GetAllApprovedAreas()
+	end
+	
+	-- Send a message with the list of approved areas.
+	a_Player:SendMessage("There are " .. #Areas .. " approved areas:")
+	
+	-- Show the list of areas.
+	for Idx, Area in ipairs(Areas) do
+		a_Player:SendMessage(Area.Name)
+	end
+	
+	return true
+end
+
+
+
+

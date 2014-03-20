@@ -152,6 +152,20 @@ and edited with the help of WorldEdit and its WECUI link.
 						},  -- rename
 					},  -- Subcommands
 				},  -- group
+				
+				listapproved =
+				{
+					HelpString = "Shows a list of all the approved areas.",
+					Permission = "galexport.listapproved",
+					Alias = {"la", "list"},
+					ParameterCombinations =
+					{
+						{
+							Params = "GroupName",
+							Help = "Shows only the approved areas from the given group",
+						},
+					},
+				},
 			},  -- Subcommands
 		},  -- ["/ge"]
 	},  -- Commands
