@@ -452,7 +452,16 @@ function HandleCmdListApprovedAreas(a_Split, a_Player)
 	-- Sort by galleryname.
 	table.sort(Areas, 
 		function(a_Area1, a_Area2)
-			if (string.byte(a_Area1.GalleryName) > string.byte(a_Area2.GalleryName)) then
+			-- The galleryname is the same. Compare the index
+			if (a_Area1.GalleryName == a_Area2.GalleryName) then
+				if (a_Area1.GalleryIndex > a_Area2.GalleryIndex) then
+					return false
+				else
+					return true
+				end
+			end
+			
+			if (a_Area1.GalleryName > a_Area2.GalleryName) then
 				return false
 			else
 				return true
