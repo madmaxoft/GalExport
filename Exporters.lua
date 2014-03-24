@@ -137,7 +137,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 		local BlockType = math.floor(blk / 16)
 		local BlockMeta = blk - 16 * BlockType
 		ins(LetterToBlockDef, string.format(
-			"\t\"%s:%3d:%2d\"  /* %s */",
+			"\t\"%s:%3d:%2d\\n\"  /* %s */",
 			ltr, BlockType, BlockMeta, ItemTypeToString(BlockType)
 		))
 	end
