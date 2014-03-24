@@ -27,8 +27,9 @@ function Initialize(a_Plugin)
 	-- Initialize the DB storage:
 	InitStorage()
 
-	-- Initialize in-game commands:
+	-- Initialize commands:
 	RegisterPluginInfoCommands()
+	RegisterPluginInfoConsoleCommands()
 	
 	return true
 end

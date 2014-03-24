@@ -175,6 +175,28 @@ and edited with the help of WorldEdit and its WECUI link.
 			},  -- Subcommands
 		},  -- ["/ge"]
 	},  -- Commands
+	
+	ConsoleCommands =
+	{
+		ge =
+		{
+			HelpString = "Exports the gallery areas marked as approved",
+			Subcommands =
+			{
+				all =
+				{
+					HelpString = "Exports all the approved areas",
+					Handler = HandleConExportAll,
+				},
+				
+				group =
+				{
+					HelpString = "Exports the approved areas in the specified group",
+					Handler = HandleConExportGroup,
+				},
+			}
+		}
+	},  -- ConsoleCommands
 }  -- g_PluginInfo
 				
 

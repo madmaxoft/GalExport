@@ -45,11 +45,12 @@ end
 -- a_Player is the player who asked for the export, they will get the completion message
 -- a_MsgSuccess is the message to send on success
 -- a_MsgFail is the message to send on failure, with possibly the reason appended to it
+-- Function is used from ConsoleCommands as well, with a_Player being set to nil
 function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 	-- Check params:
 	assert(type(a_Areas) == "table")
 	assert(type(a_Format) == "string")
-	assert(tolua.type(a_Player) == "cPlayer")
+	assert((a_Player == nil) or (tolua.type(a_Player) == "cPlayer"))
 	assert(type(a_MsgSuccess) == "string")
 	assert(type(a_MsgFail) == "string")
 	
@@ -58,19 +59,28 @@ function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 	assert(Exporter ~= nil)
 	
 	-- Remember the player name, so that we can get to them later on:
-	local PlayerName = a_Player:GetName()
-	a_Player:SendMessage(cCompositeChat("Exporting " .. #a_Areas .. " areas..."):SetMessageType(mtInformation))
+	local PlayerName
+	if (a_Player ~= nil) then
+		PlayerName = a_Player:GetName()
+		a_Player:SendMessage(cCompositeChat("Exporting " .. #a_Areas .. " areas..."):SetMessageType(mtInformation))
+	else
+		LOGINFO("Exporting " .. #a_Areas .. " areas...")
+	end
 	
 	-- Create a closure that queues one area for export and leaves the rest for after the export finishes:
 	local function QueueExport(a_Areas)
 		-- If there's no more areas to export, bail out:
 		if (a_Areas[1] == nil) then
-			-- Send the success message to the player:
-			cRoot:Get():FindAndDoWithPlayer(PlayerName,
-				function (a_Player)
-					a_Player:SendMessage(cCompositeChat(a_MsgSuccess):SetMessageType(mtInformation))
-				end
-			)
+			-- Send the success message to the player / console:
+			if (PlayerName ~= nil) then
+				cRoot:Get():FindAndDoWithPlayer(PlayerName,
+					function (a_Player)
+						a_Player:SendMessage(cCompositeChat(a_MsgSuccess):SetMessageType(mtInformation))
+					end
+				)
+			else
+				LOGINFO(a_MsgSuccess)
+			end
 			return
 		end
 		
@@ -83,12 +93,16 @@ function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 					-- Queue another area for export:
 					QueueExport(a_Areas)
 				else
-					-- Send the failure msg to the player:
-					cRoot:Get():FindAndDoWithPlayer(PlayerName,
-						function (a_Player)
-							a_Player:SendMessage(cCompositeChat(a_MsgFail):SetMessageType(mtFailure))
-						end
-					)
+					-- Send the failure msg to the player / console:
+					if (PlayerName ~= nil) then
+						cRoot:Get():FindAndDoWithPlayer(PlayerName,
+							function (a_Player)
+								a_Player:SendMessage(cCompositeChat(a_MsgFail):SetMessageType(mtFailure))
+							end
+						)
+					else
+						LOGWARNING(a_MsgFail)
+					end
 				end
 			end
 		)
