@@ -72,11 +72,21 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	assert(tolua.type(a_BlockArea) == "cBlockArea")
 	assert(type(a_AreaDef) == "table")
 	
+	-- Decide the area's export name
+	local ExportName
+	if (a_AreaDef.ExportName and (a_AreaDef.ExportName ~= "")) then
+		ExportName = a_AreaDef.ExportName
+	else
+		ExportName = a_AreaDef.ExportGroupName ..  "_" .. a_AreaDef.ID
+	end
+	
 	-- Write the header:
-	local res = { "// ", a_AreaDef.ExportGroupName, "/", a_AreaDef.ID, ".cpp\n\n",
-		"// WARNING! This file has been generated automatically by GalExport. Any changes you make will be lost on next export!\n\n",
-		"static const cPrefab::sDef g_", a_AreaDef.ExportGroupName, "_", a_AreaDef.ID, " =\n{\n",
+	local res = { "// ", a_AreaDef.ExportGroupName, "/", a_AreaDef.ExportName or a_AreaDef.ID, ".cpp\n\n",
+		"// WARNING! This file has been generated automatically by GalExport. Any changes you make will be lost on next export!\n",
+		"// The file has been exported from gallery ", a_AreaDef.GalleryName, ", area index ", a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, "\n\n",
+		"static const cPrefab::sDef g_", ExportName, " =\n{\n",
 	}
+	
 	local ins = table.insert
 	local con = table.concat
 
@@ -143,7 +153,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	end
 	table.sort(LetterToBlockDef)
 	ins(res, "\t// Block definitions:\n")
-	ins(res, con(LetterToBlockDef, " \\\n"))
+	ins(res, con(LetterToBlockDef, "\n"))
 	ins(res, ",\n")
 	
 	-- Write the block data:
@@ -170,7 +180,7 @@ local function ExportSchematic(a_AreaDef, a_Callback)
 			cFile:CreateFolder(g_Config.ExportFolder)
 			local FileName = g_Config.ExportFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
 			cFile:CreateFolder(FileName)
-			FileName = FileName .. a_AreaDef.ID .. ".schematic"
+			FileName = FileName .. (a_AreaDef.ExportName or a_AreaDef.ID) .. ".schematic"
 			local IsSuccess = a_BlockArea:SaveToSchematicFile(FileName)
 			if (a_Callback ~= nil) then
 				a_Callback(IsSuccess)
@@ -196,7 +206,7 @@ local function ExportCpp(a_AreaDef, a_Callback)
 		cFile:CreateFolder(g_Config.ExportFolder)
 		local FileName = g_Config.ExportFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
 		cFile:CreateFolder(FileName)
-		FileName = FileName .. a_AreaDef.ID .. ".cpp"
+		FileName = FileName .. (a_AreaDef.ExportName or a_AreaDef.ID) .. ".cpp"
 		
 		-- Convert the BlockArea into a cpp source:
 		local Txt, Msg = MakeCppSource(a_BlockArea, a_AreaDef)

@@ -29,13 +29,14 @@ end
 -- If the area is already approved, returns false, the name of the approver, date approved and the group name
 -- If any of the DB queries fail, returns nil.
 -- Returns true on success
-function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid)
+function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid, a_AreaName)
 	-- Check params:
 	assert(self ~= nil)
 	assert(tonumber(a_AreaID) ~= nil)
 	assert(type(a_PlayerName) == "string")
 	assert(type(a_GroupName) == "string")
 	assert(tolua.type(a_ExportCuboid) == "cCuboid")
+	assert((a_AreaName == nil) or (type(a_AreaName) == "string"))
 	
 	-- Check if the area is already approved:
 	local Info = nil
@@ -57,11 +58,11 @@ function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid)
 	
 	-- Set as approved:
 	IsSuccess = self:ExecuteStatement(
-		"UPDATE Areas SET IsApproved = 1, ApprovedBy = ?, DateApproved = ?, ExportGroupName = ?, \
+		"UPDATE Areas SET IsApproved = 1, ApprovedBy = ?, DateApproved = ?, ExportGroupName = ?, ExportName = ?, \
 		ExportMinX = ?, ExportMinY = ?, ExportMinZ = ?, ExportMaxX = ?, ExportMaxY = ?, ExportMaxZ = ? \
 		WHERE ID = ?",
 		{
-			a_PlayerName, FormatDateTime(os.time()), a_GroupName,
+			a_PlayerName, FormatDateTime(os.time()), a_GroupName, a_AreaName or "",
 			a_ExportCuboid.p1.x, a_ExportCuboid.p1.y, a_ExportCuboid.p1.z,
 			a_ExportCuboid.p2.x, a_ExportCuboid.p2.y, a_ExportCuboid.p2.z,
 			a_AreaID
@@ -331,6 +332,26 @@ end
 
 
 
+--- Sets the area's ExportName
+-- Returns false and error message on failure, or true on success
+function SQLite:SetAreaExportName(a_AreaID, a_AreaName)
+	-- Check params:
+	assert(self ~= nil)
+	assert(tonumber(a_AreaID) ~= nil)
+	assert(type(a_AreaName) == "string")
+	
+	return self:ExecuteStatement(
+		"UPDATE Areas SET ExportName = ? WHERE ID = ?",
+		{
+			a_AreaName, a_AreaID
+		}
+	)
+end
+
+
+
+
+
 --- Returns true if the table exists in the DB
 function SQLite:TableExists(a_TableName)
 	-- Check params:
@@ -399,7 +420,8 @@ function SQLite_CreateStorage(a_Params)
 		"ApprovedBy",                              -- Name of the admin who approved the area
 		"ExportMinX", "ExportMinY", "ExportMinZ",  -- The min coords of the exported area
 		"ExportMaxX", "ExportMaxY", "ExportMaxZ",  -- The max coords of the exported area
-		"ExportGroupName"                          -- The name of the group to which this area belongs
+		"ExportGroupName",                         -- The name of the group to which this area belongs
+		"ExportName",                              -- The name of the area to use for export. If NULL, the ID is used
 	}
 	if (
 		not(DB:TableExists("Areas")) or

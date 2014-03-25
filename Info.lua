@@ -171,7 +171,22 @@ and edited with the help of WorldEdit and its WECUI link.
 							Help = "Shows all the approved areas from every group",
 						},
 					},
-				},
+				},  -- listapproved
+				
+				name =
+				{
+					HelpString = "Sets the export name for the approved area you're standing in",
+					Permission = "galexport.name",
+					Alias = "n",
+					Handler = HandleCmdName,
+					ParameterCombinations =
+					{
+						{
+							Params = "Name",
+							Help = "Sets the export name for the approved area you're standing in",
+						},
+					},
+				},  -- name
 			},  -- Subcommands
 		},  -- ["/ge"]
 	},  -- Commands

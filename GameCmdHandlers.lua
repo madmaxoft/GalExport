@@ -124,11 +124,12 @@ function HandleCmdApprove(a_Split, a_Player)
 		a_Player:SendMessage(cCompositeChat():SetMessageType(mtFailure)
 			:AddTextPart("Usage: ")
 			:AddSuggestCommandPart(g_Config.CommandPrefix .. " approve ", g_Config.CommandPrefix .. " approve ")
-			:AddTextPart("GroupName", "@2")
+			:AddTextPart("GroupName [AreaName]", "@2")
 		)
 		return true
 	end
 	local GroupName = a_Split[3]
+	local AreaName = a_Split[4]
 	
 	-- Get the area ident:
 	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
@@ -161,7 +162,7 @@ function HandleCmdApprove(a_Split, a_Player)
 	
 	-- Write the approval in the DB:
 	local ret2, ret3, ret4
-	IsSuccess, ret2, ret3, ret4 = g_DB:ApproveArea(Area.ID, a_Player:GetName(), GroupName, SelCuboid)
+	IsSuccess, ret2, ret3, ret4 = g_DB:ApproveArea(Area.ID, a_Player:GetName(), GroupName, SelCuboid, AreaName)
 	if (IsSuccess == nil) then
 		a_Player:SendMessage(cCompositeChat():SetMessageType(mtFailure):AddTextPart("Cannot approve, " .. (ret2 or "DB failure")))
 		return true
@@ -481,6 +482,38 @@ function HandleCmdListApproved(a_Split, a_Player)
 		a_Player:SendMessage(Area.Name)
 	end
 	
+	return true
+end
+
+
+
+
+
+function HandleCmdName(a_Split, a_Player)
+	-- /ge name <AreaName>
+	
+	-- Check params:
+	if (a_Split[3] == nil) then
+		a_Player:SendMessage(cCompositeChat():SetMessageType(mtFailure)
+			:AddTextPart("Usage: ")
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " group rename ", g_Config.CommandPrefix .. " group rename ")
+			:AddTextPart("FromName ToName", "@2")
+		)
+		return true
+	end
+	local AreaName = a_Split[3]
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+		a_Player:SendMessage(cCompositeChat("Cannot name, there is no approved area here."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Rename the area:
+	g_DB:SetAreaExportName(Area.ID, AreaName)
+	a_Player:SendMessage(cCompositeChat("Area renamed to " .. AreaName):SetMessageType(mtInfo))
 	return true
 end
 
