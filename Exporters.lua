@@ -180,7 +180,11 @@ local function ExportSchematic(a_AreaDef, a_Callback)
 			cFile:CreateFolder(g_Config.ExportFolder)
 			local FileName = g_Config.ExportFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
 			cFile:CreateFolder(FileName)
-			FileName = FileName .. (a_AreaDef.ExportName or a_AreaDef.ID) .. ".schematic"
+			local ExportName = a_AreaDef.ExportName
+			if ((ExportName == nil) or (ExportName == "")) then
+				ExportName = a_AreaDef.ID
+			end
+			FileName = FileName .. ExportName .. ".schematic"
 			local IsSuccess = a_BlockArea:SaveToSchematicFile(FileName)
 			if (a_Callback ~= nil) then
 				a_Callback(IsSuccess)
@@ -206,7 +210,11 @@ local function ExportCpp(a_AreaDef, a_Callback)
 		cFile:CreateFolder(g_Config.ExportFolder)
 		local FileName = g_Config.ExportFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
 		cFile:CreateFolder(FileName)
-		FileName = FileName .. (a_AreaDef.ExportName or a_AreaDef.ID) .. ".cpp"
+		local ExportName = a_AreaDef.ExportName
+		if ((ExportName == nil) or (ExportName == "")) then
+			ExportName = a_AreaDef.ID
+		end
+		FileName = FileName .. ExportName .. ".cpp"
 		
 		-- Convert the BlockArea into a cpp source:
 		local Txt, Msg = MakeCppSource(a_BlockArea, a_AreaDef)
