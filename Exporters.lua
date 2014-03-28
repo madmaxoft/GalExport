@@ -83,7 +83,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	-- Write the header:
 	local res = { "// ", a_AreaDef.ExportGroupName, "/", a_AreaDef.ExportName or a_AreaDef.ID, ".cpp\n\n",
 		"// WARNING! This file has been generated automatically by GalExport. Any changes you make will be lost on next export!\n",
-		"// The file has been exported from gallery ", a_AreaDef.GalleryName, ", area index ", a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, "\n\n",
+		"// The data has been exported from gallery ", a_AreaDef.GalleryName, ", area index ", a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, "\n\n",
 		"static const cPrefab::sDef g_", ExportName, " =\n{\n",
 	}
 	
@@ -96,9 +96,10 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	--]]
 	
 	-- Prepare the tables used for blockdef-counting:
-	local BlockToLetter = {}  -- dict: BlockDef -> Letter
-	local LetterToBlock = {}  -- dict: Letter -> BlockDef
-	local Letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,.<>/?;[{]}|_-=+~"  -- Letters that can be used in the definition
+	-- Force use "." for air, so insert it here already
+	local BlockToLetter = {[0] = "."}  -- dict: BlockDef -> Letter
+	local LetterToBlock = {["."] = 0}  -- dict: Letter -> BlockDef
+	local Letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,<>/?;[{]}|_-=+~"  -- Letters that can be used in the definition
 	local MaxLetters = string.len(Letters)
 	local LastLetterIdx = 1   -- Index into Letters for the next letter to use for new BlockDef
 	
