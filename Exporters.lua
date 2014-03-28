@@ -98,7 +98,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	-- Prepare the tables used for blockdef-counting:
 	local BlockToLetter = {}  -- dict: BlockDef -> Letter
 	local LetterToBlock = {}  -- dict: Letter -> BlockDef
-	local Letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,.<>/?;:[{]}|_-=+~"  -- Letters that can be used in the definition
+	local Letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,.<>/?;[{]}|_-=+~"  -- Letters that can be used in the definition
 	local MaxLetters = string.len(Letters)
 	local LastLetterIdx = 1   -- Index into Letters for the next letter to use for new BlockDef
 	
