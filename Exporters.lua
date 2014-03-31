@@ -107,18 +107,18 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	-- Create a horizontal ruler text, used on each level:
 	local HorzRuler = {"\t/*    *   "}
 	if (SizeX > 9) then
-		for z = 0, SizeZ - 1 do
-			if (z < 10) then
+		for x = 0, SizeX - 1 do
+			if (x < 10) then
 				ins(HorzRuler, " ")
 			else
-				ins(HorzRuler, string.format("%d", math.floor(z / 10)))
+				ins(HorzRuler, string.format("%d", math.floor(x / 10)))
 			end
 		end
 		ins(HorzRuler, " */\n")
-		ins(HorzRuler, "\t/* x\\z*   ")
+		ins(HorzRuler, "\t/* z\\x*   ")
 	end
-	for z = 0, SizeZ - 1 do
-		ins(HorzRuler, string.format("%d", z - 10 * math.floor(z / 10)))
+	for x = 0, SizeX - 1 do
+		ins(HorzRuler, string.format("%d", x - 10 * math.floor(x / 10)))
 	end
 	ins(HorzRuler, " */\n")
 	local HorzRulerText = con(HorzRuler)
