@@ -129,7 +129,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	for y = 0, SizeY - 1 do
 		local Level = {}
 		ins(Level, "\t// Level ")
-		ins(Level, y + 1)
+		ins(Level, y)
 		ins(Level, "\n")
 		ins(Level, HorzRulerText)
 		for z = 0, SizeZ - 1 do
