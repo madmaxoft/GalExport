@@ -102,9 +102,28 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	local Letters = "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,<>/?;[{]}|_-=+~"  -- Letters that can be used in the definition
 	local MaxLetters = string.len(Letters)
 	local LastLetterIdx = 1   -- Index into Letters for the next letter to use for new BlockDef
-	
-	-- Transform blocktypes to letters:
 	local SizeX, SizeY, SizeZ = a_BlockArea:GetSize()
+	
+	-- Create a horizontal ruler text, used on each level:
+	local HorzRuler = {"\t/*    *   "}
+	if (SizeX > 9) then
+		for z = 0, SizeZ - 1 do
+			if (z < 10) then
+				ins(HorzRuler, " ")
+			else
+				ins(HorzRuler, string.format("%d", math.floor(z / 10)))
+			end
+		end
+		ins(HorzRuler, " */\n")
+		ins(HorzRuler, "\t/* x\\z*   ")
+	end
+	for z = 0, SizeZ - 1 do
+		ins(HorzRuler, string.format("%d", z - 10 * math.floor(z / 10)))
+	end
+	ins(HorzRuler, " */\n")
+	local HorzRulerText = con(HorzRuler)
+
+	-- Transform blocktypes to letters:
 	local def = {}
 	local Levels = {}
 	for y = 0, SizeY - 1 do
@@ -112,6 +131,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 		ins(Level, "\t// Level ")
 		ins(Level, y + 1)
 		ins(Level, "\n")
+		ins(Level, HorzRulerText)
 		for z = 0, SizeZ - 1 do
 			local Line = ""
 			for x = 0, SizeX - 1 do
@@ -129,7 +149,9 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 				end
 				Line = Line .. MyLetter
 			end  -- for x
-			ins(Level, "\t\"")
+			ins(Level, "\t/* ")
+			ins(Level, string.format("%2d", z))
+			ins(Level, " */ \"")
 			ins(Level, Line)
 			ins(Level, "\"\n")
 			Line = ""
