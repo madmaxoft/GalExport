@@ -96,10 +96,10 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	--]]
 	
 	-- Prepare the tables used for blockdef-counting:
-	-- Force use "." for air, so insert it here already
-	local BlockToLetter = {[0] = "."}  -- dict: BlockDef -> Letter
-	local LetterToBlock = {["."] = 0}  -- dict: Letter -> BlockDef
-	local Letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,<>/?;[{]}|_-=+~"  -- Letters that can be used in the definition
+	-- Force use "." for air and "m" for sponge, so insert it here already
+	local BlockToLetter = {[E_BLOCK_AIR * 16] = ".", [E_BLOCK_SPONGE * 16] = "m"}  -- dict: BlockDef -> Letter
+	local LetterToBlock = {["."] = E_BLOCK_AIR * 16, ["m"] = E_BLOCK_SPONGE * 16}  -- dict: Letter -> BlockDef
+	local Letters = "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,<>/?;[{]}|_-=+~"  -- Letters that can be used in the definition
 	local MaxLetters = string.len(Letters)
 	local LastLetterIdx = 1   -- Index into Letters for the next letter to use for new BlockDef
 	
