@@ -27,17 +27,8 @@ local function DoWithArea(a_AreaDef, a_Callback)
 	assert(type(a_AreaDef) == "table")
 	assert(type(a_Callback) == "function")
 	
-	-- Calculate the chunk range needed:
-	local MinChunkX = math.floor(a_AreaDef.ExportMinX / 16)
-	local MinChunkZ = math.floor(a_AreaDef.ExportMinZ / 16)
-	local MaxChunkX = math.floor((a_AreaDef.ExportMaxX + 15) / 16)
-	local MaxChunkZ = math.floor((a_AreaDef.ExportMaxZ + 15) / 16)
-
-	-- Make a list of the needed chunks:
-	local Chunks = {}
-	for x = MinChunkX, MaxChunkX do for z = MinChunkZ, MaxChunkZ do
-		table.insert(Chunks, {x, z})
-	end end
+	-- Get the array of chunks that need to be loaded:
+	local Chunks = GetChunksForAreaExport(a_AreaDef)
 	assert(Chunks[1] ~= nil)  -- There must be at least 1 chunk in the table
 	
 	-- Create a cuboid for the exported coords:
@@ -53,6 +44,16 @@ local function DoWithArea(a_AreaDef, a_Callback)
 		function ()  -- Callback for OnAllChunksAvailable
 			local BA = cBlockArea()
 			if (BA:Read(World, Bounds, cBlockArea.baTypes + cBlockArea.baMetas)) then
+				-- Merge the sponges into the area:
+				local Sponges = g_DB:GetSpongesForArea(a_AreaDef.ID)
+				if (Sponges ~= nil) then
+					local OfsX = a_AreaDef.MinX - a_AreaDef.ExportMinX
+					local OfsY =                - a_AreaDef.ExportMinY
+					local OfsZ = a_AreaDef.MinZ - a_AreaDef.ExportMinZ
+					BA:Merge(Sponges, OfsX, OfsY, OfsZ, cBlockArea.msFillAir)
+				end
+				
+				-- Call the callback:
 				a_Callback(BA)
 			else
 				LOGWARNING("DoWithArea: Failed to read the cBlockArea")

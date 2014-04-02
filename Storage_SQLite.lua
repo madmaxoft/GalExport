@@ -311,6 +311,42 @@ end
 
 
 
+--- Retrieves the sponges for the specified area
+-- Returns a cBlockArea representing the whole area (MinX to MaxX etc), where sponges should be put
+-- Returns nil and message on error
+function SQLite:GetSpongesForArea(a_AreaID)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+
+	-- Load data from DB:
+	local SpongeSchematic
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT Sponges FROM ExportSponges WHERE AreaID = ?",
+		{
+			AreaID
+		},
+		function (a_Values)
+			SpongeSchematic = a_Values.Sponges
+		end
+	)
+	if not(IsSuccess) then
+		return nil, Msg
+	end
+	
+	-- Create the block area from the data:
+	local Sponges = cBlockArea()
+	if not(Sponges:LoadFromSchematicString(Base64Decode(SpongeSchematic))) then
+		return nil, "Cannot decode the stored schematic"
+	end
+	return Sponges
+end
+
+
+
+
+
 --- Renames the group in the DB, by overwriting the group name of all areas that use the a_FromName
 -- Returns false and error message on failure, or true on success
 function SQLite:RenameGroup(a_FromName, a_ToName)
@@ -400,6 +436,52 @@ end
 
 
 
+
+--- Updates all the sponges in the DB for the selected area
+-- a_SpongedBlockArea is the area containing the sponge blocks; the sponge blocks are extracted and saved to DB
+-- Returns true on success, false and message on failure
+function SQLite:UpdateAreaSponges(a_AreaID, a_SpongedBlockArea)
+	-- Check the params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	assert(tolua.type(a_SpongedBlockArea) == "cBlockArea")
+	
+	-- Remove all existing sponges for the specified area:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"DELETE FROM ExportSponges WHERE AreaID = ?",
+		{
+			AreaID
+		}
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	
+	-- Create a block area that has sponges where a_SpongedBlockArea has sponges, and air everywhere else:
+	local BA = cBlockArea()
+	BA:CopyFrom(a_SpongedBlockArea)
+	BA:Fill(cBlockArea.baTypes + cBlockArea.baMetas, E_BLOCK_SPONGE, 0)
+	BA:Merge(a_SpongedBlockArea, 0, 0, 0, cBlockArea.msMask)
+	local SchematicData = BA:SaveToSchematicString()
+	local AreaRep = Base64Encode(SchematicData)
+	
+	-- Save the sponge area into the DB:
+	IsSuccess, Msg = self:ExecuteStatement(
+		"INSERT INTO ExportSponges (AreaID, Sponges) VALUES (?, ?)",
+		{
+			AreaID,
+			AreaRep
+		}
+	)
+	BA:Clear();
+	return IsSuccess, Msg
+end
+
+
+
+
+
 function SQLite_CreateStorage(a_Params)
 	DB = SQLite
 	local DBFile = a_Params.File or "Galleries.sqlite"
@@ -415,7 +497,7 @@ function SQLite_CreateStorage(a_Params)
 	-- Create the tables, if they don't exist yet:
 	local AreasColumns =
 	{
-		"IsApproved",                              -- Simple 0 / 1
+		"IsApproved NUMBER",                       -- Simple 0 / 1
 		"DateApproved",                            -- ISO 8601 DateTime of the approving
 		"ApprovedBy",                              -- Name of the admin who approved the area
 		"ExportMinX", "ExportMinY", "ExportMinZ",  -- The min coords of the exported area
@@ -423,9 +505,15 @@ function SQLite_CreateStorage(a_Params)
 		"ExportGroupName",                         -- The name of the group to which this area belongs
 		"ExportName",                              -- The name of the area to use for export. If NULL, the ID is used
 	}
+	local ExportSpongesColumns =
+	{
+		"AreaID  INTEGER PRIMARY KEY",  -- ID of the area to which the sponges belong. Note that the area needn't be approved
+		"Sponges"                       -- BLOB containing the base64-ed .schematic representation of the sponges (just air + sponges)
+	}
 	if (
 		not(DB:TableExists("Areas")) or
-		not(DB:CreateDBTable("Areas", AreasColumns))
+		not(DB:CreateDBTable("Areas", AreasColumns)) or
+		not(DB:CreateDBTable("ExportSponges", ExportSpongesColumns))
 	) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot create DB tables!")
 		error("Cannot create DB tables!")

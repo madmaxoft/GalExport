@@ -72,15 +72,7 @@ function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 		-- If there's no more areas to export, bail out:
 		if (a_Areas[1] == nil) then
 			-- Send the success message to the player / console:
-			if (PlayerName ~= nil) then
-				cRoot:Get():FindAndDoWithPlayer(PlayerName,
-					function (a_Player)
-						a_Player:SendMessage(cCompositeChat(a_MsgSuccess):SetMessageType(mtInformation))
-					end
-				)
-			else
-				LOGINFO(a_MsgSuccess)
-			end
+			SendPlayerMessage(PlayerName, cCompositeChat(a_MsgSuccess):SetMessageType(mtInformation))
 			return
 		end
 		
@@ -94,15 +86,7 @@ function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 					QueueExport(a_Areas)
 				else
 					-- Send the failure msg to the player / console:
-					if (PlayerName ~= nil) then
-						cRoot:Get():FindAndDoWithPlayer(PlayerName,
-							function (a_Player)
-								a_Player:SendMessage(cCompositeChat(a_MsgFail):SetMessageType(mtFailure))
-							end
-						)
-					else
-						LOGWARNING(a_MsgFail)
-					end
+					SendPlayerMessage(cCompositeChat(a_MsgFail):SetMessageType(mtFailure))
 				end
 			end
 		)
@@ -112,6 +96,18 @@ function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
 	QueueExport(a_Areas)
 	
 	return true
+end
+
+
+
+
+
+--- Removes each sponge block in the block area, replacing it with air
+function HideSponge(a_BlockArea)
+	assert(tolua.type(a_BlockArea) == "cBlockArea")
+
+	local SizeX, SizeY, SizeZ = a_BlockArea:GetSize()
+	-- TODO
 end
 
 
@@ -515,6 +511,173 @@ function HandleCmdName(a_Split, a_Player)
 	g_DB:SetAreaExportName(Area.ID, AreaName)
 	a_Player:SendMessage(cCompositeChat("Area renamed to " .. AreaName):SetMessageType(mtInfo))
 	return true
+end
+
+
+
+
+
+function HandleCmdSpongeHide(a_Split, a_Player)
+	-- /ge sponge hide
+	
+	-- Store the value for the ChunkStay callback, when this function is already out of scope:
+	local PlayerName = a_Player:GetName()
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+		a_Player:SendMessage(cCompositeChat("Cannot hide sponge, there is no gallery area here."):SetMessageType(mtFailure))
+		return true
+	end
+	
+	-- Create a cuboid for the area coords:
+	local Bounds = cCuboid(
+		Area.MinX, 0,   Area.MinZ,
+		Area.MaxX, 255, Area.MaxZ
+	)
+	
+	-- Read the area's blocks:
+	local Chunks = GetChunksForRect(Area.MinX, Area.MinZ, Area.MaxX, Area.MaxZ)
+	assert(Chunks[1] ~= nil)  -- At least one chunk needs to be there
+	local World = cRoot:Get():GetWorld(Area.WorldName)
+	a_Player:SendMessage(cCompositeChat("Hiding sponge, please stand by...", mtInfo))
+	World:ChunkStay(Chunks,
+		function (a_ChunkX, a_ChunkZ)
+			-- OnChunkAvailable, not needed
+		end,
+		function ()
+			-- OnAllChunksAvailable
+			-- Read the area:
+			local BA = cBlockArea()
+			BA:Read(World, Bounds, cBlockArea.baTypes + cBlockArea.baMetas)
+			
+			-- Remove the sponge blocks, by merging them using the msSpongePrint strategy:
+			local BA2 = cBlockArea()
+			local SizeX, SizeY, SizeZ = BA:GetSize()
+			BA2:Create(SizeX, SizeY, SizeZ, cBlockArea.baTypes + cBlockArea.baMetas)
+			BA2:Merge(BA, 0, 0, 0, cBlockArea.msSpongePrint)
+			BA2:Write(World, Bounds.p1)
+			SendPlayerMessage(PlayerName, cCompositeChat("Sponge hidden", mtInfo))
+			
+			-- Remove the block areas' data from RAM, not to wait for Lua's GC:
+			BA:Clear()
+			BA2: Clear()
+		end
+	)
+end
+
+
+
+
+
+function HandleCmdSpongeSave(a_Split, a_Player)
+	-- /ge sponge save
+	
+	-- Store the value for the ChunkStay callback, when this function is already out of scope:
+	local PlayerName = a_Player:GetName()
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+		a_Player:SendMessage(cCompositeChat("Cannot save sponge, there is no gallery area here."):SetMessageType(mtFailure))
+		return true
+	end
+	local AreaID = Area.ID
+	
+	-- Create a cuboid for the area coords:
+	local Bounds = cCuboid(
+		Area.MinX, 0,   Area.MinZ,
+		Area.MaxX, 255, Area.MaxZ
+	)
+	
+	-- Read the area's blocks:
+	local Chunks = GetChunksForRect(Area.MinX, Area.MinZ, Area.MaxX, Area.MaxZ)
+	assert(Chunks[1] ~= nil)  -- At least one chunk needs to be there
+	local World = cRoot:Get():GetWorld(Area.WorldName)
+	a_Player:SendMessage(cCompositeChat("Saving sponge, please stand by...", mtInfo))
+	World:ChunkStay(Chunks,
+		function (a_ChunkX, a_ChunkZ)
+			-- OnChunkAvailable, not needed
+		end,
+		function ()
+			-- OnAllChunksAvailable
+			-- Read the area:
+			local BA = cBlockArea()
+			BA:Read(World, Bounds, cBlockArea.baTypes + cBlockArea.baMetas)
+			
+			-- Save sponges to DB:
+			local IsSuccess, Msg = g_DB:UpdateAreaSponges(AreaID, BA)
+			BA:Clear()  -- Remove the area's data from the RAM, not to wait for Lua's GC
+			if not(IsSuccess) then
+				SendPlayerMessage(PlayerName, cCompositeChat("Cannot save sponge: " .. Msg, mtFailure))
+				return;
+			end
+			SendPlayerMessage(PlayerName, cCompositeChat("Sponge saved.", mtInfo))
+		end
+	)
+end
+
+
+
+
+
+function HandleCmdSpongeShow(a_Split, a_Player)
+	-- /ge sponge show
+	
+	-- Store the value for the ChunkStay callback, when this function is already out of scope:
+	local PlayerName = a_Player:GetName()
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+		a_Player:SendMessage(cCompositeChat("Cannot show sponge, there is no gallery area here."):SetMessageType(mtFailure))
+		return true
+	end
+	local AreaID = Area.ID
+	
+	-- Create a cuboid for the area coords:
+	local Bounds = cCuboid(
+		Area.MinX, 0,   Area.MinZ,
+		Area.MaxX, 255, Area.MaxZ
+	)
+	
+	-- Load the sponges from the DB:
+	local Sponges, Msg = g_DB:GetSpongesForArea(AreaID)
+	if (Sponges == nil) then
+		a_Player:SendMessage(cCompositeChat("Cannot show sponge, " .. Msg):SetMessageType(mtFailure))
+		return
+	end
+	
+	-- Load all the chunks for the area::
+	local Chunks = GetChunksForRect(Area.MinX, Area.MinZ, Area.MaxX, Area.MaxZ)
+	assert(Chunks[1] ~= nil)  -- At least one chunk needs to be there
+	local World = cRoot:Get():GetWorld(Area.WorldName)
+	a_Player:SendMessage(cCompositeChat("Showing sponge, please stand by...", mtInfo))
+	World:ChunkStay(Chunks,
+		function (a_ChunkX, a_ChunkZ)
+			-- OnChunkAvailable, not needed
+		end,
+		function ()
+			-- OnAllChunksAvailable
+			-- Read the current area:
+			local BA = cBlockArea();
+			BA:Read(World, Bounds, cBlockArea.baTypes + cBlockArea.baMetas)
+			
+			-- Merge the sponges in:
+			BA:Merge(Sponges, 0, 0, 0, cBlockArea.msFillAir)
+			
+			-- Write the area:
+			BA:Write(World, Bounds.p1.x, 0, Bounds.p1.z, cBlockArea.baTypes + cBlockArea.baMetas)
+			SendPlayerMessage(PlayerName, cCompositeChat("Sponge shown.", mtInfo))
+			
+			-- Remove the areas' data from RAM, not to wait for Lua's GC
+			BA:Clear()
+			Sponges:Clear()
+		end
+	)
 end
 
 

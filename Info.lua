@@ -187,6 +187,35 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},
 				},  -- name
+				
+				sponge =
+				{
+					HelpString = "Helps with \"sponging\" the areas for export",
+					DevNotes = "Note that the area needn't be approved, sponging works on non-approved areas, too",
+					Permission = "galexport.sponge",
+					Alias = {"sp", "s"},
+					Subcommands =
+					{
+						hide =
+						{
+							HelpString = "Hides the sponges for the current area, discarding the changes",
+							Handler = HandleCmdSpongeHide,
+							Alias = "h",
+						},
+						save =
+						{
+							HelpString = "Saves the sponges for the current area, overwriting anything stored before",
+							Handler = HandleCmdSpongeSave,
+							Alias = "sa",
+						},
+						show =
+						{
+							HelpString = "Shows the sponges for the current area",
+							Handler = HandleCmdSpongeShow,
+							Alias = "sh",
+						},
+					},  -- Subcommands
+				},  -- sponge
 			},  -- Subcommands
 		},  -- ["/ge"]
 	},  -- Commands
