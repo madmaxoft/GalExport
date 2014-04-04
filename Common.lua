@@ -7,6 +7,25 @@
 
 
 
+local s_DirectionToString =
+{
+	[BLOCK_FACE_XM] = "X-",
+	[BLOCK_FACE_XP] = "X+",
+	[BLOCK_FACE_YM] = "Y-",
+	[BLOCK_FACE_YP] = "Y+",
+	[BLOCK_FACE_ZM] = "Z-",
+	[BLOCK_FACE_ZP] = "Z+",
+}
+
+--- Returns a string representation of the direction
+function DirectionToString(a_Direction)
+	return s_DirectionToString[tonumber(a_Direction)]
+end
+
+
+
+
+
 --- Returns an array-table containing the chunk coords for all chunks intersecting the specified rectangle
 function GetChunksForRect(a_MinX, a_MinZ, a_MaxX, a_MaxZ)
 	-- Check params:
@@ -37,6 +56,36 @@ end
 --- Returns an array-table containing the chunk coords for all chunks intersecting the specified area's export rect
 function GetChunksForAreaExport(a_AreaDef)
 	return GetChunksForRect(a_AreaDef.ExportMinX, a_AreaDef.ExportMinZ, a_AreaDef.ExportMaxX, a_AreaDef.ExportMaxZ)
+end
+
+
+
+
+
+--- Returns the direction, represented as BLOCK_FACE_? constant, based on the player's pitch and yaw
+function GetDirectionFromPlayerRotation(a_PlayerPitch, a_PlayerYaw)
+	-- Check params:
+	local PlayerPitch = tonumber(a_PlayerPitch)
+	local PlayerYaw = tonumber(a_PlayerYaw)
+	assert(PlayerPitch ~= nil)
+	assert(PlayerYaw ~= nil)
+	
+	-- Decide on the direction:
+	if (PlayerPitch > 70) then
+		return BLOCK_FACE_YP
+	elseif (PlayerPitch < -70) then
+		return BLOCK_FACE_YM
+	else
+		if ((PlayerYaw < -135) or (PlayerYaw >= 135)) then
+			return BLOCK_FACE_ZM
+		elseif (PlayerYaw < -45) then
+			return BLOCK_FACE_XP
+		elseif (PlayerYaw < 45) then
+			return BLOCK_FACE_ZP
+		else
+			return BLOCK_FACE_XM
+		end
+	end
 end
 
 

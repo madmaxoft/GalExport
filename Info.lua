@@ -70,6 +70,66 @@ and edited with the help of WorldEdit and its WECUI link.
 					},  -- Subcommands
 				},  -- boundingbox
 				
+				connector =
+				{
+					HelpString = "Manipulates the connectors at individual areas",
+					Alias = {"conn", "c"},
+					Subcommands =
+					{
+						add =
+						{
+							HelpString = "Adds a new connector at your feet pos and head rotation",
+							Permission = "galexport.conn.add",
+							Alias = "a",
+							Handler = HandleCmdConnAdd,
+							ParameterCombinations =
+							{
+								{
+									Params = "Type",
+									Help = "Adds a new connector of the specified type at your feet pos and head rotation",
+								},
+							},
+						},
+						del =
+						{
+							HelpString = "Deletes a connector",
+							Permission = "galexport.conn.del",
+							Alias = {"d", "delete"},
+							Handler = HandleCmdConnDel,
+							ParameterCombinations =
+							{
+								Params = "",
+								Help = "Deletes the connector at your feet pos",
+							},
+							{
+								Params = "LocalID",
+								Help = "Deletes the specified connector at the current area",
+							},
+						},
+						["goto"] =  -- goto is a Lua keyword, so it needs to be "escaped"
+						{
+							HelpString = "Teleports you to the specified connector at the current area",
+							Permission = "galexport.conn.goto",
+							Alias = "g",
+							Handler = HandleCmdConnGoto,
+							ParameterCombinations =
+							{
+								{
+									Params = "LocalID",
+									Help = "Teleports you to the specified connector at the current area",
+								},
+							},
+						},
+						list =
+						{
+							HelpString = "Lists the connectors for the current area",
+							Permission = "galexport.conn.list",
+							Alias = {"l", "ls"},
+							Handler = HandleCmdConnList,
+						}
+					},  -- Subcommands
+				},  -- connector
+				
 				export =
 				{
 					HelpString = "Exports areas",

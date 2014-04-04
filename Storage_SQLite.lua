@@ -25,6 +25,44 @@ end
 
 
 
+--- Adds the specified connector to the DB
+-- Returns the connector ident on success, nil and message on failure
+function SQLite:AddConnector(a_AreaID, a_BlockX, a_BlockY, a_BlockZ, a_Direction, a_Type)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	assert(type(a_BlockX) == "number")
+	assert(type(a_BlockY) == "number")
+	assert(type(a_BlockZ) == "number")
+	assert(type(a_Direction) == "number")
+	assert(type(a_Type) == "number")
+	
+	-- Save connector to DB:
+	local RowID
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"INSERT INTO Connectors (AreaID, X, Y, Z, Direction, TypeNum) VALUES (?, ?, ?, ?, ?, ?)",
+		{
+			AreaID,
+			a_BlockX, a_BlockY, a_BlockZ,
+			a_Direction, a_Type
+		},
+		function (a_Values, a_RowID)
+			RowID = a_RowID
+		end
+	)
+	if not(IsSuccess) or not(RowID) then
+		return nil, Msg
+	end
+	
+	-- Return the connector ident by loading the area:
+	return self:GetConnectorByID(RowID)
+end
+
+
+
+
+
 --- Sets the area as approved by the specified player in the specified group and with the specified export cuboid
 -- If the area is already approved, returns false, the name of the approver, date approved and the group name
 -- If any of the DB queries fail, returns nil.
@@ -156,18 +194,44 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
 	assert(a_Params ~= nil)
 	assert(self.DB ~= nil)
 	
+	-- Prepare the statement (SQL-compile):
 	local Stmt, ErrCode, ErrMsg = self.DB:prepare(a_SQL)
 	if (Stmt == nil) then
-		LOGWARNING(PLUGIN_PREFIX .. "Cannot prepare SQL \"" .. a_SQL .. "\": " .. (ErrCode or "<unknown>") .. " (" .. (ErrMsg or "<no message>") .. ")")
+		ErrMsg = (ErrCode or "<unknown>") .. " (" .. (ErrMsg or "<no message>") .. ")"
+		LOGWARNING(PLUGIN_PREFIX .. "Cannot prepare SQL \"" .. a_SQL .. "\": " .. ErrMsg)
 		LOGWARNING(PLUGIN_PREFIX .. "  Params = {" .. table.concat(a_Params, ", ") .. "}")
-		return nil, (ErrMsg or "<no message>")
+		return nil, ErrMsg
 	end
-	Stmt:bind_values(unpack(a_Params))
+	
+	-- Bind the values into the statement:
+	ErrCode = Stmt:bind_values(unpack(a_Params))
+	if (ErrCode ~= sqlite3.OK) then
+		ErrMsg = (ErrCode or "<unknown>") .. " (" .. (self.DB:errmsg() or "<no message>") .. ")"
+		LOGWARNING(PLUGIN_PREFIX .. "Cannot bind values to statement \"" .. a_SQL .. "\": " .. ErrMsg)
+		Stmt:finalize()
+		return nil, ErrMsg
+	end
+	
+	-- Step the statement:
 	if (a_Callback == nil) then
-		Stmt:step()
+		ErrCode = Stmt:step()
+		if (ErrCode ~= sqlite3.OK) then
+			ErrMsg = (ErrCode or "<unknown>") .. " (" .. (self.DB:errmsg() or "<no message>") .. ")"
+			LOGWARNING(PLUGIN_PREFIX .. "Cannot bind values to statement \"" .. a_SQL .. "\": " .. ErrMsg)
+			Stmt:finalize()
+			return nil, ErrMsg
+		end
 	else
+		-- Iterate over all returned rows:
+		local HasBeenCalled
 		for v in Stmt:nrows() do
-			a_Callback(v)
+			a_Callback(v, self.DB:last_insert_rowid())
+			HasBeenCalled = true
+		end
+		
+		-- If there were no rows returned, still notify the callback of the last insert RowID:
+		if not(HasBeenCalled) then
+			a_Callback(nil, self.DB:last_insert_rowid())
 		end
 	end
 	Stmt:finalize()
@@ -277,6 +341,36 @@ end
 
 
 
+--- Returns an array of all the connectors for the specified area
+-- Each member is a table with all the DB values for the connector
+-- Returns nil and possibly message on error
+function SQLite:GetAreaConnectors(a_AreaID)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	
+	-- Load from the DB:
+	local res = {}
+	local ins = table.insert
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT * FROM Connectors WHERE AreaID = ?",
+		{ AreaID },
+		function (a_Values)
+			ins(res, a_Values)
+		end
+	)
+	if not(IsSuccess) then
+		return nil, Msg
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns an array of tables describing the approved areas in the specified group
 -- Each sub-table has all the attributes read from the DB row
 -- Returns an empty table if there are no areas in the group
@@ -302,6 +396,34 @@ function SQLite:GetApprovedAreasInGroup(a_GroupName)
 	)) then
 		-- DB error or no data (?)
 		return nil
+	end
+	
+	return res
+end
+
+
+
+
+
+--- Returns a table of all the DB values (ident) of the specified connector
+-- Returns nil and possibly message on failure
+function SQLite:GetConnectorByID(a_ConnectorID)
+	-- Check params:
+	assert(self ~= nil)
+	local ConnectorID = tonumber(a_ConnectorID)
+	assert(ConnectorID ~= nil)
+	
+	-- Load from DB:
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT * FROM Connectors WHERE ID = ?",
+		{ ConnectorID },
+		function(a_Values)
+			res = a_Values
+		end
+	)
+	if not(IsSuccess) then
+		return nil, Msg
 	end
 	
 	return res
@@ -510,10 +632,19 @@ function SQLite_CreateStorage(a_Params)
 		"AreaID  INTEGER PRIMARY KEY",  -- ID of the area to which the sponges belong. Note that the area needn't be approved
 		"Sponges"                       -- BLOB containing the base64-ed .schematic representation of the sponges (just air + sponges)
 	}
+	local ConnectorsColumns =
+	{
+		"ID INTEGER PRIMARY KEY",  -- ID of the connector
+		"AreaID",                  -- ID of the area to which the connector belongs. Note that the area needn't be approved
+		"X", "Y", "Z",             -- (World) Coords of the connector
+		"Direction",               -- Direction (eBlockFace) of the connector
+		"TypeNum",                 -- Type of the connector (only same-type connectors will be connected in the generator)
+	}
 	if (
 		not(DB:TableExists("Areas")) or
 		not(DB:CreateDBTable("Areas", AreasColumns)) or
-		not(DB:CreateDBTable("ExportSponges", ExportSpongesColumns))
+		not(DB:CreateDBTable("ExportSponges", ExportSpongesColumns)) or
+		not(DB:CreateDBTable("Connectors", ConnectorsColumns))
 	) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot create DB tables!")
 		error("Cannot create DB tables!")
