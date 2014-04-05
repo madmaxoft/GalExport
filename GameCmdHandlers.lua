@@ -420,7 +420,7 @@ function HandleCmdConnList(a_Split, a_Player)
 			), mtInfo)
 			:AddRunCommandPart("goto", g_Config.CommandPrefix .. " conn goto " .. idx, "@bu")
 			:AddTextPart(", ")
-			:AddRunCommandPart("del", g_Config.CommandPrefix .. " conn del " .. idx, "@bu")
+			:AddSuggestCommandPart("del", g_Config.CommandPrefix .. " conn del " .. idx, "@bu")
 			:AddTextPart(")")
 		)
 	end
