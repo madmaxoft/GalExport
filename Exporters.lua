@@ -66,6 +66,35 @@ end
 
 
 
+--- Returns the string containing CPP source for the connectors in the specified area
+local function MakeCppConnectorsSource(a_AreaDef)
+	local ins = table.insert
+	local con = table.concat
+	local res = {"\n\t// Connectors:\n"}
+	
+	local Connectors = g_DB:GetAreaConnectors(a_AreaDef.ID)
+	local ConnDefs = {}
+	for _, conn in ipairs(Connectors) do
+		local X = conn.X - a_AreaDef.ExportMinX
+		local Y = conn.Y - a_AreaDef.ExportMinY
+		local Z = conn.Z - a_AreaDef.ExportMinZ
+		ins(ConnDefs, string.format("\t\"%d: %d, %d, %d: %d\"  // Type %d, direction %s",
+			conn.TypeNum, X, Y, Z, conn.Direction, conn.TypeNum, DirectionToString(conn.Direction)
+		))
+	end
+	ins(res, con(ConnDefs, "\n"))
+	if (ConnDefs[1] == nil) then
+		ins(res, "\t\"\"")
+	end
+	ins(res, ",\n")
+	
+	return con(res)
+end
+
+
+
+
+
 --- Converts the cBlockArea into a cpp source
 -- Returns the cpp source as a string if successful
 -- Returns nil and error message if unsuccessful
@@ -154,7 +183,11 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 			ins(Level, string.format("%2d", z))
 			ins(Level, " */ \"")
 			ins(Level, Line)
-			ins(Level, "\"\n")
+			if ((y == SizeY - 1) and (z == SizeZ - 1)) then
+				ins(Level, "\",\n")
+			else
+				ins(Level, "\"\n")
+			end
 			Line = ""
 		end  -- for z
 		ins(Levels, con(Level))
@@ -183,7 +216,20 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	-- Write the block data:
 	ins(res, "\n\t// Block data:\n")
 	ins(res, con(def))
-	ins(res, "};\n")
+
+	-- Write the connectors:
+	ins(res, MakeCppConnectorsSource(a_AreaDef))
+	ins(res, "\n")
+	
+	-- Write the constant metadata:
+	ins(res, "\t// AllowedRotations:\n")
+	ins(res, "\t7,  /* 1, 2, 3 CCW rotations */\n")
+	ins(res, "\n")
+	ins(res, "\t// Merge strategy:\n")
+	ins(res, "\tcBlockArea::msSpongePrint,\n")
+	ins(res, "},  // ")
+	ins(res, ExportName)
+	ins(res, "\n")
 	
 	return con(res)
 end

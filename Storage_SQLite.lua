@@ -47,7 +47,8 @@ function SQLite:AddConnector(a_AreaID, a_BlockX, a_BlockY, a_BlockZ, a_Direction
 			a_BlockX, a_BlockY, a_BlockZ,
 			a_Direction, a_Type
 		},
-		function (a_Values, a_RowID)
+		nil,
+		function (a_RowID)
 			RowID = a_RowID
 		end
 	)
@@ -206,12 +207,14 @@ end
 -- Calls a_Callback for each row
 -- The callback receives a dictionary table containing the row values (stmt:nrows())
 -- Returns false and error message on failure, or true on success
-function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
+function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 	-- Check params:
 	assert(self ~= nil)
 	assert(a_SQL ~= nil)
 	assert(a_Params ~= nil)
 	assert(self.DB ~= nil)
+	assert((a_Callback == nil) or (type(a_Callback) == "function"))
+	assert((a_RowIDCallback == nil) or (type(a_RowIDCallback) == "function"))
 	
 	-- Prepare the statement (SQL-compile):
 	local Stmt, ErrCode, ErrMsg = self.DB:prepare(a_SQL)
@@ -240,17 +243,17 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
 			Stmt:finalize()
 			return nil, ErrMsg
 		end
+		if (a_RowIDCallback ~= nil) then
+			a_RowIDCallback(self.DB:last_insert_rowid())
+		end
 	else
 		-- Iterate over all returned rows:
-		local HasBeenCalled
 		for v in Stmt:nrows() do
-			a_Callback(v, self.DB:last_insert_rowid())
-			HasBeenCalled = true
+			a_Callback(v)
 		end
 		
-		-- If there were no rows returned, still notify the callback of the last insert RowID:
-		if not(HasBeenCalled) then
-			a_Callback(nil, self.DB:last_insert_rowid())
+		if (a_RowIDCallback ~= nil) then
+			a_RowIDCallback(self.DB:last_insert_rowid())
 		end
 	end
 	Stmt:finalize()
