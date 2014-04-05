@@ -183,6 +183,25 @@ end
 
 
 
+--- Deletes the specified connector from the DB
+-- Returns true if successful, false and potentially an error message on failure
+function SQLite:DeleteConnector(a_ConnID)
+	-- Check params:
+	assert(self ~= nil)
+	local ConnID = tonumber(a_ConnID)
+	assert(ConnID ~= nil)
+	
+	-- Delete from the DB:
+	return self:ExecuteStatement(
+		"DELETE FROM Connectors WHERE ID = ?",
+		{ ConnID }
+	)
+end
+
+
+
+
+
 --- Executes the SQL statement, substituting "?" in the SQL with the specified params
 -- Calls a_Callback for each row
 -- The callback receives a dictionary table containing the row values (stmt:nrows())
@@ -205,7 +224,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
 	
 	-- Bind the values into the statement:
 	ErrCode = Stmt:bind_values(unpack(a_Params))
-	if (ErrCode ~= sqlite3.OK) then
+	if ((ErrCode ~= sqlite3.OK) and (ErrCode ~= sqlite3.DONE)) then
 		ErrMsg = (ErrCode or "<unknown>") .. " (" .. (self.DB:errmsg() or "<no message>") .. ")"
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot bind values to statement \"" .. a_SQL .. "\": " .. ErrMsg)
 		Stmt:finalize()
@@ -215,9 +234,9 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback)
 	-- Step the statement:
 	if (a_Callback == nil) then
 		ErrCode = Stmt:step()
-		if (ErrCode ~= sqlite3.OK) then
+		if ((ErrCode ~= sqlite3.ROW) and (ErrCode ~= sqlite3.DONE)) then
 			ErrMsg = (ErrCode or "<unknown>") .. " (" .. (self.DB:errmsg() or "<no message>") .. ")"
-			LOGWARNING(PLUGIN_PREFIX .. "Cannot bind values to statement \"" .. a_SQL .. "\": " .. ErrMsg)
+			LOGWARNING(PLUGIN_PREFIX .. "Cannot step statement \"" .. a_SQL .. "\": " .. ErrMsg)
 			Stmt:finalize()
 			return nil, ErrMsg
 		end

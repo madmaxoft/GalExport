@@ -307,7 +307,7 @@ function HandleCmdConnAdd(a_Split, a_Player)
 	end
 	
 	-- Calc the connector's direction:
-	local Direction = DirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
+	local Direction = GetDirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
 	
 	-- Add the connector:
 	local IsSuccess, Msg = g_DB:AddConnector(Area.ID, BlockX, BlockY, BlockZ, Direction, Type)
@@ -325,7 +325,42 @@ end
 
 
 function HandleCmdConnDel(a_Split, a_Player)
-	-- TODO
+	-- /ge conn del <LocalIndex>
+
+	-- Check the params:
+	local LocalIndex = tonumber(a_Split[4])
+	if (LocalIndex == nil) then
+		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " conn goto ", g_Config.CommandPrefix .. " conn goto ")
+			:AddTextPart("LocalIndex", "@2")
+		)
+		return true
+	end
+	
+	-- Get the area ident:
+	local BlockX, BlockY, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot go to connector, there is no gallery area here.", mtFailure))
+		return true
+	end
+	
+	-- Get the connector ident:
+	local Conn = GetConnFromLocalIndex(Area.ID, LocalIndex)
+	if (Conn == nil) then
+		a_Player:SendMessage(cCompositeChat("Cannot go to connector, there is no such connector here.", mtFailure))
+		return true
+	end
+	
+	-- Remove the connector from the DB:
+	local IsSuccess, Msg = g_DB:DeleteConnector(Conn.ID)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot delete connector: " .. (Msg or "<no details>"), mtFailure))
+		return true
+	end
+	
+	a_Player:SendMessage(cCompositeChat("Connector deleted.", mtInfo))
+	return true
 end
 
 
