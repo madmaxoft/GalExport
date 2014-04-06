@@ -310,13 +310,13 @@ function HandleCmdConnAdd(a_Split, a_Player)
 	local Direction = GetDirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
 	
 	-- Add the connector:
-	local IsSuccess, Msg = g_DB:AddConnector(Area.ID, BlockX, BlockY, BlockZ, Direction, Type)
-	if not(IsSuccess) then
+	local Conn, Msg = g_DB:AddConnector(Area.ID, BlockX, BlockY, BlockZ, Direction, Type)
+	if not(Conn) then
 		a_Player:SendMessage(cCompositeChat("Cannot add connector: " .. (Msg or "<no message>"), mtFailure))
 		return true
 	end
 	
-	a_Player:SendMessage(cCompositeChat("Connector added", mtInfo))
+	a_Player:SendMessage(cCompositeChat("Connector added, ID " .. Conn.ID, mtInfo))
 	return true
 end
 
@@ -325,11 +325,11 @@ end
 
 
 function HandleCmdConnDel(a_Split, a_Player)
-	-- /ge conn del <LocalIndex>
+	-- /ge conn del <ID>
 
 	-- Check the params:
-	local LocalIndex = tonumber(a_Split[4])
-	if (LocalIndex == nil) then
+	local ConnID = tonumber(a_Split[4])
+	if (ConnID == nil) then
 		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
 			:AddSuggestCommandPart(g_Config.CommandPrefix .. " conn goto ", g_Config.CommandPrefix .. " conn goto ")
 			:AddTextPart("LocalIndex", "@2")
@@ -341,19 +341,25 @@ function HandleCmdConnDel(a_Split, a_Player)
 	local BlockX, BlockY, BlockZ = GetPlayerPos(a_Player)
 	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
 	if not(Area) then
-		a_Player:SendMessage(cCompositeChat("Cannot go to connector, there is no gallery area here.", mtFailure))
+		a_Player:SendMessage(cCompositeChat("Cannot delete the connector, there is no gallery area here.", mtFailure))
 		return true
 	end
 	
-	-- Get the connector ident:
-	local Conn = GetConnFromLocalIndex(Area.ID, LocalIndex)
+	-- Check that the connector exists and is in the same area:
+	-- We won't allow deleting connectors in other areas to avoid deletion-by-accident of a different connector
+	-- because the deletion usually will be done from the list and the list won't update when moving to another area.
+	local Conn = g_DB:GetConnectorByID(ConnID)
 	if (Conn == nil) then
-		a_Player:SendMessage(cCompositeChat("Cannot go to connector, there is no such connector here.", mtFailure))
+		a_Player:SendMessage(cCompositeChat("Cannot delete connector, there is no such connector.", mtFailure))
 		return true
 	end
-	
+	if (tonumber(Conn.AreaID) ~= tonumber(Area.ID)) then
+		a_Player:SendMessage(cCompositeChat("This connector is in a different area, deleting is disallowed for security reasons.", mtFailure))
+		return true
+	end
+
 	-- Remove the connector from the DB:
-	local IsSuccess, Msg = g_DB:DeleteConnector(Conn.ID)
+	local IsSuccess, Msg = g_DB:DeleteConnector(ConnID)
 	if not(IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Cannot delete connector: " .. (Msg or "<no details>"), mtFailure))
 		return true
@@ -368,11 +374,11 @@ end
 
 
 function HandleCmdConnGoto(a_Split, a_Player)
-	-- /ge conn goto <LocalIndex>
+	-- /ge conn goto <ID>
 
 	-- Check the params:
-	local LocalIndex = tonumber(a_Split[4])
-	if (LocalIndex == nil) then
+	local ConnID = tonumber(a_Split[4])
+	if (ConnID == nil) then
 		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
 			:AddSuggestCommandPart(g_Config.CommandPrefix .. " conn goto ", g_Config.CommandPrefix .. " conn goto ")
 			:AddTextPart("LocalIndex", "@2")
@@ -380,18 +386,10 @@ function HandleCmdConnGoto(a_Split, a_Player)
 		return true
 	end
 	
-	-- Get the area ident:
-	local BlockX, BlockY, BlockZ = GetPlayerPos(a_Player)
-	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
-	if not(Area) then
-		a_Player:SendMessage(cCompositeChat("Cannot go to connector, there is no gallery area here.", mtFailure))
-		return true
-	end
-	
 	-- Get the connector ident:
-	local Conn = GetConnFromLocalIndex(Area.ID, LocalIndex)
+	local Conn, Msg = g_DB:GetConnectorByID(ConnID)
 	if (Conn == nil) then
-		a_Player:SendMessage(cCompositeChat("Cannot go to connector, there is no such connector here.", mtFailure))
+		a_Player:SendMessage(cCompositeChat("Cannot go to connector, there is no such connector. " .. (Msg or ""), mtFailure))
 		return true
 	end
 	
@@ -450,12 +448,12 @@ function HandleCmdConnList(a_Split, a_Player)
 		a_Player:SendMessage(cCompositeChat(
 			string.format(
 				"  %d: type %d, {%d, %d, %d}, dir %s (",
-				idx, conn.TypeNum, conn.X - Area.StartX, conn.Y, conn.Z - Area.StartZ,
+				idx, conn.TypeNum, conn.X - Area.ExportMinX, conn.Y - Area.ExportMinY, conn.Z - Area.ExportMinZ,
 				(DirectionToString(conn.Direction) or "<unknown>")
 			), mtInfo)
-			:AddRunCommandPart("goto", g_Config.CommandPrefix .. " conn goto " .. idx, "@bu")
+			:AddRunCommandPart("goto", g_Config.CommandPrefix .. " conn goto " .. conn.ID, "@bu")
 			:AddTextPart(", ")
-			:AddSuggestCommandPart("del", g_Config.CommandPrefix .. " conn del " .. idx, "@bu")
+			:AddSuggestCommandPart("del", g_Config.CommandPrefix .. " conn del " .. conn.ID, "@bu")
 			:AddTextPart(")")
 		)
 	end
