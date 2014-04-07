@@ -479,10 +479,15 @@ function SQLite:GetSpongesForArea(a_AreaID)
 		return nil, Msg
 	end
 	
+	-- If the sponge hasn't been saved in the DB, bail out:
+	if ((SpongeSchematic == nil) or (SpongeSchematic == "")) then
+		return nil, "there are no sponges saved for this area"
+	end
+	
 	-- Create the block area from the data:
 	local Sponges = cBlockArea()
 	if not(Sponges:LoadFromSchematicString(Base64Decode(SpongeSchematic))) then
-		return nil, "Cannot decode the stored schematic"
+		return nil, "cannot decode the stored schematic"
 	end
 	return Sponges
 end
