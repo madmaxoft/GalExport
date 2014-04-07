@@ -732,7 +732,7 @@ function HandleCmdSpongeHide(a_Split, a_Player)
 	-- Get the area ident:
 	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
 	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
-	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+	if not(Area) then
 		a_Player:SendMessage(cCompositeChat("Cannot hide sponge, there is no gallery area here.", mtFailure))
 		return true
 	end
@@ -786,7 +786,7 @@ function HandleCmdSpongeSave(a_Split, a_Player)
 	-- Get the area ident:
 	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
 	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
-	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+	if not(Area) then
 		a_Player:SendMessage(cCompositeChat("Cannot save sponge, there is no gallery area here.", mtFailure))
 		return true
 	end
@@ -838,7 +838,7 @@ function HandleCmdSpongeShow(a_Split, a_Player)
 	-- Get the area ident:
 	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
 	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
-	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+	if not(Area) then
 		a_Player:SendMessage(cCompositeChat("Cannot show sponge, there is no gallery area here.", mtFailure))
 		return true
 	end
