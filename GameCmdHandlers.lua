@@ -886,6 +886,24 @@ function HandleCmdSpongeShow(a_Split, a_Player)
 		end,
 		function ()
 			-- OnAllChunksAvailable
+			
+			-- Push a WE undo:
+			-- We don't have a valid cPlayer object anymore, need to search for it:
+			local ShouldAbort = false
+			World:DoWithPlayer(PlayerName,
+				function (a_Player)
+					local IsSuccess, Msg = cPluginManager:CallPlugin("WorldEdit", "WEPushUndo", a_Player, World, Bounds, "GalExport: Sponge show")
+					if (IsSuccess == false) then
+						-- Pushing the undo failed, let the player know and don't show the sponge:
+						a_Player:SendMessage(cCompositeChat("Cannot store an undo point in WorldEdit, aborting the sponge show (" .. (Msg or "<no details>") .. ")", mtFailure))
+						ShouldAbort = true
+					end
+				end
+			)
+			if (ShouldAbort) then
+				return
+			end
+			
 			-- Read the current area:
 			local BA = cBlockArea();
 			BA:Read(World, Bounds, cBlockArea.baTypes + cBlockArea.baMetas)
