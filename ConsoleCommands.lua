@@ -63,7 +63,15 @@ function HandleConExportGroup(a_Split)
 	end
 	
 	-- Export the areas:
-	return ExportAreas(Areas, Format, nil, "Areas exported", "Cannot export areas")
+	-- Export the areas:
+	local function ReportSuccess()
+		LOGINFO("Group exported")
+	end
+	local function ReportFailure(a_Message)
+		LOGINFO("Cannot export group: " .. (a_Message or "<no details>"))
+	end
+	g_Exporters[Format].ExportGroup(Areas, ReportSuccess, ReportFailure)
+	return true
 end
 
 

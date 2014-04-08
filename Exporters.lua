@@ -20,12 +20,12 @@ that lists the formats' names and the functions to call for the actual export.
 --- Reads an area from the world and then calls the specified callback on it
 -- This is a helper function called from most exporters to read the area data from the world
 -- It uses a ChunkStay mechanism to read the area, because the chunks for the areas needn't be loaded
--- The callback takes a single param, the cBlockArea that has been read from the world
--- There is no notification on error, since this function queues a delayed task and only calls the callback
--- after the chunks have loaded
-local function DoWithArea(a_AreaDef, a_Callback)
+-- The success callback takes a single param, the cBlockArea that has been read from the world
+-- The failure callback is called in case of errors, and gets one parameter, the optional message
+local function DoWithArea(a_AreaDef, a_SuccessCallback, a_FailureCallback)
 	assert(type(a_AreaDef) == "table")
-	assert(type(a_Callback) == "function")
+	assert(type(a_SuccessCallback) == "function")
+	assert((a_FailureCallback == nil) or (type(a_FailureCallback) == "function"))
 	
 	-- Get the array of chunks that need to be loaded:
 	local Chunks = GetChunksForAreaExport(a_AreaDef)
@@ -54,7 +54,7 @@ local function DoWithArea(a_AreaDef, a_Callback)
 				end
 				
 				-- Call the callback:
-				a_Callback(BA)
+				a_SuccessCallback(BA)
 			else
 				LOGWARNING("DoWithArea: Failed to read the cBlockArea")
 			end
@@ -66,11 +66,31 @@ end
 
 
 
+--- Returns the string that should be used as area's export name
+-- Either the string defined by the user, or composed (if no user-specified string exists)
+local function GetAreaExportName(a_AreaDef)
+	-- Check params:
+	assert(type(a_AreaDef) == "table")
+	
+	-- If the area's ExportName is defined, use that
+	if (a_AreaDef.ExportName and (a_AreaDef.ExportName ~= "")) then
+		return a_AreaDef.ExportName
+	else
+		-- Compose the ExportName from the ExportGroupName and ID:
+		return a_AreaDef.ExportGroupName ..  "_" .. a_AreaDef.ID
+	end
+end
+
+
+
+
+
 --- Returns the string containing CPP source for the connectors in the specified area
-local function MakeCppConnectorsSource(a_AreaDef)
+-- a_Indent is inserted at each line's start
+local function MakeCppConnectorsSource(a_AreaDef, a_Indent)
 	local ins = table.insert
 	local con = table.concat
-	local res = {"\n\t// Connectors:\n"}
+	local res = {"\n", a_Indent, "\t// Connectors:\n", a_Indent}
 	
 	local Connectors = g_DB:GetAreaConnectors(a_AreaDef.ID)
 	local ConnDefs = {}
@@ -82,7 +102,7 @@ local function MakeCppConnectorsSource(a_AreaDef)
 			conn.TypeNum, X, Y, Z, conn.Direction, conn.TypeNum, DirectionToString(conn.Direction)
 		))
 	end
-	ins(res, con(ConnDefs, "\n"))
+	ins(res, con(ConnDefs, "\n" .. a_Indent))
 	if (ConnDefs[1] == nil) then
 		ins(res, "\t\"\"")
 	end
@@ -96,25 +116,21 @@ end
 
 
 --- Converts the cBlockArea into a cpp source
+-- a_Indent is inserted at each line's start
 -- Returns the cpp source as a string if successful
 -- Returns nil and error message if unsuccessful
-local function MakeCppSource(a_BlockArea, a_AreaDef)
+local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	assert(tolua.type(a_BlockArea) == "cBlockArea")
 	assert(type(a_AreaDef) == "table")
-	
-	-- Decide the area's export name
-	local ExportName
-	if (a_AreaDef.ExportName and (a_AreaDef.ExportName ~= "")) then
-		ExportName = a_AreaDef.ExportName
-	else
-		ExportName = a_AreaDef.ExportGroupName ..  "_" .. a_AreaDef.ID
-	end
+	a_Indent = a_Indent or ""
 	
 	-- Write the header:
-	local res = { "// ", a_AreaDef.ExportGroupName, "/", a_AreaDef.ExportName or a_AreaDef.ID, ".cpp\n\n",
-		"// WARNING! This file has been generated automatically by GalExport. Any changes you make will be lost on next export!\n",
-		"// The data has been exported from gallery ", a_AreaDef.GalleryName, ", area index ", a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, "\n\n",
-		"static const cPrefab::sDef g_", ExportName, " =\n{\n",
+	local ExportName = GetAreaExportName(a_AreaDef)
+	local res = {a_Indent, string.rep("/", 119), "\n",
+		a_Indent, "// ", ExportName, ":\n",
+		a_Indent, "// The data has been exported from the gallery ", a_AreaDef.GalleryName, ", area index ",
+		a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, ", created by ", a_AreaDef.PlayerName, "\n",
+		a_Indent, "{\n"
 	}
 	
 	local ins = table.insert
@@ -135,7 +151,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	local SizeX, SizeY, SizeZ = a_BlockArea:GetSize()
 	
 	-- Create a horizontal ruler text, used on each level:
-	local HorzRuler = {"\t/*    *   "}
+	local HorzRuler = {a_Indent, "\t/* z\\x*   "}
 	if (SizeX > 9) then
 		for x = 0, SizeX - 1 do
 			if (x < 10) then
@@ -144,8 +160,9 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 				ins(HorzRuler, string.format("%d", math.floor(x / 10)))
 			end
 		end
-		ins(HorzRuler, " */\n")
-		ins(HorzRuler, "\t/* z\\x*   ")
+		ins(HorzRuler, "     */\n")
+		ins(HorzRuler, a_Indent)
+		ins(HorzRuler, "\t/*    *   ")
 	end
 	for x = 0, SizeX - 1 do
 		ins(HorzRuler, string.format("%d", x - 10 * math.floor(x / 10)))
@@ -157,11 +174,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	local def = {}
 	local Levels = {}
 	for y = 0, SizeY - 1 do
-		local Level = {}
-		ins(Level, "\t// Level ")
-		ins(Level, y)
-		ins(Level, "\n")
-		ins(Level, HorzRulerText)
+		local Level = {a_Indent, "\t// Level ", y, "\n", HorzRulerText}
 		for z = 0, SizeZ - 1 do
 			local Line = ""
 			for x = 0, SizeX - 1 do
@@ -179,6 +192,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 				end
 				Line = Line .. MyLetter
 			end  -- for x
+			ins(Level, a_Indent)
 			ins(Level, "\t/* ")
 			ins(Level, string.format("%2d", z))
 			ins(Level, " */ \"")
@@ -195,7 +209,9 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 	ins(def, con(Levels, "\n"))
 	
 	-- Write the dimensions:
+	ins(res, a_Indent)
 	ins(res, "\t// Size:\n")
+	ins(res, a_Indent)
 	ins(res, con({"\t", SizeX, ", ", SizeY, ", ", SizeZ, ",  // SizeX = ", SizeX, ", SizeY = ", SizeY, ", SizeZ = ", SizeZ, "\n\n"}))
 	
 	-- Write the letter-to-blockdef table:
@@ -209,24 +225,33 @@ local function MakeCppSource(a_BlockArea, a_AreaDef)
 		))
 	end
 	table.sort(LetterToBlockDef)
+	ins(res, a_Indent)
 	ins(res, "\t// Block definitions:\n")
-	ins(res, con(LetterToBlockDef, "\n"))
+	ins(res, a_Indent)
+	ins(res, con(LetterToBlockDef, "\n" .. a_Indent))
 	ins(res, ",\n")
 	
 	-- Write the block data:
-	ins(res, "\n\t// Block data:\n")
+	ins(res, "\n")
+	ins(res, a_Indent)
+	ins(res, "\t// Block data:\n")
 	ins(res, con(def))
 
 	-- Write the connectors:
-	ins(res, MakeCppConnectorsSource(a_AreaDef))
+	ins(res, MakeCppConnectorsSource(a_AreaDef, a_Indent))
 	ins(res, "\n")
 	
 	-- Write the constant metadata:
+	ins(res, a_Indent)
 	ins(res, "\t// AllowedRotations:\n")
+	ins(res, a_Indent)
 	ins(res, "\t7,  /* 1, 2, 3 CCW rotations */\n")
 	ins(res, "\n")
+	ins(res, a_Indent)
 	ins(res, "\t// Merge strategy:\n")
+	ins(res, a_Indent)
 	ins(res, "\tcBlockArea::msSpongePrint,\n")
+	ins(res, a_Indent)
 	ins(res, "},  // ")
 	ins(res, ExportName)
 	ins(res, "\n")
@@ -315,6 +340,95 @@ end
 
 
 
+--- Exports all areas (assumed in a single group) into a single CPP file
+-- If all the areas are exported successfully, calls a_SuccessCallback (with no params)
+-- If any of the areas fail to export, no output is written and a_FailureCallback is called
+-- with one parameter, the failure message (possibly nil)
+local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
+	-- Check params:
+	assert(type(a_Areas) == "table")
+	assert(a_Areas[1] ~= nil)  -- At least one area to export
+	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
+	assert((a_FailureCallback == nil) or (type(a_SuccessCallback) == "function"))
+	
+	-- Store usefull stuff:
+	local GroupName = a_Areas[1].ExportGroupName
+	local CurrArea = 1
+	local FileNameBase = g_Config.ExportFolder .. "/" .. GroupName .. "Prefabs"
+	
+	-- Open the output files:
+	local cpp = io.open(FileNameBase .. ".cpp", "w")
+	if (cpp == nil) then
+		a_FailureCallback("Cannot open file " .. FileNameBase .. ".cpp for output")
+		return
+	end
+	local hdr = io.open(FileNameBase .. ".h", "w")
+	if (hdr == nil) then
+		cpp:close()
+		a_FailureCallback("Cannot open file " .. FileNameBase .. ".h for output")
+		return
+	end
+	
+	-- Write the file headers:
+	cpp:write("\n// ", GroupName, "Prefabs.cpp\n\n// Defines the prefabs in the group ", GroupName, "\n\n")
+	cpp:write("// NOTE: This file has been generated automatically by GalExport!\n")
+	cpp:write("// Any manual changes will be overwritten by the next automatic export!\n\n")
+	cpp:write("#include \"Globals.h\"\n#include \"", GroupName, "Prefabs.h\"\n\n\n\n\n")
+	cpp:write("const cPrefab::sDef g_", GroupName, "Prefabs[] =\n{\n")
+	hdr:write("\n// ", GroupName, "Prefabs.h\n\n// Declares the prefabs in the group ", GroupName, "\n\n")
+	hdr:write("#include \"../Prefab.h\"\n\n\n\n\n")
+	hdr:write("extern const cPrefab::sDef g_", GroupName, "Prefabs[];\n")
+	hdr:write("extern const cPrefab::sDef g_", GroupName, "StartingPrefabs[];\n")
+	hdr:write("extern const size_t g_", GroupName, "PrefabsCount;\n")
+	hdr:write("extern const size_t g_", GroupName, "StartingPrefabsCount;\n")
+	hdr:close()
+	
+	-- Sort areas so that the starting ones come last:
+	table.sort(a_Areas,
+		function (a_Area1, a_Area2)
+			if (a_Area1.IsStarting) then
+				return 1
+			end
+			if (a_Area2.IsStarting) then
+				return -1
+			end
+		end
+	)
+	
+	-- Callback to be called when area data has been loaded:
+	local function ProcessOneArea(a_BlockArea)
+		-- Write source for the area into the file:
+		local Area = a_Areas[CurrArea]
+		local Src = MakeCppSource(a_BlockArea, Area, "\t")
+		Src = Src or ("/* Error: Area " .. Area.GalleryName .. "_" .. Area.ID .. " failed to export source! */")
+		cpp:write(Src)
+		
+		-- Advance to next area:
+		CurrArea = CurrArea + 1
+		if (a_Areas[CurrArea] == nil) then
+			-- No more areas in this group, finish the export:
+			cpp:close()
+			a_SuccessCallback()
+			return
+		else
+			-- There are more areas to process:
+			if (not(Area.IsStarting) and (a_Areas[CurrArea].IsStarting)) then
+				cpp:write("};\n\n\n\n\nconst cPrefab::sDef g_", GroupName, "StartingPrefabs[] =\n{\n")
+			else
+				cpp:write("\n\n\n")
+			end
+
+			DoWithArea(a_Areas[CurrArea], ProcessOneArea, a_FailureCallback)
+		end
+	end
+	
+	return DoWithArea(a_Areas[1], ProcessOneArea, a_FailureCallback)
+end
+
+
+
+
+
 --- The descriptor for .schematic export
 local SchematicExporterDesc =
 {
@@ -330,6 +444,7 @@ local SchematicExporterDesc =
 local CppExporterDesc =
 {
 	ExportArea = ExportCpp,
+	ExportGroup = ExportCppGroup,
 }
 
 

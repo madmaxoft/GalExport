@@ -530,7 +530,14 @@ function HandleCmdExportGroup(a_Split, a_Player)
 	end
 	
 	-- Export the areas:
-	return ExportAreas(Areas, Format, a_Player, "Group exported", "Cannot export group")
+	local function ReportSuccess()
+		SendPlayerMessage(PlayerName, cCompositeChat("Group exported", mtInfo))
+	end
+	local function ReportFailure(a_Message)
+		SendPlayerMessage(PlayerName, cCompositeChat("Cannot export group: " .. (a_Message or "<no details>"), mtFailure))
+	end
+	g_Exporters[Format].ExportGroup(Areas, ReportSuccess, ReportFailure)
+	return true
 end
 
 
