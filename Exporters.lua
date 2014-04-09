@@ -441,15 +441,23 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 	hdr:write("extern const size_t g_", GroupName, "StartingPrefabsCount;\n")
 	hdr:close()
 	
-	-- Sort areas so that the starting ones come last:
+	-- Sort areas so that the starting ones come last; then by their export name:
 	table.sort(a_Areas,
 		function (a_Area1, a_Area2)
 			if (a_Area1.IsStarting) then
+				if (a_Area2.IsStarting) then
+					-- Both are starting, sort by export name:
+					return (GetAreaExportName(a_Area1) < GetAreaExportName(a_Area2))
+				end
+				-- a_Area1 is starting, a_Area2 is not:
 				return 1
 			end
 			if (a_Area2.IsStarting) then
+				-- a_Area2 is starting, a_Area1 is not:
 				return -1
 			end
+			-- Neither area is starting, sort by name:
+			return (GetAreaExportName(a_Area1) < GetAreaExportName(a_Area2))
 		end
 	)
 	
