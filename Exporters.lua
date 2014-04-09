@@ -170,7 +170,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 				ins(HorzRuler, string.format("%d", math.floor(x / 10)))
 			end
 		end
-		ins(HorzRuler, "     */\n")
+		ins(HorzRuler, " */\n")
 		ins(HorzRuler, a_Indent)
 		ins(HorzRuler, "\t/*    *   ")
 	end
