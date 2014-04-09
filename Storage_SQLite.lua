@@ -295,9 +295,9 @@ end
 
 
 
---- Returns an array of all export groups stored in the DB.
+--- Returns an array of all export groups' names stored in the DB.
 -- Returns nil on failure
-function SQLite:GetAllGroups()
+function SQLite:GetAllGroupNames()
 	-- Check params:
 	assert(self ~= nil)
 	

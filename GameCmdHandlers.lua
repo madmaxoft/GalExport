@@ -19,89 +19,6 @@ end
 
 
 
---- Sends the list of available export formats to the specified player
-local function SendAvailableFormats(a_Player)
-	-- Check params:
-	assert(tolua.type(a_Player) == "cPlayer")
-	
-	-- Get a sorted list of export formats:
-	local Formats = {}
-	for k, v in pairs(g_Exporters) do
-		table.insert(Formats, k)
-	end
-	table.sort(Formats)
-	
-	-- Send to the player:
-	a_Player:SendMessage(cCompositeChat("Available formats: " .. table.concat(Formats, ", "), mtInfo))
-end
-
-
-
-
-
---- Exports all the areas in a_Areas into the specified format
--- a_Areas contains an array of area idents (DB row contents)
--- a_Format is the string specifying the format
--- a_Player is the player who asked for the export, they will get the completion message
--- a_MsgSuccess is the message to send on success
--- a_MsgFail is the message to send on failure, with possibly the reason appended to it
--- Function is used from ConsoleCommands as well, with a_Player being set to nil
-function ExportAreas(a_Areas, a_Format, a_Player, a_MsgSuccess, a_MsgFail)
-	-- Check params:
-	assert(type(a_Areas) == "table")
-	assert(type(a_Format) == "string")
-	assert((a_Player == nil) or (tolua.type(a_Player) == "cPlayer"))
-	assert(type(a_MsgSuccess) == "string")
-	assert(type(a_MsgFail) == "string")
-	
-	-- Get the exporter for the format:
-	local Exporter = g_Exporters[a_Format]
-	assert(Exporter ~= nil)
-	
-	-- Remember the player name, so that we can get to them later on:
-	local PlayerName
-	if (a_Player ~= nil) then
-		PlayerName = a_Player:GetName()
-		a_Player:SendMessage(cCompositeChat("Exporting " .. #a_Areas .. " areas...", mtInformation))
-	else
-		LOGINFO("Exporting " .. #a_Areas .. " areas...")
-	end
-	
-	-- Create a closure that queues one area for export and leaves the rest for after the export finishes:
-	local function QueueExport(a_Areas)
-		-- If there's no more areas to export, bail out:
-		if (a_Areas[1] == nil) then
-			-- Send the success message to the player / console:
-			SendPlayerMessage(PlayerName, cCompositeChat(a_MsgSuccess, mtInformation))
-			return
-		end
-		
-		-- Queue and remove the last area from the table:
-		local Area = table.remove(a_Areas)
-		Exporter.ExportArea(Area,
-			function (a_IsSuccess)
-				-- The area has been exported
-				if (a_IsSuccess) then
-					-- Queue another area for export:
-					QueueExport(a_Areas)
-				else
-					-- Send the failure msg to the player / console:
-					SendPlayerMessage(cCompositeChat(a_MsgFail, mtFailure))
-				end
-			end
-		)
-	end
-	
-	-- Queue all the areas:
-	QueueExport(a_Areas)
-	
-	return true
-end
-
-
-
-
-
 --- Returns the conn ident for the connector of the specified local index in the area
 -- Returns nil and optional msg if no such connector exists or another (DB) error occurs
 local function GetConnFromLocalIndex(a_AreaID, a_LocalIndex)
@@ -128,18 +45,6 @@ local function GetConnFromLocalIndex(a_AreaID, a_LocalIndex)
 		return nil, "No such connector"
 	end
 	return res
-end
-
-
-
-
-
---- Removes each sponge block in the block area, replacing it with air
-function HideSponge(a_BlockArea)
-	assert(tolua.type(a_BlockArea) == "cBlockArea")
-
-	local SizeX, SizeY, SizeZ = a_BlockArea:GetSize()
-	-- TODO
 end
 
 
@@ -479,22 +384,8 @@ function HandleCmdExportAll(a_Split, a_Player)
 	end
 	local Format = a_Split[4]
 	
-	-- Check if the format is supported:
-	if not(g_Exporters[Format]) then
-		a_Player:SendMessage(cCompositeChat("Cannot export, there is no such format.", mtFailure))
-		SendAvailableFormats(a_Player)
-		return true
-	end
-	
-	-- Get the areas:
-	local Areas = g_DB:GetAllApprovedAreas()
-	if (not(Areas) or (Areas[1] == nil)) then
-		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area approved.", mtFailure))
-		return true
-	end
-	
-	-- Export the areas:
-	return ExportAreas(Areas, Format, a_Player, "Areas exported", "Cannot export areas")
+	-- Queue the export. The default callbacks are fine for us (a message to the player)
+	QueueExportAllGroups(Format, a_Player:GetName())
 end
 
 
@@ -515,28 +406,9 @@ function HandleCmdExportGroup(a_Split, a_Player)
 	local GroupName = a_Split[4]
 	local Format = a_Split[5]
 	
-	-- Check if the format is supported:
-	if not(g_Exporters[Format]) then
-		a_Player:SendMessage(cCompositeChat("Cannot export, there is no such format.", mtFailure))
-		SendAvailableFormats(a_Player)
-		return true
-	end
+	-- Export (using code common with the console handler):
+	QueueExportAreaGroup(GroupName, Format, a_Player:GetName())
 	
-	-- Get the area ident for each area in the group:
-	local Areas = g_DB:GetApprovedAreasInGroup(GroupName)
-	if (not(Areas) or (Areas[1] == nil)) then
-		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area in the group.", mtFailure))
-		return true
-	end
-	
-	-- Export the areas:
-	local function ReportSuccess()
-		SendPlayerMessage(PlayerName, cCompositeChat("Group exported", mtInfo))
-	end
-	local function ReportFailure(a_Message)
-		SendPlayerMessage(PlayerName, cCompositeChat("Cannot export group: " .. (a_Message or "<no details>"), mtFailure))
-	end
-	g_Exporters[Format].ExportGroup(Areas, ReportSuccess, ReportFailure)
 	return true
 end
 
@@ -605,7 +477,7 @@ function HandleCmdGroupList(a_Split, a_Player)
 	-- /ge group list
 	
 	-- Get the groups from the DB:
-	local Groups = g_DB:GetAllGroups()
+	local Groups = g_DB:GetAllGroupNames()
 	if (not(Groups) or (Groups[1] == nil)) then
 		a_Player:SendMessage(cCompositeChat("There are no export groups.", mtFailure))
 		return true

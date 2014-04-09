@@ -293,6 +293,54 @@ end
 
 
 
+--- Exports all areas (assumed in a single group) into their respective .schematic files
+-- If all the areas are exported successfully, calls a_SuccessCallback (with no params)
+-- If any of the areas fail to export, a_FailureCallback is called with one parameter, the failure message (possibly nil)
+local function ExportSchematicGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
+	-- Check params:
+	assert(type(a_Areas) == "table")
+	assert(a_Areas[1] ~= nil)  -- At least one area to export
+	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
+	assert((a_FailureCallback == nil) or (type(a_SuccessCallback) == "function"))
+
+	-- Callback to be called when area data has been loaded:
+	local CurrArea = 1
+	local function ProcessOneArea(a_BlockArea)
+		-- Write the area into a file:
+		local Area = a_Areas[CurrArea]
+		cFile:CreateFolder(g_Config.ExportFolder)
+		local FileName = g_Config.ExportFolder .. "/" .. (Area.ExportGroupName or "undefined_group") .. "/"
+		cFile:CreateFolder(FileName)
+		local ExportName = Area.ExportName
+		if ((ExportName == nil) or (ExportName == "")) then
+			ExportName = Area.ID
+		end
+		FileName = FileName .. ExportName .. ".schematic"
+		local IsSuccess, Msg = a_BlockArea:SaveToSchematicFile(FileName)
+		if not(IsSuccess) then
+			a_FailureCallback("Failed to save schematic file " .. FileName .. ": " .. (Msg or "<no details>"))
+			return
+		end
+
+		-- Advance to next area:
+		CurrArea = CurrArea + 1
+		if (a_Areas[CurrArea] == nil) then
+			-- No more areas in this group, finish the export:
+			a_SuccessCallback()
+			return
+		else
+			-- There are more areas to process, queue the next one:
+			DoWithArea(a_Areas[CurrArea], ProcessOneArea, a_FailureCallback)
+		end
+	end
+	
+	return DoWithArea(a_Areas[1], ProcessOneArea, a_FailureCallback)
+end
+
+
+
+
+
 -- Exports the area into a cpp source file
 local function ExportCpp(a_AreaDef, a_Callback)
 	-- Check params:
@@ -373,7 +421,7 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 	cpp:write("\n// ", GroupName, "Prefabs.cpp\n\n// Defines the prefabs in the group ", GroupName, "\n\n")
 	cpp:write("// NOTE: This file has been generated automatically by GalExport!\n")
 	cpp:write("// Any manual changes will be overwritten by the next automatic export!\n\n")
-	cpp:write("#include \"Globals.h\"\n#include \"", GroupName, "Prefabs.h\"\n\n\n\n\n")
+	cpp:write("#include \"Globals.h\"\n#include \"", GroupName, "Prefabs.h\"\n\n\n\n\n\n")
 	cpp:write("const cPrefab::sDef g_", GroupName, "Prefabs[] =\n{\n")
 	hdr:write("\n// ", GroupName, "Prefabs.h\n\n// Declares the prefabs in the group ", GroupName, "\n\n")
 	hdr:write("#include \"../Prefab.h\"\n\n\n\n\n")
@@ -407,6 +455,7 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 		CurrArea = CurrArea + 1
 		if (a_Areas[CurrArea] == nil) then
 			-- No more areas in this group, finish the export:
+			cpp:write("};\n\n\n\n\n\n")
 			cpp:close()
 			a_SuccessCallback()
 			return
@@ -433,7 +482,7 @@ end
 local SchematicExporterDesc =
 {
 	ExportArea = ExportSchematic,
-	ExportGroupMetadata = nil,  -- TODO
+	ExportGroup = ExportSchematicGroup,
 }
 
 
