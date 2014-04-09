@@ -88,10 +88,16 @@ end
 --- Returns the string containing CPP source for the connectors in the specified area
 -- a_Indent is inserted at each line's start
 local function MakeCppConnectorsSource(a_AreaDef, a_Indent)
+	-- No need to check params, they were checked by MakeCppSource, which is the only allowed caller
+	
+	-- Use simple local values for these functions instead of table lookups in each loop:
 	local ins = table.insert
 	local con = table.concat
+	
+	-- Write the header:
 	local res = {"\n", a_Indent, "\t// Connectors:\n", a_Indent}
 	
+	-- Write out each connector's definition:
 	local Connectors = g_DB:GetAreaConnectors(a_AreaDef.ID)
 	local ConnDefs = {}
 	for _, conn in ipairs(Connectors) do
@@ -102,12 +108,15 @@ local function MakeCppConnectorsSource(a_AreaDef, a_Indent)
 			conn.TypeNum, X, Y, Z, conn.Direction, conn.TypeNum, DirectionToString(conn.Direction)
 		))
 	end
+	
+	-- Join the connector definitions into the output:
 	ins(res, con(ConnDefs, "\n" .. a_Indent))
 	if (ConnDefs[1] == nil) then
 		ins(res, "\t\"\"")
 	end
 	ins(res, ",\n")
 	
+	-- Join the output into a single string:
 	return con(res)
 end
 
@@ -133,6 +142,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 		a_Indent, "{\n"
 	}
 	
+	-- Use simple local values for these functions instead of table lookups in each loop:
 	local ins = table.insert
 	local con = table.concat
 
