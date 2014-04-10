@@ -409,6 +409,12 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
 	assert((a_FailureCallback == nil) or (type(a_SuccessCallback) == "function"))
 	
+	-- Read the areas' metadata, if not present already:
+	for _, area in ipairs(a_Areas) do
+		area.Metadata = area.Metadata or g_DB:GetMetadataForArea(area.ID, true)
+		area.Metadata.IsStarting = tonumber(area.Metadata.IsStarting)
+	end
+	
 	-- Store usefull stuff:
 	local GroupName = a_Areas[1].ExportGroupName
 	local CurrArea = 1
@@ -444,17 +450,17 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 	-- Sort areas so that the starting ones come last; then by their export name:
 	table.sort(a_Areas,
 		function (a_Area1, a_Area2)
-			if (a_Area1.IsStarting) then
-				if (a_Area2.IsStarting) then
+			if (a_Area1.Metadata.IsStarting ~= 0) then
+				if (a_Area2.Metadata.IsStarting ~= 0) then
 					-- Both are starting, sort by export name:
 					return (GetAreaExportName(a_Area1) < GetAreaExportName(a_Area2))
 				end
 				-- a_Area1 is starting, a_Area2 is not:
-				return 1
+				return false
 			end
-			if (a_Area2.IsStarting) then
+			if (a_Area2.Metadata.IsStarting ~= 0) then
 				-- a_Area2 is starting, a_Area1 is not:
-				return -1
+				return true
 			end
 			-- Neither area is starting, sort by name:
 			return (GetAreaExportName(a_Area1) < GetAreaExportName(a_Area2))
@@ -479,8 +485,9 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 			return
 		else
 			-- There are more areas to process:
-			if (not(Area.IsStarting) and (a_Areas[CurrArea].IsStarting)) then
-				cpp:write("};\n\n\n\n\nconst cPrefab::sDef g_", GroupName, "StartingPrefabs[] =\n{\n")
+			if ((Area.Metadata.IsStarting == 0) and (a_Areas[CurrArea].Metadata.IsStarting ~= 0)) then
+				-- going from not-starting into starting areas, break off the array and start a new one:
+				cpp:write("};\n\n\n\n\n\nconst cPrefab::sDef g_", GroupName, "StartingPrefabs[] =\n{\n")
 			else
 				cpp:write("\n\n\n")
 			end
