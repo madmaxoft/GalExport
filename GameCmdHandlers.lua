@@ -51,6 +51,66 @@ end
 
 
 
+--- Sends a list of the available metadata names to the player
+local function ListAvailableMetadata(a_Player)
+	local Names = g_DB:GetAllowedMetadataNames()
+	a_Player:SendMessage(cCompositeChat("The following metadata values can be set: ", mtInfo))
+	for _, name in ipairs(Names) do
+		a_Player:SendMessage(cCompositeChat("  ", mtInfo):AddSuggestCommandPart(name, g_Config.CommandPrefix .. " set " .. name .. " ", "u@b"))
+	end
+end
+
+
+
+
+
+--- Sends the list of all assigned metadata values for the current area to the player
+-- If the player is not in a gallery area, nothing is output, not even an error message
+-- Returns true if the metadata was sent, false and message if not
+local function ListMetadataForArea(a_Player)
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		-- No gallery area
+		return false, "There's no gallery area here."
+	end
+
+	-- Get the metadata values (without the defaults):
+	local MetaValues, Msg = g_DB:GetMetadataForArea(Area.ID, false)
+	if not(MetaValues) then
+		return false, Msg
+	end
+	
+	-- Convert the dict into an array, so that it can be counted and sorted:
+	local OutValues = {}
+	for k, v in pairs(MetaValues) do
+		table.insert(OutValues, k .. ": \"" .. v .. "\"")
+	end
+	
+	-- Report the metadata count:
+	local Count = #OutValues
+	if (Count == 0) then
+		a_Player:SendMessage(cCompositeChat("There are no metadata defined for this area.", mtInfo))
+		return true
+	elseif (Count == 1) then
+		a_Player:SendMessage(cCompositeChat("There is one metadata value for this area:", mtInfo))
+	else
+		a_Player:SendMessage(cCompositeChat("There are " .. #OutValues .. " metadata values for this area:", mtInfo))
+	end
+	
+	-- List all the values:
+	table.sort(OutValues)
+	for _, v in ipairs(OutValues) do
+		a_Player:SendMessage(cCompositeChat("  " .. v, mtInfo))
+	end
+	return true
+end
+
+
+
+
+
 function HandleCmdApprove(a_Split, a_Player)
 	-- Check the params:
 	if (a_Split[3] == nil) then
@@ -595,6 +655,42 @@ function HandleCmdName(a_Split, a_Player)
 	-- Rename the area:
 	g_DB:SetAreaExportName(Area.ID, AreaName)
 	a_Player:SendMessage(cCompositeChat("Area renamed to " .. AreaName, mtInfo))
+	return true
+end
+
+
+
+
+
+function HandleCmdSet(a_Split, a_Player)
+	-- /ge set [<Name> <Value>]
+	
+	-- If without params, it's a "list" request
+	if (a_Split[3] == nil) then
+		ListAvailableMetadata(a_Player)
+		ListMetadataForArea(a_Player)
+		return true
+	end
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or not(Area.IsApproved) or (Area.IsApproved == 0)) then
+		a_Player:SendMessage(cCompositeChat("Cannot set metadata, there is no approved area here.", mtFailure))
+		return true
+	end
+	
+	-- Set the metadata value into the DB:
+	local Name = a_Split[3]
+	local Value = table.concat(a_Split, " ", 4)
+	local Operation = (Value == "") and {"remove", "removed"} or {"set", "set"}
+	local IsSuccess, Msg = g_DB:SetAreaMetadata(Area.ID, Name, Value)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot " .. Operation[1] .. " metadata: " .. (Msg or "<no details>"), mtFailure))
+		return true
+	end
+
+	a_Player:SendMessage(cCompositeChat("Metadata has been " .. Operation[2] .. ".", mtInfo))
 	return true
 end
 

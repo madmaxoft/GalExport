@@ -14,6 +14,32 @@ local SQLite = {}
 
 
 
+--- Default values for the metadata
+-- Only the names listed here are allowed to get updated by the users
+local g_MetadataDefaults =
+{
+	-- Whether the area is the starting area for the generator (1) or not (0):
+	["IsStarting"] = 0,
+	
+	-- Number of allowed CCW rotations, expressed as a bitmask-ed number
+	-- E. g. 0 = no rotations allowed, 1 = 1 CCW rotation allowed, 5 = 1 or 3 CCW rotations allowed
+	["AllowedRotations"] = 7,
+	
+	-- The name of the merge strategy to use for the blockarea
+	-- Must be a valid MergeStrategy name in the cBlockArea class
+	["MergeStrategy"] = "msSpongePrint",
+	
+	-- Whether the area should expand its lowest level towards the nearest non-air block; 0 or 1
+	["ShouldExpandFloor"] = 1,
+	
+	-- String specifying the weighted chance for this area's occurrence per tree-depth, such as "1:100|2:50|3:40|4:1|5:0"
+	["DepthWeight"] = "1:10",
+}
+
+
+
+
+
 --- Formats the datetime (as returned by os.time() ) into textual representation used in the DB
 function FormatDateTime(a_DateTime)
 	assert(type(a_DateTime) == "number")
@@ -322,6 +348,21 @@ end
 
 
 
+-- Returns an array-table of strings that represent the valid names for area metadata
+function SQLite:GetAllowedMetadataNames()
+	-- Convert from map's keys to array:
+	local res = {}
+	for k, _ in pairs(g_MetadataDefaults) do
+		table.insert(res, k)
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns a table describing the area at the specified coords
 -- The table has all the attributes read from the DB row
 -- Returns nil if there's no area at those coords
@@ -455,6 +496,37 @@ end
 
 
 
+--- Retrieves the metadata for the specified area, as a dict table {"name" -> "value"}
+-- If a_IncludeDefaults is true, the defaults are added to the result, producing the full set of metadata
+function SQLite:GetMetadataForArea(a_AreaID, a_IncludeDefaults)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+
+	-- Load from DB:
+	local res = {}
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT Name, Value FROM Metadata WHERE AreaID = ?",
+		{ AreaID },
+		function (a_Values)
+			res[a_Values.Name] = a_Values.Value
+		end
+	)
+	
+	-- Add the defaults:
+	if (a_IncludeDefaults) then
+		for k, v in pairs(g_MetadataDefaults) do
+			res[k] = res[k] or v
+		end
+	end
+	
+	return res
+end
+
+
+
+
 --- Retrieves the sponges for the specified area
 -- Returns a cBlockArea representing the whole area (MinX to MaxX etc), where sponges should be put
 -- Returns nil and message on error
@@ -531,6 +603,51 @@ function SQLite:SetAreaExportName(a_AreaID, a_AreaName)
 			a_AreaName, a_AreaID
 		}
 	)
+end
+
+
+
+
+
+--- If the metadata name is in the list of allowed metadata names, sets its value in the DB
+-- Returns true on success, false and optional message on failure
+function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	assert(type(a_Name) == "string")
+	
+	-- Check that the name is allowed:
+	if not(g_MetadataDefaults[a_Name]) then
+		return false, "Unknown Metadata name"
+	end
+	
+	-- Remove any previous value:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"DELETE FROM Metadata WHERE AreaID = ? AND Name = ?",
+		{
+			AreaID, a_Name
+		}
+	)
+	if not(IsSuccess) then
+		return false, "Failed to remove old value: " .. (Msg or "<no details>")
+	end
+	
+	-- Add the new value:
+	if ((a_Value ~= nil) and (a_Value ~= "")) then
+		IsSuccess, Msg = self:ExecuteStatement(
+			"INSERT INTO Metadata (AreaID, Name, Value) VALUES (?, ?, ?)",
+			{
+				AreaID, a_Name, a_Value
+			}
+		)
+		if not(IsSuccess) then
+			return false, "Failed to set new value: " .. (Msg or "<no details>")
+		end
+	end
+	
+	return true
 end
 
 
@@ -667,11 +784,18 @@ function SQLite_CreateStorage(a_Params)
 		"Direction",               -- Direction (eBlockFace) of the connector
 		"TypeNum",                 -- Type of the connector (only same-type connectors will be connected in the generator)
 	}
+	local MetadataColumns =
+	{
+		"AreaID INTEGER",  -- ID of the area for which the metadata is defined
+		"Name   STRING",   -- Name of the metadata item
+		"Value",           -- Value of the metadata item
+	}
 	if (
 		not(DB:TableExists("Areas")) or
-		not(DB:CreateDBTable("Areas", AreasColumns)) or
+		not(DB:CreateDBTable("Areas",         AreasColumns)) or
 		not(DB:CreateDBTable("ExportSponges", ExportSpongesColumns)) or
-		not(DB:CreateDBTable("Connectors", ConnectorsColumns))
+		not(DB:CreateDBTable("Connectors",    ConnectorsColumns)) or
+		not(DB:CreateDBTable("Metadata",      MetadataColumns))
 	) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot create DB tables!")
 		error("Cannot create DB tables!")

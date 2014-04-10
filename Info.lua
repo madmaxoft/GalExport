@@ -248,12 +248,30 @@ and edited with the help of WorldEdit and its WECUI link.
 					},
 				},  -- name
 				
+				set =
+				{
+					HelpString = "Sets a metadata value for the current area",
+					Permission = "galexport.set",
+					Handler = HandleCmdSet,
+					ParameterCombinations =
+					{
+						{
+							Params = "",
+							Help = "Lists the metadata available for setting",
+						},
+						{
+							Params = "Name Value",
+							Help = "Sets the metadata named Name to value Value",
+						},
+					},
+				},  -- set
+				
 				sponge =
 				{
 					HelpString = "Helps with \"sponging\" the areas for export",
 					DevNotes = "Note that the area needn't be approved, sponging works on non-approved areas, too",
 					Permission = "galexport.sponge",
-					Alias = {"sp", "s"},
+					Alias = {"sp"},
 					Subcommands =
 					{
 						hide =
