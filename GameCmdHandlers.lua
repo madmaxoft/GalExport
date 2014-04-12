@@ -635,7 +635,7 @@ function HandleCmdInfo(a_Split, a_Player)
 		Area.GalleryIndex, Area.GalleryName, Area.PlayerName), mtInfo)
 	)
 	local IsApproved = Area.IsApproved and (Area.IsApproved ~= 0)
-	if (not(Area.IsApproved) or (Area.IsApproved == 0)) then
+	if not(IsApproved) then
 		a_Player:SendMessage(cCompositeChat("The area hasn't been approved for export.", mtInfo))
 		-- Non-approved areas don't have a BBox, don't print anything
 	else
@@ -643,18 +643,23 @@ function HandleCmdInfo(a_Split, a_Player)
 			"Approved by %s on %s.",
 			Area.ApprovedBy, Area.DateApproved), mtInfo)
 		)
-		a_Player:SendMessage(cCompositeChat("Export name: " .. Area.ExportName, mtInfo))
+		a_Player:SendMessage(cCompositeChat("Export name: " .. (Area.ExportName or "<no name>"), mtInfo))
+		
 		-- Print the BBox:
 		a_Player:SendMessage(cCompositeChat(string.format(
 			"Export bounds: {%d, %d, %d} - {%d, %d, %d}",
 			Area.ExportMinX, Area.ExportMinY, Area.ExportMinZ,
 			Area.ExportMaxX, Area.ExportMaxY, Area.ExportMaxZ), mtInfo)
 		)
+		
+		-- Print the export size and volume:
 		a_Player:SendMessage(cCompositeChat(string.format(
-			"Export size: %d * %d * %d blocks",
+			"Export size: %d * %d * %d blocks, volume %d blocks",
 			Area.ExportMaxX - Area.ExportMinX + 1,
 			Area.ExportMaxY - Area.ExportMinY + 1,
-			Area.ExportMaxZ - Area.ExportMinZ + 1), mtInfo)
+			Area.ExportMaxZ - Area.ExportMinZ + 1,
+			(Area.ExportMaxX - Area.ExportMinX + 1) * (Area.ExportMaxY - Area.ExportMinY + 1) * (Area.ExportMaxZ - Area.ExportMinZ + 1)
+			), mtInfo)
 		)
 	end
 	
