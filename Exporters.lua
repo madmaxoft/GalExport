@@ -440,7 +440,7 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 	cpp:write("#include \"Globals.h\"\n#include \"", GroupName, "Prefabs.h\"\n\n\n\n\n\n")
 	cpp:write("const cPrefab::sDef g_", GroupName, "Prefabs[] =\n{\n")
 	hdr:write("\n// ", GroupName, "Prefabs.h\n\n// Declares the prefabs in the group ", GroupName, "\n\n")
-	hdr:write("#include \"../Prefab.h\"\n\n\n\n\n")
+	hdr:write("#include \"../Prefab.h\"\n\n\n\n\n\n")
 	hdr:write("extern const cPrefab::sDef g_", GroupName, "Prefabs[];\n")
 	hdr:write("extern const cPrefab::sDef g_", GroupName, "StartingPrefabs[];\n")
 	hdr:write("extern const size_t g_", GroupName, "PrefabsCount;\n")
@@ -468,6 +468,7 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 	)
 	
 	-- Callback to be called when area data has been loaded:
+	local HasStarting = false
 	local function ProcessOneArea(a_BlockArea)
 		-- Write source for the area into the file:
 		local Area = a_Areas[CurrArea]
@@ -480,6 +481,11 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 		if (a_Areas[CurrArea] == nil) then
 			-- No more areas in this group, finish the export:
 			cpp:write("};\n\n\n\n\n\n")
+			cpp:write("// The prefab counts:\n\n")
+			cpp:write("const size_t g_", GroupName, "PrefabsCount = ARRAYCOUNT(g_", GroupName, "Prefabs);\n\n")
+			if (HasStarting) then
+				cpp:write("const size_t g_", GroupName, "StartingPrefabsCount = ARRAYCOUNT(g_", GroupName, "StartingPrefabs);\n\n")
+			end
 			cpp:close()
 			a_SuccessCallback()
 			return
@@ -487,7 +493,9 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 			-- There are more areas to process:
 			if ((Area.Metadata.IsStarting == 0) and (a_Areas[CurrArea].Metadata.IsStarting ~= 0)) then
 				-- going from not-starting into starting areas, break off the array and start a new one:
-				cpp:write("};\n\n\n\n\n\nconst cPrefab::sDef g_", GroupName, "StartingPrefabs[] =\n{\n")
+				cpp:write("};  // g_", GroupName, "Prefabs\n")
+				cpp:write("\n\n\n\n\n\nconst cPrefab::sDef g_", GroupName, "StartingPrefabs[] =\n{\n")
+				HasStarting = true
 			else
 				cpp:write("\n\n\n")
 			end
