@@ -104,7 +104,7 @@ local function MakeCppConnectorsSource(a_AreaDef, a_Indent)
 		local X = conn.X - a_AreaDef.ExportMinX
 		local Y = conn.Y - a_AreaDef.ExportMinY
 		local Z = conn.Z - a_AreaDef.ExportMinZ
-		ins(ConnDefs, string.format("\t\"%d: %d, %d, %d: %d\"  // Type %d, direction %s",
+		ins(ConnDefs, string.format("\t\"%d: %d, %d, %d: %d\"  /* Type %d, direction %s */",
 			conn.TypeNum, X, Y, Z, conn.Direction, conn.TypeNum, DirectionToString(conn.Direction)
 		))
 	end
