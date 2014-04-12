@@ -210,6 +210,18 @@ and edited with the help of WorldEdit and its WECUI link.
 								},
 							},
 						},  -- rename
+						
+						set =
+						{
+							HelpString = "Sets the group for the current area",
+							Handler = HandleCmdGroupSet,
+							Alias = "s",
+							ParameterCombinations =
+							{
+								Params = "NewGroupName",
+								Help = "Sets the group name for the current area",
+							},
+						},  -- set
 					},  -- Subcommands
 				},  -- group
 				

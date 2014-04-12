@@ -582,6 +582,42 @@ end
 
 
 
+function HandleCmdGroupSet(a_Split, a_Player)
+	-- /ge group set <NewGroupName>
+	
+	-- Check params:
+	if ((a_Split[4] == nil) or (a_Split[5] ~= nil)) then
+		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " group set ", g_Config.CommandPrefix .. " group set ")
+			:AddTextPart("NewGroupName", "@2")
+		)
+		return true
+	end
+	local NewGroupName = a_Split[4]
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot show information, there is no gallery area here.", mtFailure))
+		return true
+	end
+	
+	-- Set the group in the DB:
+	local IsSuccess, Msg = g_DB:SetAreaExportGroup(Area.ID, NewGroupName)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Failed to set area's export group name in DB: " .. (Msg or "<no details>"), mtFailure))
+		return true
+	end
+
+	a_Player:SendMessage(cCompositeChat("Area's export group name changed.", mtInfo))
+	return true
+end
+
+
+
+
+
 function HandleCmdInfo(a_Split, a_Player)
 	-- /ge info
 

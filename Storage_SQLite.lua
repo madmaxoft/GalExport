@@ -645,6 +645,27 @@ end
 
 
 
+--- Sets the area's ExportGroup name
+-- Returns false and error message on failure, or true on success
+function SQLite:SetAreaExportGroup(a_AreaID, a_GroupName)
+	-- Check params:
+	assert(self ~= nil)
+	assert(tonumber(a_AreaID) ~= nil)
+	assert(type(a_GroupName) == "string")
+	
+	-- Update in DB:
+	return self:ExecuteStatement(
+		"UPDATE Areas SET ExportGroupName = ? WHERE ID = ?",
+		{
+			a_GroupName, a_AreaID
+		}
+	)
+end
+
+
+
+
+
 --- Sets the area's ExportName
 -- Returns false and error message on failure, or true on success
 function SQLite:SetAreaExportName(a_AreaID, a_AreaName)
@@ -653,6 +674,7 @@ function SQLite:SetAreaExportName(a_AreaID, a_AreaName)
 	assert(tonumber(a_AreaID) ~= nil)
 	assert(type(a_AreaName) == "string")
 	
+	-- Rename in DB:
 	return self:ExecuteStatement(
 		"UPDATE Areas SET ExportName = ? WHERE ID = ?",
 		{
