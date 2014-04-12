@@ -213,6 +213,14 @@ and edited with the help of WorldEdit and its WECUI link.
 					},  -- Subcommands
 				},  -- group
 				
+				info =
+				{
+					HelpString = "Shows export-related information for the current area",
+					Permission = "galexport.info",
+					Alias = "i",
+					Handler = HandleCmdInfo,
+				},  -- info
+				
 				listapproved =
 				{
 					HelpString = "Shows a list of all the approved areas.",

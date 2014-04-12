@@ -582,6 +582,106 @@ end
 
 
 
+function HandleCmdInfo(a_Split, a_Player)
+	-- /ge info
+
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot show information, there is no gallery area here.", mtFailure))
+		return true
+	end
+	
+	-- Basic info: area identification, author, approval state:
+	a_Player:SendMessage(cCompositeChat(string.format(
+		"This is area #%d in gallery %s, claimed by %s.",
+		Area.GalleryIndex, Area.GalleryName, Area.PlayerName), mtInfo)
+	)
+	local IsApproved = Area.IsApproved and (Area.IsApproved ~= 0)
+	if (not(Area.IsApproved) or (Area.IsApproved == 0)) then
+		a_Player:SendMessage(cCompositeChat("The area hasn't been approved for export.", mtInfo))
+		-- Non-approved areas don't have a BBox, don't print anything
+	else
+		a_Player:SendMessage(cCompositeChat(string.format(
+			"Approved by %s on %s.",
+			Area.ApprovedBy, Area.DateApproved), mtInfo)
+		)
+		a_Player:SendMessage(cCompositeChat("Export name: " .. Area.ExportName, mtInfo))
+		-- Print the BBox:
+		a_Player:SendMessage(cCompositeChat(string.format(
+			"Export bounds: {%d, %d, %d} - {%d, %d, %d}",
+			Area.ExportMinX, Area.ExportMinY, Area.ExportMinZ,
+			Area.ExportMaxX, Area.ExportMaxY, Area.ExportMaxZ), mtInfo)
+		)
+		a_Player:SendMessage(cCompositeChat(string.format(
+			"Export size: %d * %d * %d blocks",
+			Area.ExportMaxX - Area.ExportMinX + 1,
+			Area.ExportMaxY - Area.ExportMinY + 1,
+			Area.ExportMaxZ - Area.ExportMinZ + 1), mtInfo)
+		)
+	end
+	
+	-- Connectors:
+	local ConnCount, Msg = g_DB:GetAreaConnectorCount(Area.ID)
+	if (ConnCount) then
+		a_Player:SendMessage(cCompositeChat("There are ", mtInfo)
+			:AddRunCommandPart(ConnCount .. " connectors", g_Config.CommandPrefix .. " conn list", "@bu")
+			:AddTextPart(" for this area.")
+		)
+	else
+		a_Player:SendMessage(cCompositeChat("Cannot evaluate connectors for this area: " .. (Msg or "<no details>"), mtFailure))
+	end
+	
+	-- Sponges:
+	local HasSponge
+	HasSponge, Msg = g_DB:HasSponge(Area.ID)
+	if (HasSponge == true) then
+		a_Player:SendMessage(cCompositeChat("The area has been sponged.", mtInfo))
+	elseif (HasSponge == false) then
+		a_Player:SendMessage(cCompositeChat("The area has NOT been sponged yet.", mtInfo))
+	else
+		a_Player:SendMessage(cCompositeChat("Cannot determine area's sponge status: " .. (Msg or "<no details>"), mtFailure))
+	end
+	
+	-- Metadata:
+	local Metadata
+	Metadata, Msg = g_DB:GetMetadataForArea(Area.ID)
+	if (Metadata) then
+		-- Sort the metadata:
+		local MetadataArr = {}
+		for k, v in pairs(Metadata) do
+			table.insert(MetadataArr, k .. ": " .. v)
+		end
+		table.sort(MetadataArr)
+		
+		-- Send count to player:
+		local NumMetadata = #MetadataArr
+		if (NumMetadata == 0) then
+			a_Player:SendMessage(cCompositeChat("There is no metadata value.", mtInfo))
+		elseif (NumMetadata == 1) then
+			a_Player:SendMessage(cCompositeChat("There is one metadata value:", mtInfo))
+		else
+			a_Player:SendMessage(cCompositeChat(string.format(
+				"There are %d metadata values:", #MetadataArr), mtInfo)
+			)
+		end
+		
+		-- Send values to player:
+		for _, m in ipairs(MetadataArr) do
+			a_Player:SendMessage(cCompositeChat("  " .. m, mtInfo))
+		end
+	else
+		a_Player:SendMessage(cCompositeChat("Area's metadata query failed: " .. (Msg or "<no details>"), mtFailure))
+	end
+	
+	return true
+end
+
+
+
+
+
 -- Shows a list of all the approved areas.
 function HandleCmdListApproved(a_Split, a_Player)
 	-- /ge list [GroupName]

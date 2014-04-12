@@ -404,6 +404,34 @@ end
 
 
 
+--- Returns the count of connectors for the specified area
+-- Returns nil and possibly message on error
+function SQLite:GetAreaConnectorCount(a_AreaID)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	
+	-- Query the DB:
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT COUNT(*) AS Count FROM Connectors WHERE AreaID = ?",
+		{ AreaID },
+		function (a_Values)
+			res = a_Values.Count
+		end
+	)
+	if not(IsSuccess) then
+		return nil, Msg
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns an array of all the connectors for the specified area
 -- Each member is a table with all the DB values for the connector
 -- Returns nil and possibly message on error
@@ -562,6 +590,34 @@ function SQLite:GetSpongesForArea(a_AreaID)
 		return nil, "cannot decode the stored schematic"
 	end
 	return Sponges
+end
+
+
+
+
+
+--- Returns whether the specified area has a sponge defined
+-- Returns nil and optional error message on failure
+function SQLite:HasSponge(a_AreaID)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	
+	-- Query the DB:
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT COUNT(*) AS Count FROM ExportSponges WHERE AreaID = ?",
+		{ AreaID },
+		function (a_Values)
+			res = (a_Values.Count > 0)
+		end
+	)
+	if not(IsSuccess) then
+		return nil, Msg
+	end
+	
+	return res
 end
 
 
