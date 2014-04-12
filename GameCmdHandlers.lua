@@ -445,6 +445,7 @@ function HandleCmdExportAll(a_Split, a_Player)
 	local Format = a_Split[4]
 	
 	-- Queue the export. The default callbacks are fine for us (a message to the player)
+	a_Player:SendMessage(cCompositeChat("Exporting all areas...", mtInfo))
 	QueueExportAllGroups(Format, a_Player:GetName())
 end
 
@@ -467,6 +468,7 @@ function HandleCmdExportGroup(a_Split, a_Player)
 	local Format = a_Split[5]
 	
 	-- Export (using code common with the console handler):
+	a_Player:SendMessage(cCompositeChat("Exporting group...", mtInfo))
 	QueueExportAreaGroup(GroupName, Format, a_Player:GetName())
 	
 	return true
