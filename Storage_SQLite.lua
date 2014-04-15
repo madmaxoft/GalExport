@@ -32,8 +32,16 @@ local g_MetadataDefaults =
 	-- Whether the area should expand its lowest level towards the nearest non-air block; 0 or 1
 	["ShouldExpandFloor"] = 1,
 	
+	-- The weight to use for this prefab, unless there's any other modifier active
+	["DefaultWeight"] = 100,
+	
 	-- String specifying the weighted chance for this area's occurrence per tree-depth, such as "1:100|2:50|3:40|4:1|5:0"
-	["DepthWeight"] = "1:10",
+	-- Depth that isn't specified will get the DefaultWeight weight
+	["DepthWeight"] = "",
+
+	-- The weight to add to this piece's base per-depth chance if the previous piece is the same. Can be positive or negative.
+	["AddWeightIfSame"] = 0,
+	
 }
 
 

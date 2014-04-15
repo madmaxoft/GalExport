@@ -124,6 +124,103 @@ end
 
 
 
+--- Returns the (comment) description for the number of rotations allowed, based on the bitmask
+-- Since there's only 8 values, I don't want to implement a full bit masking in Lua :P
+local function GetRotationsDesc(a_Rotations)
+	-- Check params:
+	local Rotations = tonumber(a_Rotations)
+	assert(Rotations ~= nil)
+	
+	if (Rotations == 0) then
+		return "No rotations allowed"
+	elseif (Rotations == 1) then
+		return "1 CCW rotation allowed"
+	elseif (Rotations == 2) then
+		return "2 CCW rotations allowed"
+	elseif (Rotations == 3) then
+		return "1, 2 CCW rotations allowed"
+	elseif (Rotations == 4) then
+		return "3 CCW rotation allowed"
+	elseif (Rotations == 5) then
+		return "1, 3 CCW rotations allowed"
+	elseif (Rotations == 6) then
+		return "2, 3 CCW rotations allowed"
+	elseif (Rotations == 7) then
+		return "1, 2, 3 CCW rotation allowed"
+	end
+	return "<error in AllowedRotations>"
+end
+
+
+
+
+
+--- Returns a string containing the metadata definitions for the area
+-- a_Indent is inserted at each line's beginning, including the first line
+local function MakeCppMetadataSource(a_AreaDef, a_Indent)
+	local ins = table.insert
+	local res = {}
+	
+	-- Allowed rotations:
+	ins(res, a_Indent)
+	ins(res, "\t// AllowedRotations:\n")
+	ins(res, a_Indent)
+	ins(res, "\t")
+	ins(res, a_AreaDef.Metadata.AllowedRotations)
+	ins(res, ",  /* ")
+	ins(res, GetRotationsDesc(a_AreaDef.Metadata.AllowedRotations))
+	ins(res, " */\n\n")
+	
+	-- Merge strategy:
+	ins(res, a_Indent)
+	ins(res, "\t// Merge strategy:\n")
+	ins(res, a_Indent)
+	ins(res, "\tcBlockArea::")
+	ins(res, a_AreaDef.Metadata.MergeStrategy)
+	ins(res, ",\n\n")
+	
+	-- ShouldExtendFloor:
+	ins(res, a_Indent)
+	ins(res, "\t// ShouldExtendFloor:\n")
+	ins(res, a_Indent)
+	ins(res, "\t")
+	if ((tonumber(a_AreaDef.Metadata.ShouldExtendFloor) or 0) ~= 0) then
+		ins(res, "true,\n\n")
+	else
+		ins(res, "false,\n\n")
+	end
+	
+	-- DefaultWeight:
+	ins(res, a_Indent)
+	ins(res, "\t// DefaultWeight:\n")
+	ins(res, a_Indent)
+	ins(res, "\t")
+	ins(res, (tonumber(a_AreaDef.Metadata.DefaultWeight) or 100))
+	ins(res, ",\n\n")
+	
+	-- DepthWeight:
+	ins(res, a_Indent)
+	ins(res, "\t// DepthWeight:\n")
+	ins(res, a_Indent)
+	ins(res, "\t\"")
+	ins(res, a_AreaDef.Metadata.DepthWeight or "")
+	ins(res, "\",\n\n")
+	
+	-- AddWeightIfSame:
+	ins(res, a_Indent)
+	ins(res, "\t// AddWeightIfSame:\n")
+	ins(res, a_Indent)
+	ins(res, "\t")
+	ins(res, a_AreaDef.Metadata.AddWeightIfSame or 0)
+	ins(res, ",\n")
+	
+	return table.concat(res)
+end
+
+
+
+
+
 --- Converts the cBlockArea into a cpp source
 -- a_Indent is inserted at each line's start
 -- Returns the cpp source as a string if successful
@@ -251,16 +348,8 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	ins(res, MakeCppConnectorsSource(a_AreaDef, a_Indent))
 	ins(res, "\n")
 	
-	-- Write the constant metadata:
-	ins(res, a_Indent)
-	ins(res, "\t// AllowedRotations:\n")
-	ins(res, a_Indent)
-	ins(res, "\t7,  /* 1, 2, 3 CCW rotations */\n")
-	ins(res, "\n")
-	ins(res, a_Indent)
-	ins(res, "\t// Merge strategy:\n")
-	ins(res, a_Indent)
-	ins(res, "\tcBlockArea::msSpongePrint,\n")
+	-- Write the metadata:
+	ins(res, MakeCppMetadataSource(a_AreaDef, a_Indent))
 	ins(res, a_Indent)
 	ins(res, "},  // ")
 	ins(res, ExportName)
