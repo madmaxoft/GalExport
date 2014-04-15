@@ -645,7 +645,10 @@ function HandleCmdInfo(a_Split, a_Player)
 			"Approved by %s on %s.",
 			Area.ApprovedBy, Area.DateApproved), mtInfo)
 		)
-		a_Player:SendMessage(cCompositeChat("Export name: " .. (Area.ExportName or "<no name>"), mtInfo))
+		a_Player:SendMessage(cCompositeChat(string.format(
+			"Export name: %s in group %s",
+			(Area.ExportName or "<no name>"), Area.ExportGroupName), mtInfo)
+		)
 		
 		-- Print the BBox:
 		a_Player:SendMessage(cCompositeChat(string.format(
