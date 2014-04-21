@@ -225,6 +225,30 @@ and edited with the help of WorldEdit and its WECUI link.
 					},  -- Subcommands
 				},  -- group
 				
+				hitbox =
+				{
+					HelpString = "Manipulates the hit boxes for export",
+					Alias = {"hbox", "hb", "h"},
+					Subcommands =
+					{
+						change =
+						{
+							HelpString = "Updates the hit box of the area you're standing in to your current WE selection",
+							Permission = "galexport.hbox.change",
+							Alias = {"c", "update", "u"},
+							Handler = HandleCmdHboxChange,
+						},  -- change
+						
+						show =
+						{
+							HelpString = "Sets your WE selection to the hit box of the area you're standing in",
+							Permission = "gallexport.hbox.show",
+							Alias = {"s", "view", "v"},
+							Handler = HandleCmdHboxShow,
+						},  -- show
+					},  -- Subcommands
+				},  -- hitbox
+				
 				info =
 				{
 					HelpString = "Shows export-related information for the current area",

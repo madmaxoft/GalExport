@@ -789,6 +789,33 @@ end
 
 
 
+--- Updates the hitbox in the DB to the specified values
+-- Returns false and error message on failure, or true on success
+function SQLite:UpdateAreaHBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ)
+	-- Check the params:
+	assert(self ~= nil)
+	assert(tonumber(a_AreaID) ~= nil)
+	assert(tonumber(a_MinX) ~= nil)
+	assert(tonumber(a_MinY) ~= nil)
+	assert(tonumber(a_MinZ) ~= nil)
+	assert(tonumber(a_MaxX) ~= nil)
+	assert(tonumber(a_MaxY) ~= nil)
+	assert(tonumber(a_MaxZ) ~= nil)
+	
+	-- Write into DB:
+	return self:ExecuteStatement(
+		"UPDATE Areas SET HitboxMinX = ?, HitboxMinY = ?, HitboxMinZ = ?, HitboxMaxX = ?, HitboxMaxY = ?, HitboxMaxZ = ? WHERE ID = ?",
+		{
+			a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ,
+			a_AreaID
+		}
+	)
+end
+
+
+
+
+
 --- Updates all the sponges in the DB for the selected area
 -- a_SpongedBlockArea is the area containing the sponge blocks; the sponge blocks are extracted and saved to DB
 -- Returns true on success, false and message on failure
@@ -856,6 +883,8 @@ function SQLite_CreateStorage(a_Params)
 		"ExportMaxX", "ExportMaxY", "ExportMaxZ",  -- The max coords of the exported area
 		"ExportGroupName",                         -- The name of the group to which this area belongs
 		"ExportName",                              -- The name of the area to use for export. If NULL, the ID is used
+		"HitboxMinX", "HitboxMinY", "HitboxMinZ",  -- The min coords of the exported area's hitbox. If NULL, ExportMin coords are used
+		"HitboxMaxX", "HitboxMaxY", "HitboxMaxZ",  -- The max coords of the exported area's hitbox. If NULL, ExportMax coords are used
 	}
 	local ExportSpongesColumns =
 	{

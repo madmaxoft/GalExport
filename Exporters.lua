@@ -221,6 +221,35 @@ end
 
 
 
+--- Returns a string containing the hitbox definitions for the area
+-- a_Indent is inserted at each line's beginning, including the first line
+local function MakeCppHitboxSource(a_AreaDef, a_Indent)
+	-- Calculate the hitbox coords, relative to the area's bounding-box:
+	-- Note that the Hitbox variables needn't be set in the AreaDef, use the Export coords in such case
+	local MinX = (a_AreaDef.HitboxMinX or a_AreaDef.ExportMinX) - a_AreaDef.ExportMinX
+	local MinY = (a_AreaDef.HitboxMinY or a_AreaDef.ExportMinY) - a_AreaDef.ExportMinY
+	local MinZ = (a_AreaDef.HitboxMinZ or a_AreaDef.ExportMinZ) - a_AreaDef.ExportMinZ
+	local MaxX = (a_AreaDef.HitboxMaxX or a_AreaDef.ExportMaxX) - a_AreaDef.ExportMinX
+	local MaxY = (a_AreaDef.HitboxMaxY or a_AreaDef.ExportMaxY) - a_AreaDef.ExportMinY
+	local MaxZ = (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ
+	
+	-- Write the coords:
+	local ins = table.insert
+	local res = {}
+	ins(res, a_Indent)
+	ins(res, "\t// Hitbox (relative to bounding box):\n")
+	ins(res, a_Indent)
+	ins(res, string.format("\t%d, %d, %d,  // MinX, MinY, MinZ\n", MinX, MinY, MinZ))
+	ins(res, a_Indent)
+	ins(res, string.format("\t%d, %d, %d,  // MaxX, MaxY, MaxZ\n", MaxX, MaxY, MaxZ))
+	
+	return table.concat(res)
+end
+
+
+
+
+
 --- Converts the cBlockArea into a cpp source
 -- a_Indent is inserted at each line's start
 -- Returns the cpp source as a string if successful
@@ -321,6 +350,10 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	ins(res, a_Indent)
 	ins(res, con({"\t", SizeX, ", ", SizeY, ", ", SizeZ, ",  // SizeX = ", SizeX, ", SizeY = ", SizeY, ", SizeZ = ", SizeZ, "\n\n"}))
 	
+	-- Write the hitbox:
+	ins(res, MakeCppHitboxSource(a_AreaDef, a_Indent))
+	ins(res, "\n")
+	
 	-- Write the letter-to-blockdef table:
 	local LetterToBlockDef = {}
 	for ltr, blk in pairs(LetterToBlock) do
@@ -350,6 +383,8 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	
 	-- Write the metadata:
 	ins(res, MakeCppMetadataSource(a_AreaDef, a_Indent))
+	
+	-- Finalize the definition:
 	ins(res, a_Indent)
 	ins(res, "},  // ")
 	ins(res, ExportName)

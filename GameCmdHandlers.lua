@@ -181,7 +181,7 @@ function HandleCmdBboxChange(a_Split, a_Player)
 	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
 	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
 	if not(Area) then
-		a_Player:SendMessage(cCompositeChat("Cannot export, there is no gallery area here.", mtFailure))
+		a_Player:SendMessage(cCompositeChat("Cannot change boundingbox, there is no gallery area here.", mtFailure))
 		return true
 	end
 	
@@ -230,18 +230,100 @@ function HandleCmdBboxShow(a_Split, a_Player)
 	end
 	
 	-- Check if the area is approved:
-	if not(Area.IsApproved == 1) then
+	if (tonumber(Area.IsApproved) ~= 1) then
 		a_Player:SendMessage(cCompositeChat("Cannot show boundingbox, this area is not approved.", mtFailure))
 		return true
 	end
 	
 	-- Send the selection to WE:
-	local SelCuboid = cCuboid(Area.ExportMinX, Area.ExportMinY, Area.ExportMinZ, Area.ExportMaxX, Area.ExportMaxY, Area.ExportMaxZ)
+	local SelCuboid = cCuboid(
+		Area.ExportMinX, Area.ExportMinY, Area.ExportMinZ,
+		Area.ExportMaxX, Area.ExportMaxY, Area.ExportMaxZ
+	)
 	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_Player, SelCuboid)
 	if not(IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Cannot set WorldEdit selection to the boundingbox", mtFailure))
 	else
 		a_Player:SendMessage(cCompositeChat("WorldEdit selection set to the boundingbox", mtInformation))
+	end
+	return true
+end
+
+
+
+
+
+function HandleCmdHboxChange(a_Split, a_Player)
+	-- /ge hbox change
+
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot change hitbox, there is no gallery area here.", mtFailure))
+		return true
+	end
+	
+	-- Get the selection from WE:
+	local SelCuboid = cCuboid()
+	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "GetPlayerCuboidSelection", a_Player, SelCuboid)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot get WorldEdit selection", mtFailure))
+		return true
+	end
+	SelCuboid:Sort()
+	
+	-- Clamp the selection to the area:
+	SelCuboid:ClampX(Area.StartX, Area.EndX)
+	SelCuboid:ClampZ(Area.StartZ, Area.EndZ)
+	
+	-- Set the selection back to area in DB:
+	local Msg
+	IsSuccess, Msg = g_DB:UpdateAreaHBox(Area.ID,
+		SelCuboid.p1.x, SelCuboid.p1.y, SelCuboid.p1.z,
+		SelCuboid.p2.x, SelCuboid.p2.y, SelCuboid.p2.z
+	)
+	
+	-- Send success report:
+	if (IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Hitbox changed", mtInformation))
+	else
+		a_Player:SendMessage(cCompositeChat("Cannot change hitbox: " .. Msg, mtFailure))
+	end
+	return true
+end
+
+
+
+
+
+function HandleCmdHboxShow(a_Split, a_Player)
+	-- /ge hbox show
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot show hitbox, there is no gallery area here.", mtFailure))
+		return true
+	end
+	
+	-- Check if the area is approved:
+	if (tonumber(Area.IsApproved) ~= 1) then
+		a_Player:SendMessage(cCompositeChat("Cannot show hitbox, this area is not approved.", mtFailure))
+		return true
+	end
+	
+	-- Send the selection to WE:
+	local SelCuboid = cCuboid(
+		Area.HitboxMinX or Area.ExportMinX, Area.HitboxMinY or Area.ExportMinY, Area.HitboxMinZ or Area.ExportMinZ,
+		Area.HitboxMaxX or Area.ExportMaxX, Area.HitboxMaxY or Area.ExportMaxY, Area.HitboxMaxZ or Area.ExportMaxZ
+	)
+	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_Player, SelCuboid)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot set WorldEdit selection to the hitbox", mtFailure))
+	else
+		a_Player:SendMessage(cCompositeChat("WorldEdit selection set to the hitbox", mtInformation))
 	end
 	return true
 end
