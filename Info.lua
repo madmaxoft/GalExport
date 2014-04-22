@@ -102,8 +102,8 @@ and edited with the help of WorldEdit and its WECUI link.
 								Help = "Deletes the connector at your feet pos",
 							},
 							{
-								Params = "LocalID",
-								Help = "Deletes the specified connector at the current area",
+								Params = "ConnectorID",
+								Help = "Deletes the specified connector",
 							},
 						},
 						["goto"] =  -- goto is a Lua keyword, so it needs to be "escaped"
@@ -115,8 +115,8 @@ and edited with the help of WorldEdit and its WECUI link.
 							ParameterCombinations =
 							{
 								{
-									Params = "LocalID",
-									Help = "Teleports you to the specified connector at the current area",
+									Params = "ConnectorID",
+									Help = "Teleports you to the specified connector",
 								},
 							},
 						},
@@ -129,6 +129,21 @@ and edited with the help of WorldEdit and its WECUI link.
 						}
 					},  -- Subcommands
 				},  -- connector
+				
+				disapprove =
+				{
+					HelpString = "Disapproves a previously approved area",
+					Permission = "galexport.disapprove",
+					Alias = {"dis", "da", "d"},
+					Handler = HandleCmdDisapprove,
+					ParameterCombinations =
+					{
+						{
+							Params = "",
+							Help = "Disapproves the area you're currently standing in",
+						},
+					},
+				},  -- disapprove
 				
 				export =
 				{

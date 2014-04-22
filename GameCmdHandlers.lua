@@ -512,6 +512,58 @@ end
 
 
 
+function HandleCmdDisapprove(a_Split, a_Player)
+	-- /ge disapprove [<AreaID>]
+
+	-- Check params:
+	local AreaID = tonumber(a_Split[3])
+	local Area
+	if (AreaID == nil) then
+		if (a_Split[3] ~= nil) then
+			-- An ID was given that couldn't be parsed:
+			a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
+				:AddSuggestCommandPart(g_Config.CommandPrefix .. " disapprove ", g_Config.CommandPrefix .. " disapprove ")
+				:AddTextPart("[<AreaID>]", "@2")
+			)
+			return true
+		end
+		-- No ID was given, use current area:
+		local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+		Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+		if (Area == nil) then
+			a_Player:SendMessage(cCompositeChat("Cannot disapprove, there is no gallery area here.", mtFailure))
+			return true
+		end
+	else
+		-- Load the area ident by AreaID:
+		Area = g_DB:GetAreaByID(AreaID)
+	end
+
+	-- If the area is not approved, bail out:
+	if (tonumber(Area.IsApproved) ~= 1) then
+		a_Player:SendMessage(cCompositeChat("The area is not approved, nothing to do.", mtInfo))
+		return true
+	end
+	
+	-- Disapprove the area in the DB:
+	local IsSuccess, Msg = g_DB:DisapproveArea(Area.ID)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot disapprove, DB failure: " .. (Msg or "<no details>"), mtFailure))
+		return true
+	end
+
+
+	a_Player:SendMessage(cCompositeChat("Area disapproved. (", mtInfo)
+		:AddSuggestCommandPart("re-approve", g_Config.CommandPrefix .. " approve " .. Area.ExportGroupName .. " " .. Area.ExportName, "@bu")
+		:AddTextPart(")")
+	)
+	return true
+end
+
+
+
+
+
 function HandleCmdExportAll(a_Split, a_Player)
 	-- /ge export all <format>
 

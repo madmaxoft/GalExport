@@ -237,6 +237,29 @@ end
 
 
 
+--- Sets the area (specified by its ID) as not approved. Keeps all the other data for the area
+-- Returns true on success, false and optional message on failure
+-- Invalid / non-approved AreaIDs will be reported as success!
+function SQLite:DisapproveArea(a_AreaID)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	
+	-- Update the DB:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"UPDATE Areas SET IsApproved = 0 WHERE ID = ?",
+		{
+			AreaID
+		}
+	)
+	return IsSuccess, Msg
+end
+
+
+
+
+
 --- Executes the SQL statement, substituting "?" in the SQL with the specified params
 -- Calls a_Callback for each row
 -- The callback receives a dictionary table containing the row values (stmt:nrows())
@@ -403,6 +426,38 @@ function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
 	if not(res.ID) then
 		-- No data has been returned by the DB call
 		return nil
+	end
+	
+	return res
+end
+
+
+
+
+
+--- Returns a table describing the area of the specified ID
+-- The table has all the attributes read from the DB row
+-- Returns nil and possibly an error message if there's no area with such ID or there's a DB error
+function SQLite:GetAreaByID(a_AreaID)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	
+	-- Load from the DB:
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT * FROM Areas WHERE ID = ?",
+		{
+			AreaID
+		},
+		function (a_Values)
+			res = a_Values
+		end
+	)
+	if (not(IsSuccess) or (res == nil) or (res.ID == nil)) then
+		-- DB error or no valid data:
+		return nil, Msg
 	end
 	
 	return res
