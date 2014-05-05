@@ -184,7 +184,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, "\t// ShouldExtendFloor:\n")
 	ins(res, a_Indent)
 	ins(res, "\t")
-	if ((tonumber(a_AreaDef.Metadata.ShouldExtendFloor) or 0) ~= 0) then
+	if ((tonumber(a_AreaDef.Metadata.ShouldExpandFloor) or 0) ~= 0) then
 		ins(res, "true,\n\n")
 	else
 		ins(res, "false,\n\n")
