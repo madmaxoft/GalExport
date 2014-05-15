@@ -490,21 +490,63 @@ function HandleCmdConnList(a_Split, a_Player)
 	)
 	
 	-- List the connectors, together with mgmt links:
+	local MinX = Area.ExportMinX or 0
+	local MinY = Area.ExportMinY or 0
+	local MinZ = Area.ExportMinZ or 0
 	a_Player:SendMessage(cCompositeChat("These connectors have been defined for this area:", mtInfo))
 	for idx, conn in ipairs(Connectors) do
 		a_Player:SendMessage(cCompositeChat(
 			string.format(
-				"  %d: type %d, {%d, %d, %d}, dir %s (",
-				idx, conn.TypeNum, conn.X - Area.ExportMinX, conn.Y - Area.ExportMinY, conn.Z - Area.ExportMinZ,
+				"  %d: ID %d, type %d, {%d, %d, %d}, dir %s (",
+				idx, conn.ID, conn.TypeNum, conn.X - MinX, conn.Y - MinY, conn.Z - MinZ,
 				(DirectionToString(conn.Direction) or "<unknown>")
 			), mtInfo)
 			:AddRunCommandPart("goto", g_Config.CommandPrefix .. " conn goto " .. conn.ID, "@bu")
 			:AddTextPart(", ")
 			:AddSuggestCommandPart("del", g_Config.CommandPrefix .. " conn del " .. conn.ID, "@bu")
+			:AddTextPart(", ")
+			:AddSuggestCommandPart("type", g_Config.CommandPrefix .. " conn retype " .. conn.ID .. " ", "@bu")
 			:AddTextPart(")")
 		)
 	end
 	
+	return true
+end
+
+
+
+
+
+function HandleCmdConnRetype(a_Split, a_Player)
+	-- /ge conn retype <ConnID> <NewType>
+	
+	-- Check params:
+	local ConnID = tonumber(a_Split[4])
+	local NewType = tonumber(a_Split[5])
+	if (not(ConnID) or not(NewType)) then
+		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " conn retype ", g_Config.CommandPrefix .. " conn retype ")
+			:AddTextPart("<ConnectorID> <NewType>", "@2")
+		)
+		return true
+	end
+	
+	-- Check that the connector exists:
+	local Connector = g_DB:GetConnectorByID(ConnID)
+	if not(Connector) then
+		a_Player:SendMessage(cCompositeChat("There's no connector with ID " .. ConnID, mtFailure))
+		return true
+	end
+	
+	-- Change the connector type in the DB:
+	local IsSuccess, Msg = g_DB:ChangeConnectorType(ConnID, NewType)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot change connector " .. ConnID .. "'s type: " .. (Msg or "<no details>"), mtFailure))
+		return true
+	end
+	
+	-- Send success notification:
+	a_Player:SendMessage(cCompositeChat("Connector " .. ConnID .. "'s type has been changed to " .. NewType, mtInfo))
 	return true
 end
 

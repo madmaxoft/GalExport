@@ -153,6 +153,28 @@ end
 
 
 
+--- Changes the type of the specified connector in the DB
+-- Returns true on success, false and potentially a message on failure
+function SQLite:ChangeConnectorType(a_ConnID, a_NewType)
+	-- Check params:
+	assert(self ~= nil)
+	local ConnID = tonumber(a_ConnID)
+	assert(ConnID ~= nil)
+	local NewType = tonumber(a_NewType)
+	assert(NewType ~= nil)
+	
+	return self:ExecuteStatement(
+		"UPDATE Connectors SET TypeNum = ? WHERE ID = ?",
+		{
+			NewType, ConnID
+		}
+	)
+end
+
+
+
+
+
 --- Creates the table of the specified name and columns[]
 -- If the table exists, any columns missing are added; existing data is kept
 function SQLite:CreateDBTable(a_TableName, a_Columns)

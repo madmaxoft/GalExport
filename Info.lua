@@ -126,7 +126,20 @@ and edited with the help of WorldEdit and its WECUI link.
 							Permission = "galexport.conn.list",
 							Alias = {"l", "ls"},
 							Handler = HandleCmdConnList,
-						}
+						},
+						retype =
+						{
+							HelpString = "Changes the connector's type",
+							Permission = "galexport.conn.retype",
+							Handler = HandleCmdConnRetype,
+							ParameterCombinations =
+							{
+								{
+									Params = "ConnectorID NewType",
+									Help = "Changes the type of the specified connector",
+								},
+							},
+						},
 					},  -- Subcommands
 				},  -- connector
 				
