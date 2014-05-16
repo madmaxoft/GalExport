@@ -841,6 +841,31 @@ end
 
 
 
+--- Sets the specified connector's position
+-- Returns true on success, false and possibly an error message on failure
+function SQLite:SetConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
+	-- Check params:
+	assert(self ~= nil)
+	local ConnID = tonumber(a_ConnID)
+	assert(ConnID ~= nil)
+	local NewX, NewY, NewZ = tonumber(a_NewX), tonumber(a_NewY), tonumber(a_NewZ)
+	assert(NewX ~= nil)
+	assert(NewY ~= nil)
+	assert(NewZ ~= nil)
+	
+	-- Update in the DB:
+	return self:ExecuteStatement(
+		"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
+		{
+			NewX, NewY, NewZ, ConnID
+		}
+	)
+end
+
+
+
+
+
 --- Returns true if the table exists in the DB
 function SQLite:TableExists(a_TableName)
 	-- Check params:

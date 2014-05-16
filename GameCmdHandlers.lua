@@ -593,6 +593,55 @@ end
 
 
 
+function HandleCmdConnShift(a_Split, a_Player)
+	-- /ge conn shift <ConnID> [<Distance>] [<Direction>]
+	
+	-- Check params:
+	local ConnID = tonumber(a_Split[4])
+	if not(ConnID) then
+		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " conn shift ", g_Config.CommandPrefix .. " conn shift ")
+			:AddTextPart("<ConnectorID> [<Distance>] [<Direction>]", "@2")
+		)
+		return true
+	end
+	
+	-- Translate distance + Direction into coord differences:
+	local DiffX, DiffY, DiffZ = ParseDistanceDirection(a_Player, a_Split, 5)
+	if not(DiffX) then
+		-- An error occurred while parsing, the detailed message is in DiffY
+		a_Player:SendMessage(cCompositeChat("Cannot parse shift command: " .. (DiffY or "<no details>"), mtFailure))
+		return true
+	end
+
+	-- Check that the connector exists:
+	local Conn = g_DB:GetConnectorByID(ConnID)
+	if not(Conn) then
+		a_Player:SendMessage(cCompositeChat("There's no connector with ID " .. ConnID, mtFailure))
+		return true
+	end
+
+	-- Shift the connector in the DB:
+	local IsSuccess, Msg = g_DB:SetConnectorPos(ConnID, Conn.X + DiffX, Conn.Y + DiffY, Conn.Z + DiffZ)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot shift connector " .. ConnID .. ": " .. (Msg or "<no details>"), mtFailure))
+		return true
+	end
+	
+	-- Send success nofitication:
+	a_Player:SendMessage(
+		cCompositeChat(string.format(
+			"Connector %d shifted by {%d, %d, %d}.",
+			ConnID, DiffX, DiffY, DiffZ
+		), mtInfo)
+	)
+	return true
+end
+
+
+
+
+
 function HandleCmdDisapprove(a_Split, a_Player)
 	-- /ge disapprove [<AreaID>]
 

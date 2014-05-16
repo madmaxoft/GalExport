@@ -148,6 +148,118 @@ end
 
 
 
+--- Parses the user's command input of "[<Distance>] [<Direction>]".
+-- Distance defaults to 1, if not given.
+-- Direction defaults to "me", if not given.
+-- If direction evaluates to "me", the cPlayer object is used to provide the direction using the GetPitch()
+-- and GetYaw() functions.
+-- Returns the X, Y, and Z block differences for the direction, and the number of params consumed.
+-- If the direction specifier is invalid, returns nil and error message.
+-- Note that if Distance is not a number, it is parsed as Direction, which may yield confusion about the
+-- error message.
+function ParseDistanceDirection(a_Player, a_Split, a_BeginParam)
+	-- Check params:
+	assert(tolua.type(a_Player) == "cPlayer")
+	assert(type(a_Split) == "table")
+	assert(type(a_BeginParam) == "number")
+	
+	-- Decide which params are present:
+	local NumParamsUsed = 0
+	local Direction
+	local Distance = tonumber(a_Split[a_BeginParam])
+	if (Distance == nil) then
+		-- The Distance param is not present, parse as direction:
+		Distance = 1
+		Direction = a_Split[a_BeginParam]
+	else
+		-- Distance has been given, direction is in the next arg
+		NumParamsUsed = 1
+		Direction = a_Split[a_BeginParam + 1]
+	end
+	if (Direction == nil) then
+		-- The direction was not given, use "me":
+		Direction = "me"
+	else
+		-- The direction was given, increment the param count:
+		NumParamsUsed = NumParamsUsed + 1
+	end
+	Direction = string.lower(Direction)
+	
+	-- Get the player's look direction:
+	local PlayerDirection
+	local Pitch = a_Player:GetPitch()
+	if (Pitch > 70) then
+		PlayerDirection = "up"
+	elseif (Pitch < -70) then
+		PlayerDirection = "down"
+	else
+		local Yaw = math.floor((a_Player:GetYaw() + 225) / 90)
+		if ((Yaw == 0) or (Yaw == 4)) then
+			-- yaw between -180 and -135, or between +135 and +180
+			PlayerDirection = "zm"
+		elseif (Yaw == 1) then
+			-- yaw between -135 and -45
+			PlayerDirection = "xp"
+		elseif (Yaw == 2) then
+			-- yaw between -45 and +45
+			PlayerDirection = "zp"
+		else
+			-- yaw between +45 and +135
+			PlayerDirection = "xm"
+		end
+	end
+	
+	-- If the player specified "me" as the direction, use their look direction instead of the given direction:
+	if ((Direction == "me") or (Direction == "self") or (Direction == "look")) then
+		Direction = PlayerDirection
+	end
+	
+	-- If the player specified "left" or "right", translate to cardinal direction based on PlayerDirection:
+	if (Direction == "left") then
+		if (PlayerDirection == "xm") then
+			Direction = "zp"
+		elseif (PlayerDirection == "xp") then
+			Direction = "zm"
+		elseif (PlayerDirection == "zm") then
+			Direction = "xm"
+		elseif (PlayerDirection == "zp") then
+			Direction = "xp"
+		end
+	elseif (Direction == "right") then
+		if (PlayerDirection == "xm") then
+			Direction = "zm"
+		elseif (PlayerDirection == "xp") then
+			Direction = "zp"
+		elseif (PlayerDirection == "zm") then
+			Direction = "xp"
+		elseif (PlayerDirection == "zp") then
+			Direction = "xm"
+		end
+	end
+	
+	-- Based on Direction, decide what to return:
+	if (Direction == "up") then
+		return 0, Distance, 0, NumParamsUsed
+	elseif (Direction == "down") then
+		return 0, -Distance, 0, NumParamsUsed
+	elseif ((Direction == "xm") or (Direction == "x-") or (Direction == "west") or (Direction == "w")) then
+		return -Distance, 0, 0, NumParamsUsed
+	elseif ((Direction == "xp") or (Direction == "x+") or (Direction == "east") or (Direction == "e")) then
+		return Distance, 0, 0, NumParamsUsed
+	elseif ((Direction == "zm") or (Direction == "z-") or (Direction == "north") or (Direction == "n")) then
+		return 0, 0, -Distance, NumParamsUsed
+	elseif ((Direction == "zp") or (Direction == "z+") or (Direction == "south") or (Direction == "s")) then
+		return 0, 0, Distance, NumParamsUsed
+	end
+
+	-- The direction is not handled:
+	return nil, "Unknown direction: " .. (Direction or "<unspecified>")
+end
+
+
+
+
+
 --- Exports the specified group of areas in the specified format
 -- The operation is asynchronous - it executes on the background while this function has already finished executing
 -- a_PlayerName is the player whom the default callbacks notify of success or failure; nil means log into server console instead

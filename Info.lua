@@ -154,6 +154,31 @@ and edited with the help of WorldEdit and its WECUI link.
 								},
 							},
 						},
+						shift =
+						{
+							HelpString = "Shifts the connector by the specified block distance",
+							Permission = "galexport.conn.shift",
+							Handler = HandleCmdConnShift,
+							ParameterCombinations =
+							{
+								{
+									Params = "ConnectorID Distance Direction",
+									HelpString = "Shifts the connector by the specified distance in the given direction",
+								},
+								{
+									Params = "ConnectorID Distance",
+									HelpString = "Shifts the connector by the specified distance in your look direction",
+								},
+								{
+									Params = "ConnectorID Direction",
+									HelpString = "Shifts the connector by the 1 block in the given direction",
+								},
+								{
+									Params = "ConnectorID",
+									HelpString = "Shifts the connector by the 1 block in your look direction",
+								},
+							},
+						},
 					},  -- Subcommands
 				},  -- connector
 				
