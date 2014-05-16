@@ -127,6 +127,20 @@ and edited with the help of WorldEdit and its WECUI link.
 							Alias = {"l", "ls"},
 							Handler = HandleCmdConnList,
 						},
+						reposition =
+						{
+							HelpString = "Changes the connector's position to your current position",
+							Permission = "galexport.conn.reposition",
+							Handler = HandleCmdConnReposition,
+							Alias = "repos",
+							ParameterCombinations =
+							{
+								{
+									Params = "ConnectorID",
+									Help = "Changes the connector's position to your current position",
+								},
+							},
+						},
 						retype =
 						{
 							HelpString = "Changes the connector's type",

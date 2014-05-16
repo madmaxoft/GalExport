@@ -153,6 +153,30 @@ end
 
 
 
+--- Changes the position of the specified connector in the DB
+-- Returns true on success, false and potentially a message on failure
+function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
+	-- Check params:
+	assert(self ~= nil)
+	local ConnID = tonumber(a_ConnID)
+	assert(ConnID ~= nil)
+	local NewX, NewY, NewZ = tonumber(a_NewX), tonumber(a_NewY), tonumber(a_NewZ)
+	assert(NewX ~= nil)
+	assert(NewY ~= nil)
+	assert(NewZ ~= nil)
+	
+	return self:ExecuteStatement(
+		"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
+		{
+			NewX, NewY, NewZ, ConnID
+		}
+	)
+end
+
+
+
+
+
 --- Changes the type of the specified connector in the DB
 -- Returns true on success, false and potentially a message on failure
 function SQLite:ChangeConnectorType(a_ConnID, a_NewType)

@@ -506,10 +506,49 @@ function HandleCmdConnList(a_Split, a_Player)
 			:AddSuggestCommandPart("del", g_Config.CommandPrefix .. " conn del " .. conn.ID, "@bu")
 			:AddTextPart(", ")
 			:AddSuggestCommandPart("type", g_Config.CommandPrefix .. " conn retype " .. conn.ID .. " ", "@bu")
+			:AddTextPart(", ")
+			:AddSuggestCommandPart("pos", g_Config.CommandPrefix .. " conn repos " .. conn.ID, "@bu")
 			:AddTextPart(")")
 		)
 	end
 	
+	return true
+end
+
+
+
+
+
+function HandleCmdConnReposition(a_Split, a_Player)
+	-- /ge conn reposition <ConnID>
+	
+	-- Check params:
+	local ConnID = tonumber(a_Split[4])
+	if not(ConnID) then
+		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " conn reposition ", g_Config.CommandPrefix .. " conn reposition ")
+			:AddTextPart("<ConnectorID>", "@2")
+		)
+		return true
+	end
+	
+	-- Check that the connector exists:
+	local Connector = g_DB:GetConnectorByID(ConnID)
+	if not(Connector) then
+		a_Player:SendMessage(cCompositeChat("There's no connector with ID " .. ConnID, mtFailure))
+		return true
+	end
+	
+	-- Change the connector type in the DB:
+	local BlockX, BlockY, BlockZ = GetPlayerPos(a_Player)
+	local IsSuccess, Msg = g_DB:ChangeConnectorPos(ConnID, BlockX, BlockY, BlockZ)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot change connector " .. ConnID .. "'s position: " .. (Msg or "<no details>"), mtFailure))
+		return true
+	end
+	
+	-- Send success notification:
+	a_Player:SendMessage(cCompositeChat("Connector " .. ConnID .. "'s position has been changed to your position", mtInfo))
 	return true
 end
 
