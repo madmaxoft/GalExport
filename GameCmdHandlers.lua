@@ -508,6 +508,8 @@ function HandleCmdConnList(a_Split, a_Player)
 			:AddSuggestCommandPart("type", g_Config.CommandPrefix .. " conn retype " .. conn.ID .. " ", "@bu")
 			:AddTextPart(", ")
 			:AddSuggestCommandPart("pos", g_Config.CommandPrefix .. " conn repos " .. conn.ID, "@bu")
+			:AddTextPart(", ")
+			:AddSuggestCommandPart("shift", g_Config.CommandPrefix .. " conn shift " .. conn.ID .. " ", "@bu")
 			:AddTextPart(")")
 		)
 	end
