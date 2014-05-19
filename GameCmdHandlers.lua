@@ -541,8 +541,15 @@ function HandleCmdConnReposition(a_Split, a_Player)
 		return true
 	end
 	
-	-- Change the connector type in the DB:
+	-- Check that the connector is in the current area:
 	local BlockX, BlockY, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or (Area.ID ~= Connector.AreaID)) then
+		a_Player:SendMessage(cCompositeChat("The connector is not in the current area, the operation has been disabled for security reasons", mtFailure))
+		return true
+	end
+	
+	-- Change the connector position in the DB:
 	local IsSuccess, Msg = g_DB:ChangeConnectorPos(ConnID, BlockX, BlockY, BlockZ)
 	if not(IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Cannot change connector " .. ConnID .. "'s position: " .. (Msg or "<no details>"), mtFailure))
