@@ -586,6 +586,14 @@ function HandleCmdConnRetype(a_Split, a_Player)
 		return true
 	end
 	
+	-- Check that the connector is in the current area:
+	local BlockX, BlockY, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or (Area.ID ~= Connector.AreaID)) then
+		a_Player:SendMessage(cCompositeChat("The connector is not in the current area, the operation has been disabled for security reasons", mtFailure))
+		return true
+	end
+	
 	-- Change the connector type in the DB:
 	local IsSuccess, Msg = g_DB:ChangeConnectorType(ConnID, NewType)
 	if not(IsSuccess) then
@@ -624,14 +632,22 @@ function HandleCmdConnShift(a_Split, a_Player)
 	end
 
 	-- Check that the connector exists:
-	local Conn = g_DB:GetConnectorByID(ConnID)
-	if not(Conn) then
+	local Connector = g_DB:GetConnectorByID(ConnID)
+	if not(Connector) then
 		a_Player:SendMessage(cCompositeChat("There's no connector with ID " .. ConnID, mtFailure))
 		return true
 	end
 
+	-- Check that the connector is in the current area:
+	local BlockX, BlockY, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if (not(Area) or (Area.ID ~= Connector.AreaID)) then
+		a_Player:SendMessage(cCompositeChat("The connector is not in the current area, the operation has been disabled for security reasons", mtFailure))
+		return true
+	end
+	
 	-- Shift the connector in the DB:
-	local IsSuccess, Msg = g_DB:SetConnectorPos(ConnID, Conn.X + DiffX, Conn.Y + DiffY, Conn.Z + DiffZ)
+	local IsSuccess, Msg = g_DB:SetConnectorPos(ConnID, Connector.X + DiffX, Connector.Y + DiffY, Connector.Z + DiffZ)
 	if not(IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Cannot shift connector " .. ConnID .. ": " .. (Msg or "<no details>"), mtFailure))
 		return true
