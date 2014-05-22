@@ -273,10 +273,6 @@ function HandleCmdHboxChange(a_Split, a_Player)
 	end
 	SelCuboid:Sort()
 	
-	-- Clamp the selection to the area:
-	SelCuboid:ClampX(Area.StartX, Area.EndX)
-	SelCuboid:ClampZ(Area.StartZ, Area.EndZ)
-	
 	-- Set the selection back to area in DB:
 	local Msg
 	IsSuccess, Msg = g_DB:UpdateAreaHBox(Area.ID,
