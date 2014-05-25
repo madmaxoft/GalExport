@@ -212,7 +212,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, a_Indent)
 	ins(res, "\t")
 	ins(res, a_AreaDef.Metadata.AddWeightIfSame or 0)
-	ins(res, ",\n")
+	ins(res, ",\n\n")
 
 	-- MoveToGround:
 	ins(res, a_Indent)
@@ -220,9 +220,9 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, a_Indent)
 	ins(res, "\t")
 	if ((tonumber(a_AreaDef.Metadata.MoveToGround) or 0) ~= 0) then
-		ins(res, "true,\n\n")
+		ins(res, "true,\n")
 	else
-		ins(res, "false,\n\n")
+		ins(res, "false,\n")
 	end
 	
 	return table.concat(res)
