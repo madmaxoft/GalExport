@@ -42,6 +42,9 @@ local g_MetadataDefaults =
 	-- The weight to add to this piece's base per-depth chance if the previous piece is the same. Can be positive or negative.
 	["AddWeightIfSame"] = 0,
 	
+	-- The prefab should move Y-wise so that its first connector is on the ground level (TerrainHeightGen); 0 or 1
+	-- Used for the houses in the village generator
+	["MoveToGround"] = 0,
 }
 
 

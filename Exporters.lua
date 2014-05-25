@@ -213,6 +213,17 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, "\t")
 	ins(res, a_AreaDef.Metadata.AddWeightIfSame or 0)
 	ins(res, ",\n")
+
+	-- MoveToGround:
+	ins(res, a_Indent)
+	ins(res, "\t// MoveToGround:\n")
+	ins(res, a_Indent)
+	ins(res, "\t")
+	if ((tonumber(a_AreaDef.Metadata.MoveToGround) or 0) ~= 0) then
+		ins(res, "true,\n\n")
+	else
+		ins(res, "false,\n\n")
+	end
 	
 	return table.concat(res)
 end
