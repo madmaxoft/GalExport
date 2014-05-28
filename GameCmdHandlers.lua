@@ -174,6 +174,56 @@ end
 
 
 
+function HandleCmdAutoSelect(a_Split, a_Player)
+	-- /ge autoselect <what>
+	
+	-- Set the AutoActionEnter in player state, based on the What param:
+	local What = string.lower(a_Split[3] or "")
+	if ((What == "bb") or (What == "bbox") or (What == "boundingbox")) then
+		-- Auto-select boundingboxes:
+		GetPlayerState(a_Player).AutoActionEnter = function(a_CBPlayer, a_Area)
+			if (tonumber(a_Area.IsApproved) ~= 1) then
+				-- Area not approved, no selection change
+				return
+			end
+			-- Select the bounding-box:
+			local SelCuboid = cCuboid(
+				a_Area.ExportMinX, a_Area.ExportMinY, a_Area.ExportMinZ,
+				a_Area.ExportMaxX, a_Area.ExportMaxY, a_Area.ExportMaxZ
+			)
+			cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_CBPlayer, SelCuboid)
+		end
+		a_Player:SendMessage(cCompositeChat("BoundingBoxes will be selected automatically", mtInfo))
+		return true
+	elseif ((What == "hb") or (What == "hbox") or (What == "hitbox")) then
+		-- Auto-select hitboxes:
+		GetPlayerState(a_Player).AutoActionEnter = function(a_CBPlayer, a_Area)
+			if (tonumber(a_Area.IsApproved) ~= 1) then
+				-- Area not approved, no selection change
+				return
+			end
+			-- Select the hitbox:
+			local SelCuboid = cCuboid(
+				a_Area.HitboxMinX or a_Area.ExportMinX, a_Area.HitboxMinY or a_Area.ExportMinY, a_Area.HitboxMinZ or a_Area.ExportMinZ,
+				a_Area.HitboxMaxX or a_Area.ExportMaxX, a_Area.HitboxMaxY or a_Area.ExportMaxY, a_Area.HitboxMaxZ or a_Area.ExportMaxZ
+			)
+			cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_CBPlayer, SelCuboid)
+		end
+		a_Player:SendMessage(cCompositeChat("Hitboxes will be selected automatically", mtInfo))
+		return true
+	elseif ((What == "") or (What == "no") or (What == "none") or (What == "nothing")) then
+		-- Turn auto-select off:
+		GetPlayerState(a_Player).AutoActionEnter = nil
+		a_Player:SendMessage(cCompositeChat("Auto-select turned off", mtInfo))
+		return true
+	end
+	return true
+end
+
+
+
+
+
 function HandleCmdBboxChange(a_Split, a_Player)
 	-- /ge bbox change
 

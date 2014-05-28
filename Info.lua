@@ -46,6 +46,29 @@ and edited with the help of WorldEdit and its WECUI link.
 					},
 				},  -- approve
 				
+				autoselect =
+				{
+					HelpString = "Turns AutoSelect on or off",
+					Permission = "galexport.autoselect",
+					Handler = HandleCmdAutoSelect,
+					Alias = { "as", "asel", "autosel"},
+					ParameterCombinations =
+					{
+						{
+							Params = "bb",
+							Help = "Automatically selects boundingbox when you enter an approved area",
+						},
+						{
+							Params = "hb",
+							Help = "Automatically selects hitbox when you enter an approved area",
+						},
+						{
+							Params = "",
+							Help = "Turns off auto-selection",
+						},
+					},
+				},  -- autoselect
+				
 				boundingbox =
 				{
 					HelpString = "Manipulates the bounding boxes for export",
