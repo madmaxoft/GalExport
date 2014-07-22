@@ -272,7 +272,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	
 	-- Write the header:
 	local ExportName = GetAreaExportName(a_AreaDef)
-	local res = {a_Indent, string.rep("/", 119), "\n",
+	local res = {a_Indent, string.rep("/", 80), "\n",
 		a_Indent, "// ", ExportName, ":\n",
 		a_Indent, "// The data has been exported from the gallery ", a_AreaDef.GalleryName, ", area index ",
 		a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, ", created by ", a_AreaDef.PlayerName, "\n",
