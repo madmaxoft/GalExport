@@ -166,6 +166,15 @@ function HandleCmdApprove(a_Split, a_Player)
 		return true
 	end
 	
+	-- If configured to, lock the area after approval:
+	if (g_Config.LockApproved) then
+		local IsSuccess, ErrorCode, Msg = cPluginManager:CallPlugin("Gallery", "LockAreaByID", Area.ID, a_Player:GetName())
+		if (not(IsSuccess) and (ErrorCode ~= "AlreadyLocked")) then
+			-- Notify the player but keep going:
+			a_Player:SendMessage(cCompositeChat("Cannot lock approved area: " .. (Msg or "<Unknown error (" .. (ErrorCode or "<unknown code>") .. ")>"), mtFailure))
+		end
+	end
+	
 	a_Player:SendMessage(cCompositeChat("Area successfully approved.", mtInformation))
 	return true
 end
@@ -753,7 +762,15 @@ function HandleCmdDisapprove(a_Split, a_Player)
 		return true
 	end
 
-
+	-- If configured to lock areas upon approval, unlock the area:
+	if (g_Config.LockApproved) then
+		local IsSuccess, ErrorCode, Msg = cPluginManager:CallPlugin("Gallery", "UnlockAreaByID", Area.ID, a_Player:GetName())
+		if (not(IsSuccess) and (ErrorCode ~= "NotLocked")) then
+			a_Player:SendMessage(cCompositeChat("Cannot unlock area: " .. (Msg or "<Unknown error (" .. (ErrorCode or "<unknown code>") .. ")>"), mtFailure))
+		end
+	end
+	
+	-- Notify the player:
 	a_Player:SendMessage(cCompositeChat("Area disapproved. (", mtInfo)
 		:AddSuggestCommandPart("re-approve", g_Config.CommandPrefix .. " approve " .. Area.ExportGroupName .. " " .. Area.ExportName, "@bu")
 		:AddTextPart(")")
