@@ -275,6 +275,8 @@ function QueueExportAreaGroup(a_GroupName, a_Format, a_PlayerName, a_SuccessCall
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
 	assert((a_FailureCallback == nil) or (type(a_FailureCallback) == "function"))
 	
+	SendPlayerMessage(a_PlayerName, cCompositeChat("Exporting group " .. a_GroupName, mtInfo))
+	
 	-- Check if the format is supported:
 	local Exporter = g_Exporters[a_Format]
 	if not(Exporter) then
@@ -344,7 +346,7 @@ function QueueExportAreaGroups(a_GroupNames, a_Format, a_PlayerName, a_SuccessCa
 	
 	-- Create a callback that queues the next group successively:
 	local CurrGroup = 1
-	local SuccessCallback = function()
+	local function SuccessCallback()
 		-- Move to the next group to export:
 		CurrGroup = CurrGroup + 1
 		if (a_GroupNames[CurrGroup] == nil) then
@@ -352,6 +354,13 @@ function QueueExportAreaGroups(a_GroupNames, a_Format, a_PlayerName, a_SuccessCa
 			a_SuccessCallback()
 			return
 		else
+			-- Unload chunks, so that there aren't too many:
+			cRoot:Get():ForEachWorld(
+				function(a_CBWorld)
+					a_CBWorld:QueueUnloadUnusedChunks()
+				end
+			)
+			
 			-- Queue the next group:
 			QueueExportAreaGroup(a_GroupNames[CurrGroup], a_Format, a_PlayerName, SuccessCallback, a_FailureCallback)
 		end
@@ -394,7 +403,7 @@ function QueueExportAllGroups(a_Format, a_PlayerName, a_SuccessCallback, a_Failu
 	end
 	
 	-- Queue the export:
-	return QueueExportAreaGroups(GroupNames, a_Format, a_PlayerName, SuccessCallback, a_FailureCallback)
+	return QueueExportAreaGroups(GroupNames, a_Format, a_PlayerName, a_SuccessCallback, a_FailureCallback)
 end
 
 
