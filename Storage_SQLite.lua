@@ -667,6 +667,33 @@ end
 
 
 
+
+--- Retrieves the metadata for the specified group, as a dict table {"name" -> "value"}
+-- Returns the dictionary table on success, or false and error message on failure
+function SQLite:GetMetadataForGroup(a_GroupName)
+	-- Check params:
+	assert(self)
+	assert(type(a_GroupName) == "string")
+
+	-- Load from DB:
+	local res = {}
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT Name, Value FROM GroupMetadata WHERE GroupName = ?",
+		{ a_GroupName },
+		function (a_Values)
+			res[a_Values.Name] = a_Values.Value
+		end
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	return res
+end
+
+
+
+
+
 --- Retrieves the sponges for the specified area
 -- Returns a cBlockArea representing the whole area (MinX to MaxX etc), where sponges should be put
 -- Returns nil and message on error
@@ -736,7 +763,7 @@ end
 
 
 
---- Renames the group in the DB, by overwriting the group name of all areas that use the a_FromName
+--- Renames the group in the DB, by overwriting the group name of all areas that use the a_FromName and changing the metadata
 -- Returns false and error message on failure, or true on success
 function SQLite:RenameGroup(a_FromName, a_ToName)
 	-- Check params:
@@ -745,8 +772,17 @@ function SQLite:RenameGroup(a_FromName, a_ToName)
 	assert(type(a_ToName) == "string")
 	
 	-- Rename:
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportGroupName = ? WHERE ExportGroupName = ?",
+		{
+			a_ToName, a_FromName
+		}
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	return self:ExecuteStatement(
+		"UPDATE GroupMetadata SET GroupName = ? WHERE GroupName = ?",
 		{
 			a_ToName, a_FromName
 		}
@@ -830,6 +866,45 @@ function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 			"INSERT INTO Metadata (AreaID, Name, Value) VALUES (?, ?, ?)",
 			{
 				AreaID, a_Name, a_Value
+			}
+		)
+		if not(IsSuccess) then
+			return false, "Failed to set new value: " .. (Msg or "<no details>")
+		end
+	end
+	
+	return true
+end
+
+
+
+
+
+--- Sets the metadata value for the specified group.
+-- Returns true on success, false and optional message on failure
+function SQLite:SetGroupMetadata(a_GroupName, a_Name, a_Value)
+	-- Check params:
+	assert(self)
+	assert(type(a_GroupName) == "string")
+	assert(type(a_Name) == "string")
+	
+	-- Remove any previous value:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"DELETE FROM GroupMetadata WHERE GroupName = ? AND Name = ?",
+		{
+			a_GroupName, a_Name
+		}
+	)
+	if not(IsSuccess) then
+		return false, "Failed to remove old value: " .. (Msg or "<no details>")
+	end
+	
+	-- Add the new value:
+	if ((a_Value ~= nil) and (a_Value ~= "")) then
+		IsSuccess, Msg = self:ExecuteStatement(
+			"INSERT INTO GroupMetadata (GroupName, Name, Value) VALUES (?, ?, ?)",
+			{
+				a_GroupName, a_Name, a_Value
 			}
 		)
 		if not(IsSuccess) then
@@ -1034,12 +1109,19 @@ function SQLite_CreateStorage(a_Params)
 		"Name   STRING",   -- Name of the metadata item
 		"Value",           -- Value of the metadata item
 	}
+	local GroupMetadataColumns =
+	{
+		"GroupName",
+		"Name",
+		"Value"
+	}
 	if (
 		not(DB:TableExists("Areas")) or
 		not(DB:CreateDBTable("Areas",         AreasColumns)) or
 		not(DB:CreateDBTable("ExportSponges", ExportSpongesColumns)) or
 		not(DB:CreateDBTable("Connectors",    ConnectorsColumns)) or
-		not(DB:CreateDBTable("Metadata",      MetadataColumns))
+		not(DB:CreateDBTable("Metadata",      MetadataColumns)) or
+		not(DB:CreateDBTable("GroupMetadata", GroupMetadataColumns))
 	) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot create DB tables!")
 		error("Cannot create DB tables!")

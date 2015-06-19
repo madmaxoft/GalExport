@@ -10,13 +10,13 @@
 g_PluginInfo = 
 {
 	Name = "GalExport",
-	Date = "2014-03-12",
+	Date = "2015-06-19",
 	Description =
 [[
 This plugin allows admins to mass-export Gallery areas that they have chosen as "approved". It provides
 a grouping for those areas and can export either all areas, specified area or a named group of areas. The
-export can write either .schematic files or C++ source code (XPM3-like) that is used in MCServer for the
-built-in piece generator.
+export can write .schematic files, C++ source code (XPM3-like) or .cubeset files that are used in MCServer
+for the piece generators, such as Villages.
 
 Note that this plugin requires interaction with the WorldEdit plugin - the area bounding-boxes are defined
 and edited with the help of WorldEdit and its WECUI link.
@@ -450,8 +450,40 @@ and edited with the help of WorldEdit and its WECUI link.
 					HelpString = "Exports the approved areas in the specified group",
 					Handler = HandleConExportGroup,
 				},
-			}
-		}
+				
+				meta =
+				{
+					HelpString = "Manipulates group metadata",
+					Subcommands =
+					{
+						list =
+						{
+							HelpString = "Lists all metadata values for a single group",
+							Handler = HandleConMetaList,
+							ParameterCombinations =
+							{
+								{
+									Params = "GroupName MetaName MetaValue",
+									Help = "Sets the specified group's metadata",
+								},
+							},
+						},  -- list
+						set =
+						{
+							HelpString = "Sets a metadata value for a single group",
+							Handler = HandleConMetaSet,
+							ParameterCombinations =
+							{
+								{
+									Params = "GroupName MetaName MetaValue",
+									Help = "Sets the specified group's metadata",
+								},
+							},
+						},  -- set
+					},  -- Subcommands
+				},  -- meta
+			}  -- Subcommands
+		}  -- ge
 	},  -- ConsoleCommands
 }  -- g_PluginInfo
 				

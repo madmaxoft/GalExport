@@ -49,3 +49,51 @@ end
 
 
 
+
+function HandleConMetaList(a_Split, _, a_EntireCommand)
+	-- Check params:
+	if not(a_Split[4]) then
+		return true, "Usage: ge meta list <groupname>"
+	end
+	
+	-- Get the metas:
+	local metas, msg = g_DB:GetMetadataForGroup(a_Split[4])
+	if not(metas) then
+		return true, "Error while retrieving metadata: " .. (msg or "<unknown error>")
+	end
+	
+	-- Format the metas and sort:
+	local out = {}
+	for k, v in pairs(metas) do
+		table.insert(out, string.format("%s = %s", k, v))
+	end
+	table.sort(out)
+	
+	-- Output:
+	if (#out == 0) then
+		return true, "There are no metadata values for this group"
+	end
+	return true, "There are " .. #out .. " values: \n" .. table.concat(out, "\n")
+end
+
+
+
+
+
+function HandleConMetaSet(a_Split, _, a_EntireCommand)
+	-- Check params:
+	local split = StringSplitWithQuotes(a_EntireCommand, " ")
+	if not(split[6]) then
+		return true, "Usage: ge meta set <groupname> <name> <value>"
+	end
+	
+	local IsSuccess, msg = g_DB:SetGroupMetadata(split[4], split[5], split[6])
+	if (IsSuccess) then
+		return true, "Metadata has been set"
+	end
+	return true, "Error while setting metadata: " .. (msg or "<unknown error>")
+end
+
+
+
+

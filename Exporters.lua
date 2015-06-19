@@ -911,6 +911,20 @@ local function ExportCubesetGroup(a_Areas, a_ExternalSchematic, a_SuccessCallbac
 	if (a_ExternalSchematic) then
 		f:write("\t\tExternalSchematic = true,\n")
 	end
+	
+	-- Write the group metadata:
+	local GroupMeta, Msg = g_DB:GetMetadataForGroup(GroupName)
+	if not(GroupMeta) then
+		f:close()
+		a_FailureCallback("Cannot query group metadata: " .. (Msg or "<unknown error>"))
+		return
+	end
+	local gmd = {}
+	for k, v in pairs(GroupMeta) do
+		table.insert(gmd, string.format("\t\t[%q] = %q,\n", k, v))
+	end
+	table.sort(gmd)
+	f:write(table.concat(gmd))
 	f:write("\t},\n\n\tPieces =\n\t{\n")
 	
 	-- Callback to be called when area chunks have been loaded:
