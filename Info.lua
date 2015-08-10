@@ -428,6 +428,19 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},  -- Subcommands
 				},  -- sponge
+				
+				unset =
+				{
+					HelpString = "Removes metadata value for the current area",
+					Handler = HandleCmdUnset,
+					ParameterCombinations =
+					{
+						{
+							Params = "name",
+							Help = "Removes the specified metadata from the current area",
+						},
+					},
+				},  -- unset
 			},  -- Subcommands
 		},  -- ["/ge"]
 	},  -- Commands

@@ -7,6 +7,48 @@
 
 
 
+--- A dictionary of metadata names that are understood by the system
+-- Any metadata value can be set, but these are actually understood by the server
+-- Maps the metadata name to true for easy checking
+local g_UnderstoodMetadataNames =
+{
+	-- Whether the area is the starting area for the generator (1) or not (0):
+	["IsStarting"] = true,
+	
+	-- Number of allowed CCW rotations, expressed as a bitmask-ed number
+	-- E. g. 0 = no rotations allowed, 1 = 1 CCW rotation allowed, 5 = 1 or 3 CCW rotations allowed
+	["AllowedRotations"] = true,
+	
+	-- The name of the merge strategy to use for the blockarea
+	-- Must be a valid MergeStrategy name in the cBlockArea class, such as "msSpongePrint"
+	["MergeStrategy"] = true,
+	
+	-- Whether the area should expand its lowest level towards the nearest non-air block; 0 or 1
+	["ShouldExpandFloor"] = true,
+	
+	-- The weight to use for this prefab, unless there's any other modifier active
+	["DefaultWeight"] = true,
+	
+	-- String specifying the weighted chance for this area's occurrence per tree-depth, such as "1:100|2:50|3:40|4:1|5:0"
+	-- Depth that isn't specified will get the DefaultWeight weight
+	["DepthWeight"] = true,
+
+	-- The weight to add to this piece's base per-depth chance if the previous piece is the same. Can be positive or negative.
+	["AddWeightIfSame"] = true,
+	
+	-- The prefab should move Y-wise so that its first connector is on the ground level (TerrainHeightGen); 0 or 1
+	-- Used for the houses in the village generator
+	["MoveToGround"] = true,
+	
+	-- For starting pieces, specifies the vertical placement strategy and parameters
+	-- For example, "Range|100|150"
+	["VerticalStrategy"] = true,
+}
+
+
+
+
+
 --- Returns the player's position in integral blocks
 local function GetPlayerPos(a_Player)
 	return
@@ -52,9 +94,16 @@ end
 
 
 --- Sends a list of the available metadata names to the player
-local function ListAvailableMetadata(a_Player)
-	local Names = g_DB:GetAllowedMetadataNames()
-	a_Player:SendMessage(cCompositeChat("The following metadata values can be set: ", mtInfo))
+local function ListUnderstoodMetadata(a_Player)
+	-- Sort the metadata names:
+	local Names = {}
+	for k, v in pairs(g_UnderstoodMetadataNames) do
+		table.insert(Names, k)
+	end
+	table.sort(Names)
+	
+	-- Send to player:
+	a_Player:SendMessage(cCompositeChat("The following metadata names are understood: ", mtInfo))
 	for _, name in ipairs(Names) do
 		a_Player:SendMessage(cCompositeChat("  ", mtInfo):AddSuggestCommandPart(name, g_Config.CommandPrefix .. " set " .. name .. " ", "u@b"))
 	end
@@ -1165,9 +1214,18 @@ function HandleCmdSet(a_Split, a_Player)
 	
 	-- If without params, it's a "list" request
 	if (a_Split[3] == nil) then
-		ListAvailableMetadata(a_Player)
+		ListUnderstoodMetadata(a_Player)
 		ListMetadataForArea(a_Player)
 		return true
+	end
+	
+	-- If the metadata name is not understood, warn (but still set):
+	if not(g_UnderstoodMetadataNames[a_Split[3]]) then
+		a_Player:SendMessage(cCompositeChat(
+			"Metadata name ", mtInfo)
+			:AddTextPart(a_Split[3], "@2")
+			:AddTextPart(" is not understood. Saving as an unknown metadata.")
+		)
 	end
 	
 	-- Get the area ident:
@@ -1393,6 +1451,41 @@ function HandleCmdSpongeShow(a_Split, a_Player)
 			Sponges:Clear()
 		end
 	)
+end
+
+
+
+
+
+function HandleCmdUnset(a_Split, a_Player)
+	-- /ge unset <Name>
+	
+	-- Check params:
+	if not(a_Split[3]) then
+		a_Player:SendMessage(cCompositeChat("Usage: ", mtFailure)
+			:AddSuggestCommandPart(g_Config.CommandPrefix .. " unset ", g_Config.CommandPrefix .. " unset ")
+			:AddTextPart("Name", "@2")
+		)
+		return true
+	end
+	
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot unset metadata, there is no gallery area here.", mtFailure))
+		return true
+	end
+	
+	-- Unset in the DB:
+	local IsSuccess, Msg = g_DB:UnsetAreaMetadata(Area.ID, a_Split[3])
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Failed to unset metadata: " .. (Msg or "<unknown error>"), mtFailure))
+	end
+	
+	-- Report success:
+	a_Player:SendMessage(cCompositeChat("Metadata has been unset", mtInformation))
+	return true
 end
 
 

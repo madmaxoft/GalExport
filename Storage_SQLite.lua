@@ -428,21 +428,6 @@ end
 
 
 
--- Returns an array-table of strings that represent the valid names for area metadata
-function SQLite:GetAllowedMetadataNames()
-	-- Convert from map's keys to array:
-	local res = {}
-	for k, _ in pairs(g_MetadataDefaults) do
-		table.insert(res, k)
-	end
-	
-	return res
-end
-
-
-
-
-
 --- Returns a table describing the area at the specified coords
 -- The table has all the attributes read from the DB row
 -- Returns nil if there's no area at those coords
@@ -835,7 +820,7 @@ end
 
 
 
---- If the metadata name is in the list of allowed metadata names, sets its value in the DB
+--- Sets the area's metadata value in the DB
 -- Returns true on success, false and optional message on failure
 function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 	-- Check params:
@@ -843,11 +828,6 @@ function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID ~= nil)
 	assert(type(a_Name) == "string")
-	
-	-- Check that the name is allowed:
-	if not(g_MetadataDefaults[a_Name]) then
-		return false, "Unknown Metadata name"
-	end
 	
 	-- Remove any previous value:
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -960,6 +940,32 @@ function SQLite:TableExists(a_TableName)
 		end
 	)
 	return res
+end
+
+
+
+
+
+--- Unsets the area's metadata value in the DB
+-- Returns true on success, false and optional message on failure
+function SQLite:UnsetAreaMetadata(a_AreaID, a_Name)
+	-- Check params:
+	assert(self ~= nil)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID ~= nil)
+	assert(type(a_Name) == "string")
+	
+	-- Remove the value:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"DELETE FROM Metadata WHERE AreaID = ? AND Name = ?",
+		{
+			AreaID, a_Name
+		}
+	)
+	if not(IsSuccess) then
+		return false, "Failed to remove old value: " .. (Msg or "<no details>")
+	end
+	return true
 end
 
 
