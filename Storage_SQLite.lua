@@ -679,6 +679,27 @@ end
 
 
 
+--- Returns the total number of approved areas
+-- Returns false and optional error message on failure
+function SQLite:GetNumApprovedAreas()
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT COUNT(*) as Count FROM Areas WHERE IsApproved = ?",
+		{ 1 },
+		function (a_Values)
+			res = a_Values["Count"]
+		end
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	return res
+end
+
+
+
+
+
 --- Retrieves the sponges for the specified area
 -- Returns a cBlockArea representing the whole area (MinX to MaxX etc), where sponges should be put
 -- Returns nil and message on error
@@ -739,6 +760,41 @@ function SQLite:HasSponge(a_AreaID)
 	)
 	if not(IsSuccess) then
 		return nil, Msg
+	end
+	
+	return res
+end
+
+
+
+
+
+--- Returns an array of tables describing the approved areas in the specified range
+-- Returns false and optional error message on failure
+function SQLite:LoadApprovedAreasRange(a_StartIdx, a_EndIdx)
+	-- Check params:
+	assert(self ~= nil)
+	assert(tonumber(a_StartIdx))
+	assert(tonumber(a_EndIdx))
+	
+	-- Load from the DB:
+	local res = {}
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT * FROM Areas WHERE IsApproved = 1 ORDER BY ExportGroupName ASC, ID LIMIT ? OFFSET ?",
+		{
+			a_EndIdx - a_StartIdx,
+			a_StartIdx
+		},
+		function (a_Values)
+			-- Require the area to have at least the ID:
+			if (a_Values.ID) then
+				table.insert(res, a_Values)
+			end
+		end
+	)
+	if not(IsSuccess) then
+		-- DB error or no data (?)
+		return false, Msg
 	end
 	
 	return res

@@ -14,18 +14,37 @@ g_Config = {};
 
 
 
---- Checks if g_Config has all the keys it needs, adds defaults for the missing ones
-function VerifyConfig()
-	g_Config.CommandPrefix = g_Config.CommandPrefix or "/ge"
-	g_Config.DatabaseEngine = g_Config.DatabaseEngine or "sqlite"
-	g_Config.DatabaseParams = g_Config.DatabaseParams or {}
-	g_Config.ExportFolder = g_Config.ExportFolder or "GalExports"
+--- Checks if a_Config has all the keys it needs, adds defaults for the missing ones
+-- Returns the modified a_Config (but also modifies a_Config in-place)
+local function VerifyConfig(a_Config)
+	a_Config.CommandPrefix  = a_Config.CommandPrefix or "/ge"
+	a_Config.DatabaseEngine = a_Config.DatabaseEngine or "sqlite"
+	a_Config.DatabaseParams = a_Config.DatabaseParams or {}
+	a_Config.ExportFolder   = a_Config.ExportFolder or "GalExports"
 
+	-- Check the WebPreview, if it doesn't have all the requirements, set it to nil to disable previewing:
+	if (a_Config.WebPreview) then
+		if not(a_Config.WebPreview.ThumbnailFolder) then
+			LOGINFO(PLUGIN_PREFIX .. "GalExport: The config doesn't define WebPreview.ThumbnailFolder. Web preview is disabled.")
+			a_Config.WebPreview = nil
+		end
+		if (a_Config.WebPreview and not(a_Config.WebPreview.MCSchematicToPng)) then
+			LOGINFO(PLUGIN_PREFIX .. "GalExport: The config doesn't define WebPreview.MCSchematicToPng. Web preview is disabled.")
+			a_Config.WebPreview = nil
+		end
+		if (a_Config.WebPreview and not(cFile:Exists(a_Config.WebPreview.MCSchematicToPng))) then
+			LOGINFO(PLUGIN_PREFIX .. "GalExport: The WebPreview.MCSchematicToPng in the config is not valid. Web preview is disabled.")
+			a_Config.WebPreview = nil
+		end
+	end
+	
 	-- Apply the CommandPrefix - change the actual g_PluginInfo table:
-	if (g_Config.CommandPrefix ~= "/ge") then
-		g_PluginInfo.Commands[g_Config.CommandPrefix] = g_PluginInfo.Commands["/ge"]
+	if (a_Config.CommandPrefix ~= "/ge") then
+		g_PluginInfo.Commands[a_Config.CommandPrefix] = g_PluginInfo.Commands["/ge"]
 		g_PluginInfo.Commands["/ge"] = nil
 	end
+	
+	return a_Config
 end
 
 
@@ -44,6 +63,7 @@ function LoadConfig()
 		else
 			LOGWARNING(PLUGIN_PREFIX .. "The config file '" .. CONFIG_FILE .. "' doesn't exist.")
 		end
+		g_Config = VerifyConfig({})
 		return
 	end
 	
@@ -51,6 +71,7 @@ function LoadConfig()
 	local cfg, err = loadfile(CONFIG_FILE)
 	if (cfg == nil) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot open '" .. CONFIG_FILE .. "': " .. err)
+		g_Config = VerifyConfig({})
 		return
 	end
 	
@@ -61,11 +82,12 @@ function LoadConfig()
 	cfg()
 	
 	-- Retrieve the values we want from the sandbox:
-	g_Config = Sandbox.Config
-	if (g_Config == nil) then
+	Config = Sandbox.Config
+	if not(g_Config) then
 		LOGWARNING(PLUGIN_PREFIX .. "Config not found in the config file '" .. CONFIG_FILE .. "'. Using defaults.")
-		g_Config = {}  -- Defaults will be inserted by VerifyConfig()
+		Config = {}  -- Defaults will be inserted by VerifyConfig()
 	end
+	g_Config = VerifyConfig(Config)
 end
 
 

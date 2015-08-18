@@ -22,7 +22,6 @@ function Initialize(a_Plugin)
 	
 	-- Load the config
 	LoadConfig()
-	VerifyConfig()
 
 	-- Initialize the DB storage:
 	InitStorage()
@@ -30,6 +29,9 @@ function Initialize(a_Plugin)
 	-- Initialize commands:
 	RegisterPluginInfoCommands()
 	RegisterPluginInfoConsoleCommands()
+	
+	-- Initialize the webadmin page:
+	InitWeb()
 	
 	return true
 end
