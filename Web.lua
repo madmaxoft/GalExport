@@ -17,6 +17,20 @@ local g_PreviewNotAvailableYetPng
 
 
 
+local DirectionToString =
+{
+	[BLOCK_FACE_XM] = "X-",
+	[BLOCK_FACE_XP] = "X+",
+	[BLOCK_FACE_YM] = "Y-",
+	[BLOCK_FACE_YP] = "Y+",
+	[BLOCK_FACE_ZM] = "Z-",
+	[BLOCK_FACE_ZP] = "Z+",
+}
+
+
+
+
+
 --- Returns the HTML-formatted error message with the specified reason
 local function HTMLError(a_Reason)
 	return "<b style='color: #a00'>" .. cWebAdmin:GetHTMLEscapedString(a_Reason) .. "</b>"
@@ -376,6 +390,9 @@ local function GetAreaList(a_Request)
 		ins(Page, "</td><td valign='top'>")
 		ins(Page, (Area.DateApproved or "&nbsp;") .. "<br/>by " .. (Area.ApprovedBy or "&lt;unknown&gt;"))
 		ins(Page, "</td><td valign='top'>")
+		ins(Page, "<form method=\"GET\"><input type=\"hidden\" name=\"areaid\" value=\"")
+		ins(Page, Area.ID)
+		ins(Page, "\"/><input type=\"submit\" value=\"Details\"/><input type=\"hidden\" name=\"action\" value=\"areadetails\"/></form>")
 		-- ins(Page, AddActionButton("unapprove", FormDest, Area.ID, a_Gallery.Name, idx, "Un-approve"))
 		ins(Page, "</td></tr>")
 	end
@@ -430,10 +447,242 @@ end
 
 
 
+local function ShowAreaDetails(a_Request)
+	-- Check params:
+	local AreaID = tonumber(a_Request.Params["areaid"])
+	if not(AreaID) then
+		return HTMLError("No Area ID selected") .. ShowMainPage(a_Request)
+	end
+
+	-- Load the area:
+	local Area = g_DB:GetAreaByID(AreaID)
+	if not(Area) then
+		return HTMLError("Area " .. AreaID .. " not found") .. ShowMainPage(a_Request)
+	end
+	
+	-- Output the preview:
+	local res = {"<table><tr>"}
+	for rot = 0, 3 do
+		ins(res, "<td valign='top'><img src=\"/~")
+		ins(res, a_Request.Path)
+		ins(res, "?action=getpreview&areaid=")
+		ins(res, Area.ID)
+		ins(res, "&rot=")
+		ins(res, rot)
+		ins(res, "\"/></td>")
+	end
+	ins(res, "</tr></table>")
+	
+	-- Output the name editor:
+	ins(res, "<table><tr><th>Export name: </th><td><form method=\"POST\"><input type=\"hidden\" name=\"areaid\" value=\"")
+	ins(res, Area.ID)
+	ins(res, "\"/><input type=\"hidden\" name=\"action\" value=\"renamearea\"/><input type=\"text\" name=\"areaname\" size=100 value=\"")
+	ins(res, cWebAdmin:GetHTMLEscapedString(Area.ExportName))
+	ins(res, "\"/><input type=\"submit\" value=\"Rename\"/></form></td></tr>")
+	
+	-- Output the group editor:
+	ins(res, "<tr><th>Export group</th><td><form method=\"POST\"><input type=\"hidden\" name=\"areaid\" value=\"")
+	ins(res, Area.ID)
+	ins(res, "\"/><input type=\"hidden\" name=\"action\" value=\"regrouparea\"/><input type=\"text\" name=\"groupname\" size=100 value=\"")
+	ins(res, cWebAdmin:GetHTMLEscapedString(Area.ExportGroupName))
+	ins(res, "\"/><input type=\"submit\" value=\"Set\"/></form></td></tr>")
+
+	-- Define a helper function for adding a property to the view
+	local function AddProp(a_Title, a_Value)
+		ins(res, "<tr><th>")
+		ins(res, cWebAdmin:GetHTMLEscapedString(a_Title))
+		ins(res, "</th><td>")
+		ins(res, cWebAdmin:GetHTMLEscapedString(a_Value))
+		ins(res, "</td></tr>")
+	end
+	
+	-- Output the dimensions, hitbox etc.:
+	AddProp("Location", Area.GalleryName .. " " .. Area.GalleryIndex)
+	AddProp("Author", Area.PlayerName)
+	AddProp("Approved", Area.DateApproved .. " by " .. Area.ApprovedBy)
+	AddProp("Size X", Area.ExportMaxX - Area.ExportMinX + 1)
+	AddProp("Size Y", Area.ExportMaxY - Area.ExportMinY + 1)
+	AddProp("Size Z", Area.ExportMaxZ - Area.ExportMinZ + 1)
+	AddProp("Hitbox extra X-", Area.ExportMinX - (Area.HitboxMinX or Area.ExportMinX))
+	AddProp("Hitbox extra X+", (Area.HitboxMaxX or Area.ExportMaxX) - Area.ExportMaxX)
+	AddProp("Hitbox extra Y-", Area.ExportMinY - (Area.HitboxMinY or Area.ExportMinY))
+	AddProp("Hitbox extra Y+", (Area.HitboxMaxY or Area.ExportMaxY) - Area.ExportMaxY)
+	AddProp("Hitbox extra Z-", Area.ExportMinZ - (Area.HitboxMinZ or Area.ExportMinZ))
+	AddProp("Hitbox extra Z+", (Area.HitboxMaxZ or Area.ExportMaxZ) - Area.ExportMaxZ)
+	ins(res, "</table>")
+	
+	-- Output the area metadata:
+	ins(res, "<br/><h3>Metadata:</h3><table><tr><th>Name</th><th>Value</th></tr>")
+	local Metadata = g_DB:GetMetadataForArea(Area.ID, false)  -- Returns a dictionary {Name = Value}
+	local MetaArr = {}  -- Convert into a sorted array of Name-s
+	for k, _ in pairs(Metadata) do
+		ins(MetaArr, k)
+	end
+	table.sort(MetaArr)
+	for _, md in ipairs(MetaArr) do
+		ins(res, "<tr><td>")
+		ins(res, cWebAdmin:GetHTMLEscapedString(md))
+		ins(res, "</td><td><form method=\"POST\"><input type=\"hidden\" name=\"areaid\" value=\"")
+		ins(res, Area.ID)
+		ins(res, "\"/><input type=\"hidden\" name=\"action\" value=\"updatemeta\"/><input type=\"hidden\" name=\"metaname\" value=\"")
+		ins(res, cWebAdmin:GetHTMLEscapedString(md))
+		ins(res, "\"><input type=\"text\" size=100 name=\"metavalue\" value=\"")
+		ins(res, cWebAdmin:GetHTMLEscapedString(Metadata[md]))
+		ins(res, "\"><input type=\"submit\" value=\"Update\"/></form>")
+		ins(res, "<form method=\"POST\"><input type=\"hidden\" name=\"areaid\" value=\"")
+		ins(res, Area.ID)
+		ins(res, "\"/><input type=\"hidden\" name=\"action\" value=\"delmeta\"/><input type=\"hidden\" name=\"metaname\" value=\"")
+		ins(res, cWebAdmin:GetHTMLEscapedString(md))
+		ins(res, "\"><input type=\"submit\" value=\"Del\"/></form></td></tr>")
+	end
+	ins(res, "<tr><td><form method=\"POST\"><input type=\"hidden\" name=\"areaid\" value=\"")
+	ins(res, Area.ID)
+	ins(res, "\"/><input type=\"hidden\" name=\"action\" value=\"addmeta\"/><input type=\"text\" name=\"metaname\" size=50/></td>")
+	ins(res, "<td><input type=\"text\" size=100 name=\"metavalue\" value=\"\"/><input type=\"submit\" value=\"Add\"/></form></td></tr>")
+	ins(res, "</table>")
+	
+	-- Output the connectors:
+	ins(res, "<br/><h3>Connectors:</h3><table><tr><th>Index</th><th>X</th><th>Y</th><th>Z</th><th>Type</th><th>Direction</th></tr>")
+	local Connectors = g_DB:GetAreaConnectors(Area.ID)
+	for idx, conn in ipairs(Connectors) do
+		ins(res, "<tr><td>")
+		ins(res, idx)
+		ins(res, "</td><td>")
+		ins(res, conn.X - Area.ExportMinX)
+		ins(res, "</td><td>")
+		ins(res, conn.Y - Area.ExportMinY)
+		ins(res, "</td><td>")
+		ins(res, conn.Z - Area.ExportMinZ)
+		ins(res, "</td><td>")
+		ins(res, conn.TypeNum)
+		ins(res, "</td><td>")
+		ins(res, DirectionToString[conn.Direction] or "unknown")
+		ins(res, "</td></tr>")
+	end
+	-- TODO: Add new connector
+	ins(res, "</table>")
+	
+	return table.concat(res)
+end
+
+
+
+
+
+local function ExecuteDelMeta(a_Request)
+	-- Check params:
+	local AreaID = tonumber(a_Request.PostParams["areaid"])
+	if not(AreaID) then
+		return HTMLError("Invalid Area ID")
+	end
+	local MetaName = a_Request.PostParams["metaname"]
+	if not(MetaName) then
+		return HTMLError("Invalid meta name")
+	end
+	
+	-- Delete the meta from the DB:
+	local IsSuccess, Msg = g_DB:UnsetAreaMetadata(AreaID, MetaName)
+	if not(IsSuccess) then
+		return HTMLError("Failed to delete meta: " .. (Msg or "<unknown DB error>"))
+	end
+	
+	-- Display a success page with a return link:
+	return "<p>Meta value deleted successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
+end
+
+
+
+
+
+local function ExecuteRegroupArea(a_Request)
+	-- Check params:
+	local AreaID = tonumber(a_Request.PostParams["areaid"])
+	if not(AreaID) then
+		return HTMLError("Invalid Area ID")
+	end
+	local NewGroup = a_Request.PostParams["groupname"]
+	if not(NewGroup) then
+		return HTMLError("Invalid group name")
+	end
+	
+	-- Rename in the DB:
+	local IsSuccess, Msg = g_DB:SetAreaExportGroup(AreaID, NewGroup)
+	if not(IsSuccess) then
+		return HTMLError("Failed to set area group: " .. (Msg or "<unknown DB error>"))
+	end
+	
+	-- Display a success page with a return link:
+	return "<p>Area renamed successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
+end
+
+
+
+
+
+local function ExecuteRenameArea(a_Request)
+	-- Check params:
+	local AreaID = tonumber(a_Request.PostParams["areaid"])
+	if not(AreaID) then
+		return HTMLError("Invalid Area ID")
+	end
+	local NewName = a_Request.PostParams["areaname"]
+	if not(NewName) then
+		return HTMLError("Invalid new name")
+	end
+	
+	-- Rename in the DB:
+	local IsSuccess, Msg = g_DB:SetAreaExportName(AreaID, NewName)
+	if not(IsSuccess) then
+		return HTMLError("Failed to rename area: " .. (Msg or "<unknown DB error>"))
+	end
+	
+	-- Display a success page with a return link:
+	return "<p>Area renamed successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
+end
+
+
+
+
+
+local function ExecuteUpdateMeta(a_Request)
+	-- Check params:
+	local AreaID = tonumber(a_Request.PostParams["areaid"])
+	if not(AreaID) then
+		return HTMLError("Invalid Area ID")
+	end
+	local MetaName = a_Request.PostParams["metaname"]
+	if not(MetaName) then
+		return HTMLError("Invalid meta name")
+	end
+	local MetaValue = a_Request.PostParams["metavalue"]
+	if not(MetaValue) then
+		return HTMLError("Invalid meta value")
+	end
+	
+	-- Update the meta:
+	local IsSuccess, Msg = g_DB:SetAreaMetadata(AreaID, MetaName, MetaValue)
+	if not(IsSuccess) then
+		return HTMLError("Failed to update meta: " .. (Msg or "<unknown DB error>"))
+	end
+	
+	-- Display a success page with a return link:
+	return "<p>Meta value updated successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
+end
+
+
+
+
+
 local g_ActionHandlers =
 {
-	[""]           = ShowMainPage,
-	["getpreview"] = ExecuteGetPreview,
+	[""]            = ShowMainPage,
+	["addmeta"]     = ExecuteUpdateMeta,  -- "Add" has the same handling as "Update" - translates to "DB set"
+	["areadetails"] = ShowAreaDetails,
+	["delmeta"]     = ExecuteDelMeta,
+	["getpreview"]  = ExecuteGetPreview,
+	["regrouparea"] = ExecuteRegroupArea,
+	["renamearea"]  = ExecuteRenameArea,
+	["updatemeta"]  = ExecuteUpdateMeta,
 }
 
 
@@ -461,6 +710,7 @@ end
 function InitWeb()
 	-- If web preview is not configured, don't register the webadmin tab:
 	if not(g_Config.WebPreview) then
+		LOG("GalExport: WebPreview is not enabled in the settings.")
 		return
 	end
 
