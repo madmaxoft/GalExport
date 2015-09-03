@@ -621,6 +621,63 @@ end
 
 
 
+--- Returns the number of approved areas in the specified export group
+-- Returns zero if no area in the group (group doesn't exist)
+-- Returns false and optional error message on error
+function SQLite:GetGroupAreaCount(a_GroupName)
+	-- Check params:
+	assert(type(a_GroupName) == "string")
+	
+	-- Get the count from the DB:
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT COUNT(*) AS Cnt FROM Areas WHERE IsApproved = 1 AND ExportGroupName = ?",
+		{
+			a_GroupName
+		},
+		function (a_Values)
+			res = a_Values["Cnt"]
+		end
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	return res
+end
+
+
+
+
+
+--- Returns the number of approved areas in the specified export group that have the IsStarting metadata set
+-- Returns zero if no area in the group (group doesn't exist)
+-- Returns false and optional error message on error
+function SQLite:GetGroupStartingAreaCount(a_GroupName)
+	-- Check params:
+	assert(type(a_GroupName) == "string")
+	
+	-- Get the count from the DB:
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT COUNT(*) AS Cnt FROM Areas LEFT JOIN MetaData ON Areas.ID = Metadata.AreaID WHERE \
+		  Areas.IsApproved = 1 AND Areas.ExportGroupName = ? AND Metadata.Name = 'IsStarting' AND CAST(Metadata.Value AS NUMBER) = 1",
+		{
+			a_GroupName
+		},
+		function (a_Values)
+			res = a_Values["Cnt"]
+		end
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	return res
+end
+
+
+
+
+
 --- Retrieves the metadata for the specified area, as a dict table {"name" -> "value"}
 -- If a_IncludeDefaults is true, the defaults are added to the result, producing the full set of metadata
 function SQLite:GetMetadataForArea(a_AreaID, a_IncludeDefaults)
@@ -1016,6 +1073,31 @@ function SQLite:UnsetAreaMetadata(a_AreaID, a_Name)
 		"DELETE FROM Metadata WHERE AreaID = ? AND Name = ?",
 		{
 			AreaID, a_Name
+		}
+	)
+	if not(IsSuccess) then
+		return false, "Failed to remove old value: " .. (Msg or "<no details>")
+	end
+	return true
+end
+
+
+
+
+
+--- Unsets the group's metadata value in the DB
+-- Returns true on success, false and optional message on failure
+function SQLite:UnsetGroupMetadata(a_GroupName, a_Name)
+	-- Check params:
+	assert(self ~= nil)
+	assert(type(a_GroupName) == "string")
+	assert(type(a_Name) == "string")
+	
+	-- Remove the value:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"DELETE FROM GroupMetadata WHERE GroupName = ? AND Name = ?",
+		{
+			a_GroupName, a_Name
 		}
 	)
 	if not(IsSuccess) then
