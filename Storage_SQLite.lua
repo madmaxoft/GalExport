@@ -66,9 +66,9 @@ end
 -- Returns the connector ident on success, nil and message on failure
 function SQLite:AddConnector(a_AreaID, a_BlockX, a_BlockY, a_BlockZ, a_Direction, a_Type)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	assert(type(a_BlockX) == "number")
 	assert(type(a_BlockY) == "number")
 	assert(type(a_BlockZ) == "number")
@@ -107,8 +107,8 @@ end
 -- Returns true on success
 function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid, a_AreaName)
 	-- Check params:
-	assert(self ~= nil)
-	assert(tonumber(a_AreaID) ~= nil)
+	assert(self)
+	assert(tonumber(a_AreaID))
 	assert(type(a_PlayerName) == "string")
 	assert(type(a_GroupName) == "string")
 	assert(tolua.type(a_ExportCuboid) == "cCuboid")
@@ -128,7 +128,7 @@ function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid,
 	if not(IsSuccess) then
 		return nil, "DB read failed"
 	end
-	if (Info ~= nil) then
+	if (Info) then
 		return false, Info.ApprovedBy, Info.DateApproved, Info.ExportGroupName
 	end
 	
@@ -160,13 +160,13 @@ end
 -- Returns true on success, false and potentially a message on failure
 function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local ConnID = tonumber(a_ConnID)
-	assert(ConnID ~= nil)
+	assert(ConnID)
 	local NewX, NewY, NewZ = tonumber(a_NewX), tonumber(a_NewY), tonumber(a_NewZ)
-	assert(NewX ~= nil)
-	assert(NewY ~= nil)
-	assert(NewZ ~= nil)
+	assert(NewX)
+	assert(NewY)
+	assert(NewZ)
 	
 	return self:ExecuteStatement(
 		"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
@@ -184,11 +184,11 @@ end
 -- Returns true on success, false and potentially a message on failure
 function SQLite:ChangeConnectorType(a_ConnID, a_NewType)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local ConnID = tonumber(a_ConnID)
-	assert(ConnID ~= nil)
+	assert(ConnID)
 	local NewType = tonumber(a_NewType)
-	assert(NewType ~= nil)
+	assert(NewType)
 	
 	return self:ExecuteStatement(
 		"UPDATE Connectors SET TypeNum = ? WHERE ID = ?",
@@ -206,9 +206,9 @@ end
 -- If the table exists, any columns missing are added; existing data is kept
 function SQLite:CreateDBTable(a_TableName, a_Columns)
 	-- Check params:
-	assert(self ~= nil)
-	assert(a_TableName ~= nil)
-	assert(a_Columns ~= nil)
+	assert(self)
+	assert(a_TableName)
+	assert(a_Columns)
 	
 	-- Try to create the table first
 	local sql = "CREATE TABLE IF NOT EXISTS '" .. a_TableName .. "' ("
@@ -224,13 +224,13 @@ function SQLite:CreateDBTable(a_TableName, a_Columns)
 	-- Check each column whether it exists
 	-- Remove all the existing columns from a_Columns:
 	local RemoveExistingColumn = function(a_Values)
-		if (a_Values.name ~= nil) then
+		if (a_Values.name) then
 			local ColumnName = a_Values.name:lower()
 			-- Search the a_Columns if they have that column:
 			for j = 1, #a_Columns do
 				-- Cut away all column specifiers (after the first space), if any:
 				local SpaceIdx = string.find(a_Columns[j], " ")
-				if (SpaceIdx ~= nil) then
+				if (SpaceIdx) then
 					SpaceIdx = SpaceIdx - 1
 				end
 				local ColumnTemplate = string.lower(string.sub(a_Columns[j], 1, SpaceIdx))
@@ -240,7 +240,7 @@ function SQLite:CreateDBTable(a_TableName, a_Columns)
 					break  -- for j
 				end
 			end  -- for j - a_Columns[]
-		end  -- if (a_Values.name ~= nil)
+		end  -- if (a_Values.name)
 	end
 	if (not(self:ExecuteStatement("PRAGMA table_info(" .. a_TableName .. ")", {}, RemoveExistingColumn))) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot query DB table structure")
@@ -271,9 +271,9 @@ end
 -- Returns true if successful, false and potentially an error message on failure
 function SQLite:DeleteConnector(a_ConnID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local ConnID = tonumber(a_ConnID)
-	assert(ConnID ~= nil)
+	assert(ConnID)
 	
 	-- Delete from the DB:
 	return self:ExecuteStatement(
@@ -291,9 +291,9 @@ end
 -- Invalid / non-approved AreaIDs will be reported as success!
 function SQLite:DisapproveArea(a_AreaID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	
 	-- Update the DB:
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -315,10 +315,10 @@ end
 -- Returns false and error message on failure, or true on success
 function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 	-- Check params:
-	assert(self ~= nil)
-	assert(a_SQL ~= nil)
-	assert(a_Params ~= nil)
-	assert(self.DB ~= nil)
+	assert(self)
+	assert(a_SQL)
+	assert((a_Params == nil) or (type(a_Params) == "table"))
+	assert(self.DB)
 	assert((a_Callback == nil) or (type(a_Callback) == "function"))
 	assert((a_RowIDCallback == nil) or (type(a_RowIDCallback) == "function"))
 	
@@ -332,12 +332,14 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 	end
 	
 	-- Bind the values into the statement:
-	ErrCode = Stmt:bind_values(unpack(a_Params))
-	if ((ErrCode ~= sqlite3.OK) and (ErrCode ~= sqlite3.DONE)) then
-		ErrMsg = (ErrCode or "<unknown>") .. " (" .. (self.DB:errmsg() or "<no message>") .. ")"
-		LOGWARNING(PLUGIN_PREFIX .. "Cannot bind values to statement \"" .. a_SQL .. "\": " .. ErrMsg)
-		Stmt:finalize()
-		return nil, ErrMsg
+	if (a_Params) then
+		ErrCode = Stmt:bind_values(unpack(a_Params))
+		if ((ErrCode ~= sqlite3.OK) and (ErrCode ~= sqlite3.DONE)) then
+			ErrMsg = (ErrCode or "<unknown>") .. " (" .. (self.DB:errmsg() or "<no message>") .. ")"
+			LOGWARNING(PLUGIN_PREFIX .. "Cannot bind values to statement \"" .. a_SQL .. "\": " .. ErrMsg)
+			Stmt:finalize()
+			return nil, ErrMsg
+		end
 	end
 	
 	-- Step the statement:
@@ -349,7 +351,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 			Stmt:finalize()
 			return nil, ErrMsg
 		end
-		if (a_RowIDCallback ~= nil) then
+		if (a_RowIDCallback) then
 			a_RowIDCallback(self.DB:last_insert_rowid())
 		end
 	else
@@ -358,7 +360,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 			a_Callback(v)
 		end
 		
-		if (a_RowIDCallback ~= nil) then
+		if (a_RowIDCallback) then
 			a_RowIDCallback(self.DB:last_insert_rowid())
 		end
 	end
@@ -376,7 +378,7 @@ end
 -- Returns nil on DB error
 function SQLite:GetAllApprovedAreas()
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 
 	-- Load from the DB:
 	local res = {}
@@ -385,7 +387,7 @@ function SQLite:GetAllApprovedAreas()
 		{},
 		function (a_Values)
 			-- Require the area to have at least the ID:
-			if (a_Values.ID ~= nil) then
+			if (a_Values.ID) then
 				table.insert(res, a_Values)
 			end
 		end
@@ -405,7 +407,7 @@ end
 -- Returns nil on failure
 function SQLite:GetAllGroupNames()
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	
 	-- Get the groups:
 	local res = {}
@@ -413,7 +415,7 @@ function SQLite:GetAllGroupNames()
 		"SELECT DISTINCT(ExportGroupName) FROM Areas",
 		{},
 		function (a_Values)
-			if (a_Values.ExportGroupName ~= nil) then
+			if (a_Values.ExportGroupName) then
 				table.insert(res, a_Values.ExportGroupName)
 			end
 		end
@@ -433,7 +435,7 @@ end
 -- Returns nil if there's no area at those coords
 function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	assert(type(a_WorldName) == "string")
 	assert(type(a_BlockX) == "number")
 	assert(type(a_BlockZ) == "number")
@@ -474,9 +476,9 @@ end
 -- Returns nil and possibly an error message if there's no area with such ID or there's a DB error
 function SQLite:GetAreaByID(a_AreaID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	
 	-- Load from the DB:
 	local res
@@ -505,9 +507,9 @@ end
 -- Returns nil and possibly message on error
 function SQLite:GetAreaConnectorCount(a_AreaID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	
 	-- Query the DB:
 	local res
@@ -534,9 +536,9 @@ end
 -- Returns nil and possibly message on error
 function SQLite:GetAreaConnectors(a_AreaID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	
 	-- Load from the DB:
 	local res = {}
@@ -565,7 +567,7 @@ end
 -- Returns nil on DB error
 function SQLite:GetApprovedAreasInGroup(a_GroupName)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	assert(type(a_GroupName) == "string")
 	
 	-- Load from the DB:
@@ -577,7 +579,7 @@ function SQLite:GetApprovedAreasInGroup(a_GroupName)
 		},
 		function (a_Values)
 			-- Require the area to have at least the ID:
-			if (a_Values.ID ~= nil) then
+			if (a_Values.ID) then
 				table.insert(res, a_Values)
 			end
 		end
@@ -597,9 +599,9 @@ end
 -- Returns nil and possibly message on failure
 function SQLite:GetConnectorByID(a_ConnectorID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local ConnectorID = tonumber(a_ConnectorID)
-	assert(ConnectorID ~= nil)
+	assert(ConnectorID)
 	
 	-- Load from DB:
 	local res
@@ -626,6 +628,7 @@ end
 -- Returns false and optional error message on error
 function SQLite:GetGroupAreaCount(a_GroupName)
 	-- Check params:
+	assert(self)
 	assert(type(a_GroupName) == "string")
 	
 	-- Get the count from the DB:
@@ -654,6 +657,7 @@ end
 -- Returns false and optional error message on error
 function SQLite:GetGroupStartingAreaCount(a_GroupName)
 	-- Check params:
+	assert(self)
 	assert(type(a_GroupName) == "string")
 	
 	-- Get the count from the DB:
@@ -678,13 +682,42 @@ end
 
 
 
+--- Retrieves the last status of the specified check
+-- Returns a table describing the check status on success, or false and optional message on failure
+function SQLite:GetMaintenanceCheckStatus(a_CheckName)
+	-- Check params:
+	assert(self)
+	assert(type(a_CheckName) == "string")
+	
+	-- Load from DB:
+	local res
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT * FROM LastMaintenanceCheckStatus WHERE CheckName = ?",
+		{
+			a_CheckName
+		},
+		function (a_Values)
+			res = a_Values
+		end
+	)
+	if not(IsSuccess) or not(res) then
+		return false, Msg
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Retrieves the metadata for the specified area, as a dict table {"name" -> "value"}
 -- If a_IncludeDefaults is true, the defaults are added to the result, producing the full set of metadata
 function SQLite:GetMetadataForArea(a_AreaID, a_IncludeDefaults)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 
 	-- Load from DB:
 	local res = {}
@@ -762,9 +795,9 @@ end
 -- Returns nil and message on error
 function SQLite:GetSpongesForArea(a_AreaID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 
 	-- Load data from DB:
 	local SpongeSchematic
@@ -802,9 +835,9 @@ end
 -- Returns nil and optional error message on failure
 function SQLite:HasSponge(a_AreaID)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	
 	-- Query the DB:
 	local res
@@ -830,7 +863,7 @@ end
 -- Returns false and optional error message on failure
 function SQLite:LoadApprovedAreasRange(a_StartIdx, a_EndIdx)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	assert(tonumber(a_StartIdx))
 	assert(tonumber(a_EndIdx))
 	
@@ -861,11 +894,23 @@ end
 
 
 
+--- Locks all areas that are approved
+-- Returns true on success, false and optional error msg on failure
+function SQLite:LockApprovedAreas()
+	return self:ExecuteStatement(
+		"UPDATE Areas SET IsLocked = 1 WHERE CAST(IsApproved AS NUMBER) = 1"
+	)
+end
+
+
+
+
+
 --- Renames the group in the DB, by overwriting the group name of all areas that use the a_FromName and changing the metadata
 -- Returns false and error message on failure, or true on success
 function SQLite:RenameGroup(a_FromName, a_ToName)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	assert(type(a_FromName) == "string")
 	assert(type(a_ToName) == "string")
 	
@@ -895,8 +940,8 @@ end
 -- Returns false and error message on failure, or true on success
 function SQLite:SetAreaExportGroup(a_AreaID, a_GroupName)
 	-- Check params:
-	assert(self ~= nil)
-	assert(tonumber(a_AreaID) ~= nil)
+	assert(self)
+	assert(tonumber(a_AreaID))
 	assert(type(a_GroupName) == "string")
 	
 	-- Update in DB:
@@ -916,8 +961,8 @@ end
 -- Returns false and error message on failure, or true on success
 function SQLite:SetAreaExportName(a_AreaID, a_AreaName)
 	-- Check params:
-	assert(self ~= nil)
-	assert(tonumber(a_AreaID) ~= nil)
+	assert(self)
+	assert(tonumber(a_AreaID))
 	assert(type(a_AreaName) == "string")
 	
 	-- Rename in DB:
@@ -937,9 +982,9 @@ end
 -- Returns true on success, false and optional message on failure
 function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	assert(type(a_Name) == "string")
 	
 	-- Remove any previous value:
@@ -954,7 +999,7 @@ function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 	end
 	
 	-- Add the new value:
-	if ((a_Value ~= nil) and (a_Value ~= "")) then
+	if (a_Value and (a_Value ~= "")) then
 		IsSuccess, Msg = self:ExecuteStatement(
 			"INSERT INTO Metadata (AreaID, Name, Value) VALUES (?, ?, ?)",
 			{
@@ -993,7 +1038,7 @@ function SQLite:SetGroupMetadata(a_GroupName, a_Name, a_Value)
 	end
 	
 	-- Add the new value:
-	if ((a_Value ~= nil) and (a_Value ~= "")) then
+	if (a_Value and (a_Value ~= "")) then
 		IsSuccess, Msg = self:ExecuteStatement(
 			"INSERT INTO GroupMetadata (GroupName, Name, Value) VALUES (?, ?, ?)",
 			{
@@ -1012,17 +1057,54 @@ end
 
 
 
+--- Stores the last result of the specified check
+-- Returns true on success, or false and optional message on failure
+function SQLite:SetMaintenanceCheckStatus(a_CheckName, a_Result)
+	-- Check params:
+	assert(self)
+	assert(type(a_CheckName) == "string")
+	assert(a_Result)
+	
+	-- Delete the previous result:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"DELETE FROM LastMaintenanceCheckStatus WHERE CheckName = ?",
+		{
+			a_CheckName
+		}
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	
+	-- Store the new result:
+	IsSuccess, Msg = self:ExecuteStatement(
+		"INSERT INTO LastMaintenanceCheckStatus (CheckName, DateTime, Result) VALUES (?, ?, ?)",
+		{
+			a_CheckName, FormatDateTime(os.time()), a_Result
+		}
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	
+	return true
+end
+
+
+
+
+
 --- Sets the specified connector's position
 -- Returns true on success, false and possibly an error message on failure
 function SQLite:SetConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local ConnID = tonumber(a_ConnID)
-	assert(ConnID ~= nil)
+	assert(ConnID)
 	local NewX, NewY, NewZ = tonumber(a_NewX), tonumber(a_NewY), tonumber(a_NewZ)
-	assert(NewX ~= nil)
-	assert(NewY ~= nil)
-	assert(NewZ ~= nil)
+	assert(NewX)
+	assert(NewY)
+	assert(NewZ)
 	
 	-- Update in the DB:
 	return self:ExecuteStatement(
@@ -1040,7 +1122,7 @@ end
 --- Returns true if the table exists in the DB
 function SQLite:TableExists(a_TableName)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	assert(type(a_TableName) == "string")
 	
 	-- Check existence:
@@ -1059,13 +1141,28 @@ end
 
 
 
+--- Unlocks all areas
+-- Returns true on success, false and optional message on failure
+function SQLite:UnlockAllAreas()
+	-- Check params:
+	assert(self)
+	
+	return self:ExecuteStatement(
+		"UPDATE Areas SET IsLocked = 0"
+	)
+end
+
+
+
+
+
 --- Unsets the area's metadata value in the DB
 -- Returns true on success, false and optional message on failure
 function SQLite:UnsetAreaMetadata(a_AreaID, a_Name)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	assert(type(a_Name) == "string")
 	
 	-- Remove the value:
@@ -1089,7 +1186,7 @@ end
 -- Returns true on success, false and optional message on failure
 function SQLite:UnsetGroupMetadata(a_GroupName, a_Name)
 	-- Check params:
-	assert(self ~= nil)
+	assert(self)
 	assert(type(a_GroupName) == "string")
 	assert(type(a_Name) == "string")
 	
@@ -1114,14 +1211,14 @@ end
 -- Returns false and error message on failure, or true on success
 function SQLite:UpdateAreaBBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ)
 	-- Check the params:
-	assert(self ~= nil)
-	assert(tonumber(a_AreaID) ~= nil)
-	assert(tonumber(a_MinX) ~= nil)
-	assert(tonumber(a_MinY) ~= nil)
-	assert(tonumber(a_MinZ) ~= nil)
-	assert(tonumber(a_MaxX) ~= nil)
-	assert(tonumber(a_MaxY) ~= nil)
-	assert(tonumber(a_MaxZ) ~= nil)
+	assert(self)
+	assert(tonumber(a_AreaID))
+	assert(tonumber(a_MinX))
+	assert(tonumber(a_MinY))
+	assert(tonumber(a_MinZ))
+	assert(tonumber(a_MaxX))
+	assert(tonumber(a_MaxY))
+	assert(tonumber(a_MaxZ))
 	
 	-- Write into DB:
 	return self:ExecuteStatement(
@@ -1141,14 +1238,14 @@ end
 -- Returns false and error message on failure, or true on success
 function SQLite:UpdateAreaHBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ)
 	-- Check the params:
-	assert(self ~= nil)
-	assert(tonumber(a_AreaID) ~= nil)
-	assert(tonumber(a_MinX) ~= nil)
-	assert(tonumber(a_MinY) ~= nil)
-	assert(tonumber(a_MinZ) ~= nil)
-	assert(tonumber(a_MaxX) ~= nil)
-	assert(tonumber(a_MaxY) ~= nil)
-	assert(tonumber(a_MaxZ) ~= nil)
+	assert(self)
+	assert(tonumber(a_AreaID))
+	assert(tonumber(a_MinX))
+	assert(tonumber(a_MinY))
+	assert(tonumber(a_MinZ))
+	assert(tonumber(a_MaxX))
+	assert(tonumber(a_MaxY))
+	assert(tonumber(a_MaxZ))
 	
 	-- Write into DB:
 	return self:ExecuteStatement(
@@ -1169,9 +1266,9 @@ end
 -- Returns true on success, false and message on failure
 function SQLite:UpdateAreaSponges(a_AreaID, a_SpongedBlockArea)
 	-- Check the params:
-	assert(self ~= nil)
+	assert(self)
 	local AreaID = tonumber(a_AreaID)
-	assert(AreaID ~= nil)
+	assert(AreaID)
 	assert(tolua.type(a_SpongedBlockArea) == "cBlockArea")
 	
 	-- Remove all existing sponges for the specified area:
@@ -1259,13 +1356,20 @@ function SQLite_CreateStorage(a_Params)
 		"Name",
 		"Value"
 	}
+	local LastMaintenanceCheckStatusColumns =
+	{
+		"CheckName",  -- Name of the check; key
+		"DateTime",   -- ISO-formatted date and time of the check
+		"Result",     -- Check results, in a per-check-specific format; BLOB
+	}
 	if (
 		not(DB:TableExists("Areas")) or
-		not(DB:CreateDBTable("Areas",         AreasColumns)) or
-		not(DB:CreateDBTable("ExportSponges", ExportSpongesColumns)) or
-		not(DB:CreateDBTable("Connectors",    ConnectorsColumns)) or
-		not(DB:CreateDBTable("Metadata",      MetadataColumns)) or
-		not(DB:CreateDBTable("GroupMetadata", GroupMetadataColumns))
+		not(DB:CreateDBTable("Areas",                      AreasColumns)) or
+		not(DB:CreateDBTable("ExportSponges",              ExportSpongesColumns)) or
+		not(DB:CreateDBTable("Connectors",                 ConnectorsColumns)) or
+		not(DB:CreateDBTable("Metadata",                   MetadataColumns)) or
+		not(DB:CreateDBTable("GroupMetadata",              GroupMetadataColumns)) or
+		not(DB:CreateDBTable("LastMaintenanceCheckStatus", LastMaintenanceCheckStatusColumns))
 	) then
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot create DB tables!")
 		error("Cannot create DB tables!")

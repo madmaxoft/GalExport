@@ -954,6 +954,129 @@ end
 
 
 
+--- Returns the sponging check results formatted as HTML
+-- Either no areas need sponging, then the text "[none]" is returned
+-- or the areas are listed, each linking to its details page
+local function FormatSpongingCheckResults(a_Results)
+	-- If no areas need sponging, return simple text:
+	if not(a_Results) then
+		return "[All OK]"
+	end
+	
+	-- TODO: For each area make a link to its details
+	return a_Results
+end
+
+
+
+
+
+--- Returns the entire Maintenance page contents
+local function ShowMaintenancePage(a_Request)
+	local res = {[[
+		<h3>Lock approved areas</h3>
+		<p>Locks all areas that are approved for export. This prevents even their owners from editing them, thus
+		preserving the area as approved. Users with the "gallery.admin.overridelocked" permissions may still
+		edit the area. Note that area metadata can still be edited even after locking an area.</p>
+		<form method="POST">
+		<input type="hidden" name="action" value="lockapproved"/>
+		<input type="submit" value="Lock approved areas"/>
+		</form>
+		<br/><hr/><br/>
+		<h3>Unlock all areas</h3>
+		<p>Unlocks all areas. All previously locked areas are unlocked, allowing their original authors to edit
+		them. Note that this operation is not generally reversible and anyway is highly discouraged.</p>
+		<form method="POST">
+		<input type="hidden" name="action" value="unlockall"/>
+		<input type="submit" value="Unlock all areas"/>
+		</form>
+		<br/><hr/><br/>
+		<h3>Check connectors</h3>
+		<p>Checks each approved area's connectors for basic sanity:
+		<ul>
+			<li>Connector has to be on hitbox border</li>
+			<li>Each area has at least one connector</li>
+			<li>Each connector type has a counter-type present in the same group</li>
+		</ul>
+		</p>
+		<p>Note that the operation is asynchronous</p>
+		<table><tr><td>Last checked: </td><td>
+	]]}
+	local LastConnCheck = g_DB:GetMaintenanceCheckStatus("Connectors") or {}
+	ins(res, LastConnCheck.DateTime or "[never]")
+	if (LastConnCheck.DateTime) then
+		ins(res, "</td></tr><tr><td>Last result</td><td>")
+		ins(res, LastConnCheck.Result or "[none]")
+	end
+	ins(res,
+	[[
+		</td></tr></table>
+		<form method="POST">
+		<input type="hidden" name="action" value="chkconn"/>
+		<input type="submit" value="Check connectors"/>
+		</form>
+		<br/><hr/><br/>
+		<h3>Check sponging</h3>
+		<p>Checks that all approved areas are either sponged, or in a group that doesn't need sponging
+		(IntendedUse is set to Trees etc.)</p>
+		<table><tr><td>Last checked: </td><td>
+	]])
+	local LastSpongingCheck = g_DB:GetMaintenanceCheckStatus("Sponging") or {}
+	ins(res, LastSpongingCheck.DateTime or "[never]")
+	if (LastSpongingCheck.DateTime) then
+		ins(res, "</td></tr><tr><td>Last result</td><td>")
+		ins(res, FormatSpongingCheckResults(LastSpongingCheck.Result))
+	end
+	ins(res,
+	[[
+		</td></tr></table>
+		<form method="POST">
+		<input type="hidden" name="action" value="chksponging"/>
+		<input type="submit" value="Check sponging"/>
+		</form>
+	]])
+	
+	return table.concat(res)
+end
+
+
+
+
+
+--- Locks all approved areas and returns the HTML to redirect back to Maintenance page
+local function ExecuteLockApprovedAreas(a_Request)
+	local IsSuccess, Msg = g_DB:LockApprovedAreas()
+	if not(IsSuccess) then
+		return HTMLError("Cannot lock approved areas: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
+	end
+	
+	return [[
+		<p>Approved areas have been locked.</p>
+		<p>Return to the <a href="?action=">Maintenance page</a></p>
+	]]
+end
+
+
+
+
+
+--- Unlocks all areas and returns the HTML to redirect back to Maintenance page
+local function ExecuteUnlockAllAreas(a_Request)
+	local IsSuccess, Msg = g_DB:UnlockAllAreas()
+	if not(IsSuccess) then
+		return HTMLError("Cannot unlock all areas: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
+	end
+	
+	return [[
+		<p>All areas have been unlocked.</p>
+		<p>Return to the <a href="?action=">Maintenance page</a></p>
+	]]
+end
+
+
+
+
+
 -- Action handlers for the Areas page:
 local g_AreasActionHandlers =
 {
@@ -986,6 +1109,20 @@ local g_GroupsActionHandlers =
 
 
 
+--- Action handlers for the Maintenance page:
+local g_MaintenanceActionHandlers =
+{
+	[""]             = ShowMaintenancePage,
+	["chkconn"]      = ExecuteCheckConnectors,
+	["chksponging"]  = ExecuteCheckSponging,
+	["lockapproved"] = ExecuteLockApprovedAreas,
+	["unlockall"]    = ExecuteUnlockAllAreas,
+}
+
+
+
+
+
 --- Returns the entire Areas tab's HTML contents, based on the player's request
 local function HandleAreasRequest(a_Request)
 	local Action = (a_Request.PostParams["action"] or "")
@@ -1003,10 +1140,27 @@ end
 
 
 
---- Returns the entire Areas tab's HTML contents, based on the player's request
+--- Returns the entire Groups tab's HTML contents, based on the player's request
 local function HandleGroupsRequest(a_Request)
 	local Action = (a_Request.PostParams["action"] or "")
 	local Handler = g_GroupsActionHandlers[Action]
+	if (Handler == nil) then
+		return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
+	end
+	
+	local PageContent = Handler(a_Request)
+	
+	return PageContent
+end
+
+
+
+
+
+--- Returns the entire Maintenance tab's HTML contents, based on the player's request
+local function HandleMaintenanceRequest(a_Request)
+	local Action = (a_Request.PostParams["action"] or "")
+	local Handler = g_MaintenanceActionHandlers[Action]
 	if (Handler == nil) then
 		return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
 	end
@@ -1029,8 +1183,9 @@ function InitWeb()
 	end
 
 	-- Register the webadmin tabs:
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Areas", HandleAreasRequest)
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Groups", HandleGroupsRequest)
+	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Areas",       HandleAreasRequest)
+	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Groups",      HandleGroupsRequest)
+	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Maintenance", HandleMaintenanceRequest)
 
 	-- Read the "preview not available yet" image:
 	g_PreviewNotAvailableYetPng = cFile:ReadWholeFile(cPluginManager:GetCurrentPlugin():GetLocalFolder() .. "/PreviewNotAvailableYet.png")
