@@ -403,6 +403,31 @@ end
 
 
 
+--- Returns an array of all connectors stored in the DB
+-- Returns false and optional error message on failure
+function SQLite:GetAllConnectors()
+	-- Check params:
+	assert(self)
+	
+	-- Load from the DB:
+	local res = {}
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT * FROM Connectors", nil,
+		function (a_Values)
+			table.insert(res, a_Values)
+		end
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	
+	return res
+end
+
+
+
+
+
 --- Returns an array of all export groups' names stored in the DB.
 -- Returns nil on failure
 function SQLite:GetAllGroupNames()

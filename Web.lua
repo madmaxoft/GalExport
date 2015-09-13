@@ -65,6 +65,36 @@ end
 
 
 
+--- Returns true if the specified connector reachable through the area's hitbox, i. e. on the hitbox border
+-- or outside the hitbox completely.
+-- Returns false on error, too
+local function IsConnectorReachableThroughHitbox(a_Connector, a_AreaDef)
+	-- Check params:
+	assert(type(a_Connector) == "table")
+	assert(type(a_AreaDef) == "table")
+	
+	if (a_Connector.Direction == BLOCK_FACE_XM) then
+		return (a_Connector.X <= (a_AreaDef.HitboxMinX or a_AreaDef.ExportMinX))
+	elseif (a_Connector.Direction == BLOCK_FACE_XP) then
+		return (a_Connector.X >= (a_AreaDef.HitboxMaxX or a_AreaDef.ExportMaxX))
+	elseif (a_Connector.Direction == BLOCK_FACE_YM) then
+		return (a_Connector.Y <= (a_AreaDef.HitboxMinY or a_AreaDef.ExportMinY))
+	elseif (a_Connector.Direction == BLOCK_FACE_YP) then
+		return (a_Connector.Y >= (a_AreaDef.HitboxMaxY or a_AreaDef.ExportMaxY))
+	elseif (a_Connector.Direction == BLOCK_FACE_ZM) then
+		return (a_Connector.Z <= (a_AreaDef.HitboxMinZ or a_AreaDef.ExportMinZ))
+	elseif (a_Connector.Direction == BLOCK_FACE_ZP) then
+		return (a_Connector.Z >= (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ))
+	end
+	
+	-- Not a known direction, mark as failure:
+	return false
+end
+
+
+
+
+
 --- Returns the chunk coords of chunks that intersect the given area's export cuboid
 -- The returned value has the form of { {Chunk1x, Chunk1z}, {Chunk2x, Chunk2z}, ...}
 local function GetAreaChunkCoords(a_Area)
@@ -552,13 +582,16 @@ local function ShowAreaDetails(a_Request)
 	-- Check params:
 	local AreaID = tonumber(a_Request.Params["areaid"])
 	if not(AreaID) then
-		return HTMLError("No Area ID selected") .. ShowMainPage(a_Request)
+		return HTMLError("No Area ID selected") .. ShowAreasPage(a_Request)
 	end
 
 	-- Load the area:
 	local Area = g_DB:GetAreaByID(AreaID)
 	if not(Area) then
-		return HTMLError("Area " .. AreaID .. " not found") .. ShowMainPage(a_Request)
+		return HTMLError("Area " .. AreaID .. " not found") .. ShowAreasPage(a_Request)
+	end
+	if (not(Area.IsApproved) or not(tonumber(Area.IsApproved) ~= 0)) then
+		return HTMLError("Area " .. AreaID .. " has not been approved") .. ShowAreasPage(a_Request)
 	end
 	
 	-- Output the preview:
@@ -602,7 +635,7 @@ local function ShowAreaDetails(a_Request)
 	-- Output the dimensions, hitbox etc.:
 	AddProp("Location", Area.GalleryName .. " " .. Area.GalleryIndex)
 	AddProp("Author", Area.PlayerName)
-	AddProp("Approved", Area.DateApproved .. " by " .. Area.ApprovedBy)
+	AddProp("Approved", (Area.DateApproved or "[unknown date]") .. " by " .. (Area.ApprovedBy or "[unknown person]"))
 	AddProp("Size X", Area.ExportMaxX - Area.ExportMinX + 1)
 	AddProp("Size Y", Area.ExportMaxY - Area.ExportMinY + 1)
 	AddProp("Size Z", Area.ExportMaxZ - Area.ExportMinZ + 1)
@@ -667,6 +700,12 @@ local function ShowAreaDetails(a_Request)
 		ins(res, conn.TypeNum)
 		ins(res, "</td><td>")
 		ins(res, DirectionToString[conn.Direction] or "unknown")
+		ins(res, "</td><td>")
+		if not(IsConnectorReachableThroughHitbox(conn, Area)) then
+			ins(res, "<b>Not reachable through hitbox!</b>")
+		else
+			ins(res, "&nbsp;")
+		end
 		ins(res, "</td></tr>")
 		-- TODO: "Delete connector" action
 	end
@@ -845,7 +884,7 @@ local function ShowGroupDetails(a_Request)
 	ins(res, "<br/><h3>Group metadata:</h3><table><tr><th>Name</th><th>Value</th><th>Action</th></tr>")
 	local Metas = g_DB:GetMetadataForGroup(GroupName)
 	local MetaNames = {}
-	for k, v in pairs(Metas) do
+	for k, _ in pairs(Metas) do
 		ins(MetaNames, k)
 	end
 	table.sort(MetaNames)
@@ -955,6 +994,58 @@ end
 
 
 --- Returns the sponging check results formatted as HTML
+-- Either no problems were found, then the text "[All OK]" is returned
+-- or the connectors, areas or groups are listed, each linking to its details page
+local function FormatConnectorCheckResults(a_Results)
+	if not(a_Results) then
+		return "[All OK]"
+	end
+	
+	local res = {"<table><tr><th>Item</th><th>Problem</th></tr>"}
+	local Items = StringSplit(a_Results, "~")
+	for _, item in ipairs(Items) do
+		local s = StringSplit(item, "|")
+		ins(res, "<tr><td>")
+		if (s[1] == "A") then
+			ins(res, "<a href=\"Areas?action=areadetails&areaid=")
+			ins(res, s[2])
+			ins(res, "\">Area ")
+			ins(res, s[2])
+			ins(res, "</a>")
+		elseif (s[1] == "C") then
+			local IDs = StringSplit(s[2], "@")
+			ins(res, "Connector ")
+			ins(res, IDs[1])
+			if (IDs[2]) then
+				ins(res, "(<a href=\"Areas?action=areadetails&areaid=")
+				ins(res, IDs[2])
+				ins(res, "\">Area ")
+				ins(res, IDs[2])
+				ins(res, "</a>)")
+			end
+		elseif (s[1] == "G") then
+			ins(res, "<a href=\"Groups?action=groupdetails&groupname=")
+			ins(res, s[2])
+			ins(res, "\">Group ")
+			ins(res, s[2])
+			ins(res, "</a>")
+		else
+			ins(res, "[unknown]")
+		end
+		ins(res, "</td><td>")
+		ins(res, cWebAdmin:GetHTMLEscapedString(s[3]))
+		ins(res, "</td></tr>")
+	end
+	ins(res, "</table>")
+	
+	return table.concat(res)
+end
+
+
+
+
+
+--- Returns the sponging check results formatted as HTML
 -- Either no areas need sponging, then the text "[none]" is returned
 -- or the areas are listed, each linking to its details page
 local function FormatSpongingCheckResults(a_Results)
@@ -1000,13 +1091,13 @@ local function ShowMaintenancePage(a_Request)
 		</ul>
 		</p>
 		<p>Note that the operation is asynchronous</p>
-		<table><tr><td>Last checked: </td><td>
+		<table><tr><td valign="top">Last checked: </td><td>
 	]]}
 	local LastConnCheck = g_DB:GetMaintenanceCheckStatus("Connectors") or {}
 	ins(res, LastConnCheck.DateTime or "[never]")
 	if (LastConnCheck.DateTime) then
-		ins(res, "</td></tr><tr><td>Last result</td><td>")
-		ins(res, LastConnCheck.Result or "[none]")
+		ins(res, "</td></tr><tr><td valign=\"top\">Last result</td><td>")
+		ins(res, FormatConnectorCheckResults(LastConnCheck.Result))
 	end
 	ins(res,
 	[[
@@ -1037,6 +1128,80 @@ local function ShowMaintenancePage(a_Request)
 	]])
 	
 	return table.concat(res)
+end
+
+
+
+
+
+--- Checks all connectors, updates the last check status and returns the HTML to redirect back to Maintenance page
+local function ExecuteCheckConnectors(a_Request)
+	-- Load all from DB, convert areas from array to map of AreaID -> {AreaDesc}
+	local Connectors = g_DB:GetAllConnectors()
+	local AreasArr = g_DB:GetAllApprovedAreas()
+	local Areas = {}
+	for _, area in ipairs(AreasArr) do
+		Areas[area.ID] = area
+	end
+	
+	-- Process each connector:
+	local Issues = {}
+	local ConnectorTypeCounts = {}
+	for _, conn in ipairs(Connectors) do
+		local area = Areas[conn.AreaID]
+		if not(area) then
+			table.insert(Issues, "C|" .. conn.ID .. "@" .. conn.AreaID .. "|Area does not exist")
+		elseif not(IsConnectorReachableThroughHitbox(conn, area)) then
+			table.insert(Issues, "C|" .. conn.ID .. "@" .. conn.AreaID .. "|Connector not on hitbox border, it will never connect to anything")
+		else
+			-- Collect per-group connector type counts:
+			local ctc = ConnectorTypeCounts[area.ExportGroupName]
+			if not(ctc) then
+				ctc = {}
+				ConnectorTypeCounts[area.ExportGroupName] = ctc
+			end
+			ctc[conn.TypeNum] = (ctc[conn.TypeNum] or 0) + 1
+		end
+	end
+	
+	-- Villages have extra roads not included in the export group, add their connectors to the counts
+	for grpName, counts in pairs(ConnectorTypeCounts) do
+		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
+		local IntendedUse = string.lower(GroupMetas["IntendedUse"] or "")
+		if (IntendedUse == "village") then
+			counts[-2] = (counts[-2] or 0) + 2
+			counts[1]  = (counts[1]  or 0) + 2
+		end
+	end
+
+	-- Check per-group connector type counts:
+	for grpName, counts in pairs(ConnectorTypeCounts) do
+		for connType, connCount in pairs(counts) do
+			if ((counts[-connType] or 0) == 0) then
+				table.insert(Issues, "G|" .. grpName .. "|Connector type " .. connType .. " has no counter-connector")
+			end
+		end
+	end
+	
+	-- Check that each area has at least one connector:
+	for _, conn in ipairs(Connectors) do
+		local area = Areas[conn.AreaID] or {}
+		area.HasConnector = true
+	end
+	for _, area in pairs(Areas) do
+		if not(area.HasConnector) then
+			table.insert(Issues, "A|" .. area.ID .. "|Area has no connectors")
+		end
+	end
+	
+	-- Store the check result:
+	local Result = table.concat(Issues, "~")
+	g_DB:SetMaintenanceCheckStatus("Connectors", Result)
+	
+	-- Return the HTML:
+	return [[
+		<p>Connectors have been checked. To view the results, return to the <a href="?action=">Maintenance page</a></p>
+	]]
 end
 
 
