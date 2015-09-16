@@ -155,6 +155,105 @@ end
 
 
 
+--- Translates Connector.Direction to the shape name to use for PNG export
+local g_ShapeName =
+{
+	[BLOCK_FACE_XM] = "BottomArrowXM",
+	[BLOCK_FACE_XP] = "BottomArrowXP",
+	[BLOCK_FACE_YP] = "ArrowYP",
+	[BLOCK_FACE_YM] = "ArrowYM",
+	[BLOCK_FACE_ZM] = "BottomArrowZM",
+	[BLOCK_FACE_ZP] = "BottomArrowZP",
+}
+
+--- Translates Connector.Direction via NumRotations into the new rotated Direction
+local g_RotatedDirection =
+{
+	[0] =  -- No rotation
+	{
+		[BLOCK_FACE_XM] = BLOCK_FACE_XM,
+		[BLOCK_FACE_XP] = BLOCK_FACE_XP,
+		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
+		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
+		[BLOCK_FACE_ZM] = BLOCK_FACE_ZM,
+		[BLOCK_FACE_ZP] = BLOCK_FACE_ZP,
+	},
+	
+	[1] =  -- 1 CW rotation
+	{
+		[BLOCK_FACE_XM] = BLOCK_FACE_ZM,
+		[BLOCK_FACE_XP] = BLOCK_FACE_ZP,
+		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
+		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
+		[BLOCK_FACE_ZM] = BLOCK_FACE_XP,
+		[BLOCK_FACE_ZP] = BLOCK_FACE_XM,
+	},
+
+	[2] =  -- 2 CW rotations
+	{
+		[BLOCK_FACE_XM] = BLOCK_FACE_XP,
+		[BLOCK_FACE_XP] = BLOCK_FACE_XM,
+		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
+		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
+		[BLOCK_FACE_ZM] = BLOCK_FACE_ZP,
+		[BLOCK_FACE_ZP] = BLOCK_FACE_ZM,
+	},
+	
+	[3] =  -- 3 CW rotations
+	{
+		[BLOCK_FACE_XM] = BLOCK_FACE_ZP,
+		[BLOCK_FACE_XP] = BLOCK_FACE_ZM,
+		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
+		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
+		[BLOCK_FACE_ZM] = BLOCK_FACE_XM,
+		[BLOCK_FACE_ZP] = BLOCK_FACE_XP,
+	},
+}
+
+
+
+
+
+--- Returns a table describing the specified connector, rotated and relativized against a_Area
+-- The result also contains the shape name to use for PNG export
+local function RotateConnector(a_Connector, a_Area, a_NumRotations)
+	-- Check params:
+	assert(type(a_Connector) == "table")
+	assert(type(a_Area) == "table")
+	assert(type(a_NumRotations) == "number")
+	
+	local res = {y = a_Connector.Y - a_Area.ExportMinY}
+	local RelX = a_Connector.X - a_Area.ExportMinX
+	local RelZ = a_Connector.Z - a_Area.ExportMinZ
+	local SizeX = a_Area.ExportMaxX - a_Area.ExportMinX
+	local SizeZ = a_Area.ExportMaxZ - a_Area.ExportMinZ
+	
+	-- Rotate the XZ coords:
+	if (a_NumRotations == 0) then
+		res.x = RelX
+		res.z = RelZ
+	elseif (a_NumRotations == 1) then
+		res.x = SizeZ - RelZ
+		res.z = RelX
+	elseif (a_NumRotations == 2) then
+		res.x = SizeX - RelX
+		res.z = SizeZ - RelZ
+	elseif (a_NumRotations == 3) then
+		res.x = RelZ
+		res.z = SizeX - RelX
+	end
+	
+	-- Rotate and textualize the marker shape:
+	local RotatedDir = g_RotatedDirection[a_NumRotations] or {}
+	res.shape = g_ShapeName[RotatedDir[a_Connector.Direction]] or "Cube"
+	
+	return res
+end
+
+
+
+
+
 --- Uses MCSchematicToPng to convert .schematic files into PNG previews for the specified areas
 -- a_Areas is an array of { Area = <db-Area>, NumRotations = <number> }
 local ExportCounter = 0
@@ -171,6 +270,13 @@ local function ExportPreviewForAreas(a_Areas)
 		f:write(GetAreaSchematicFileName(area.Area.ID) .. "\n")
 		f:write(" outfile: " .. GetAreaPreviewFileName(area.Area.ID, area.NumRotations) .. "\n")
 		f:write(" numcwrotations: " .. area.NumRotations .. "\n")
+		f:write(" horzsize: 6\n vertsize: 8\n")
+		
+		local Connectors = g_DB:GetAreaConnectors(area.Area.ID) or {}
+		for _, conn in ipairs(Connectors) do
+			local rotconn = RotateConnector(conn, area.Area, area.NumRotations)
+			f:write(" marker: " .. rotconn.x .. ", " .. rotconn.y .. ", " .. rotconn.z .. ", " .. rotconn.shape .. ", ff0000\n")
+		end
 	end
 	f:close()
 	f = nil
@@ -409,7 +515,11 @@ end
 
 --- Returns the HTML code for the area list header
 local function GetAreasHTMLHeader()
-	return "<tr><th colspan=4>Preview</th><th>Area</th><th>Group</th><th>Connectors</th><th>Author</th><th>Approved</th><th width='1%'>Action</th></tr>"
+	if (g_Config.TwoLineAreaList) then
+		return "<tr><th colspan=6>Preview</th></tr><tr><th>Area</th><th>Group</th><th>Connectors</th><th>Author</th><th>Approved</th><th width='1%'>Action</th></tr>"
+	else
+		return "<tr><th colspan=4>Preview</th><th>Area</th><th>Group</th><th>Connectors</th><th>Author</th><th>Approved</th><th width='1%'>Action</th></tr>"
+	end
 end
 
 
@@ -422,13 +532,21 @@ local function GetAreaHTMLRow(a_Area)
 	assert(type(a_Area) == "table")
 	assert(a_Area.ID)
 
-	local res = { "<tr><td valign='top'>" }
+	local res = {}
+	if (g_Config.TwoLineAreaList) then
+		ins(res, "<tr><td valign='top' colspan=6><table width='100%'><tr><td valign='top'>")
+	else
+		ins(res, "<tr><td valign='top'>")
+	end
 	for rot = 0, 3 do
 		ins(res, "<img src=\"/~webadmin/GalExport/Areas?action=getpreview&areaid=")
 		ins(res, a_Area.ID)
 		ins(res, "&rot=")
 		ins(res, rot)
 		ins(res, "\"/></td><td valign='top'>")
+	end
+	if (g_Config.TwoLineAreaList) then
+		ins(res, "</tr></table></tr><tr><td valign='top'>")
 	end
 	ins(res, GetAreaDescription(a_Area))
 	ins(res, "</td><td valign='top'>")
@@ -593,6 +711,7 @@ local function ShowAreaDetails(a_Request)
 	if (not(Area.IsApproved) or not(tonumber(Area.IsApproved) ~= 0)) then
 		return HTMLError("Area " .. AreaID .. " has not been approved") .. ShowAreasPage(a_Request)
 	end
+	RefreshPreviewForAreas({Area})
 	
 	-- Output the preview:
 	local res = {"<table><tr>"}
