@@ -383,20 +383,14 @@ local function RefreshPreviewForAreas(a_Areas)
 	assert(type(a_Areas) == "table")
 	assert(g_Config.WebPreview)
 	
+	-- Check each area and each rotation:
 	local ToExport = {}  -- array of {Area = <db-area>, NumRotations = <number>}
 	for _, area in ipairs(a_Areas) do
-		local fnam = g_Config.WebPreview.ThumbnailFolder .. "/" .. area.GalleryName .. "/" .. area.GalleryIndex
-		if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam .. ".0.png"))) then
-			table.insert(ToExport, { Area = area, NumRotations = 0})
-		end
-		if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam .. ".1.png"))) then
-			table.insert(ToExport, { Area = area, NumRotations = 1})
-		end
-		if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam .. ".2.png"))) then
-			table.insert(ToExport, { Area = area, NumRotations = 2})
-		end
-		if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam .. ".3.png"))) then
-			table.insert(ToExport, { Area = area, NumRotations = 3})
+		for rot = 0, 3 do
+			local fnam = GetAreaPreviewFileName(area.ID, rot)
+			if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam))) then
+				table.insert(ToExport, { Area = area, NumRotations = 0})
+			end
 		end
 	end
 
