@@ -1127,11 +1127,13 @@ local function FormatConnectorCheckResults(a_Results)
 		return "[All OK]"
 	end
 	
-	local res = {"<table><tr><th>Item</th><th>Problem</th></tr>"}
+	local res = {"<table><tr><th>Item</th><th>Problem</th><th>Action</th></tr>"}
 	local Items = StringSplit(a_Results, "~")
 	for _, item in ipairs(Items) do
 		local s = StringSplit(item, "|")
 		ins(res, "<tr><td>")
+		
+		-- Add item description, plus any links:
 		if (s[1] == "A") then
 			ins(res, "<a href=\"")
 			ins(res, PAGE_NAME_AREAS)
@@ -1164,8 +1166,22 @@ local function FormatConnectorCheckResults(a_Results)
 		else
 			ins(res, "[unknown]")
 		end
+		
+		-- Add the reason for listing:
 		ins(res, "</td><td>")
 		ins(res, cWebAdmin:GetHTMLEscapedString(s[3]))
+		ins(res, "</td><td>")
+		
+		-- Add action buttons depending on what item we're showing:
+		if (s[1] == "C") then
+			local IDs = StringSplit(s[2], "@")
+			ins(res, "<form method=\"POST\">")
+			ins(res, GetHTMLInput("hidden", "action",  {value = "delconn"}))
+			ins(res, GetHTMLInput("hidden", "connid",  {value = IDs[1]}))
+			ins(res, GetHTMLInput("submit", "delconn", {value = "Delete connector"}))
+			ins(res, "</form>")
+		end
+		
 		ins(res, "</td></tr>")
 	end
 	ins(res, "</table>")
@@ -1282,7 +1298,7 @@ local function ExecuteCheckConnectors(a_Request)
 	for _, conn in ipairs(Connectors) do
 		local area = Areas[conn.AreaID]
 		if not(area) then
-			table.insert(Issues, "C|" .. conn.ID .. "@" .. conn.AreaID .. "|Area does not exist")
+			table.insert(Issues, "C|" .. conn.ID .. "@" .. conn.AreaID .. "|Area is not approved")
 		elseif not(IsConnectorReachableThroughHitbox(conn, area)) then
 			table.insert(Issues, "C|" .. conn.ID .. "@" .. conn.AreaID .. "|Connector not on hitbox border, it will never connect to anything")
 		else
@@ -1333,6 +1349,33 @@ local function ExecuteCheckConnectors(a_Request)
 	-- Return the HTML:
 	return [[
 		<p>Connectors have been checked. To view the results, return to the <a href="?action=">Maintenance page</a></p>
+	]]
+end
+
+
+
+
+
+--- Deletes the specified connector and returns the HTML to redirect back to Maintenance page
+local function ExecuteDelConn(a_Request)
+	-- Check params:
+	local ConnID = tonumber(a_Request.PostParams["connid"])
+	if not(ConnID) then
+		return HTMLError("Invalid ConnID")
+	end
+
+	-- Delete  the connector:
+	local IsSuccess, Msg = g_DB:DeleteConnector(ConnID)
+	if not(IsSuccess) then
+		return HTMLError("Cannot delete connector from the DB: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
+	end
+	
+	-- Re-check connectors, to update the status:
+	ExecuteCheckConnectors()
+	
+	-- Return the HTML:
+	return [[
+		<p>Connector has been deleted. Return to the <a href="?action=">Maintenance page</a></p>
 	]]
 end
 
@@ -1412,6 +1455,7 @@ local g_MaintenanceActionHandlers =
 	[""]             = ShowMaintenancePage,
 	["chkconn"]      = ExecuteCheckConnectors,
 	["chksponging"]  = ExecuteCheckSponging,
+	["delconn"]      = ExecuteDelConn,
 	["lockapproved"] = ExecuteLockApprovedAreas,
 	["unlockall"]    = ExecuteUnlockAllAreas,
 }
