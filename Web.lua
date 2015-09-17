@@ -13,6 +13,15 @@ local g_NumAreasPerPage = 50
 -- Contains the PNG file for "Preview not available yet" image
 local g_PreviewNotAvailableYetPng
 
+--- URL name of the Areas page:
+local PAGE_NAME_AREAS = "Areas"
+
+-- URL name of the Groups page:
+local PAGE_NAME_GROUPS = "Groups"
+
+-- URL name of the Maintenance page:
+local PAGE_NAME_MAINTENANCE = "Maintenance"
+
 
 
 
@@ -533,7 +542,9 @@ local function GetAreaHTMLRow(a_Area)
 		ins(res, "<tr><td valign='top'>")
 	end
 	for rot = 0, 3 do
-		ins(res, "<img src=\"/~webadmin/GalExport/Areas?action=getpreview&areaid=")
+		ins(res, "<img src=\"/~webadmin/GalExport/")
+		ins(res, PAGE_NAME_AREAS)
+		ins(res, "?action=getpreview&areaid=")
 		ins(res, a_Area.ID)
 		ins(res, "&rot=")
 		ins(res, rot)
@@ -563,7 +574,9 @@ local function GetAreaHTMLRow(a_Area)
 	ins(res, "</td><td valign='top'>")
 	ins(res, (a_Area.DateApproved or "&nbsp;") .. "<br/>by " .. (a_Area.ApprovedBy or "&lt;unknown&gt;"))
 	ins(res, "</td><td valign='top'>")
-	ins(res, "<form method=\"GET\" action=\"/webadmin/GalExport/Areas\">")
+	ins(res, "<form method=\"GET\" action=\"")
+	ins(res, PAGE_NAME_AREAS)
+	ins(res, "\">")
 	ins(res, GetHTMLInput("hidden", "areaid",  {value = a_Area.ID}))
 	ins(res, GetHTMLInput("submit", "details", {value = "Details"}))
 	ins(res, GetHTMLInput("hidden", "action",  {value = "areadetails"}))
@@ -1120,7 +1133,9 @@ local function FormatConnectorCheckResults(a_Results)
 		local s = StringSplit(item, "|")
 		ins(res, "<tr><td>")
 		if (s[1] == "A") then
-			ins(res, "<a href=\"Areas?action=areadetails&areaid=")
+			ins(res, "<a href=\"")
+			ins(res, PAGE_NAME_AREAS)
+			ins(res, "?action=areadetails&areaid=")
 			ins(res, s[2])
 			ins(res, "\">Area ")
 			ins(res, s[2])
@@ -1130,14 +1145,18 @@ local function FormatConnectorCheckResults(a_Results)
 			ins(res, "Connector ")
 			ins(res, IDs[1])
 			if (IDs[2]) then
-				ins(res, "(<a href=\"Areas?action=areadetails&areaid=")
+				ins(res, " (<a href=\"")
+				ins(res, PAGE_NAME_AREAS)
+				ins(res, "?action=areadetails&areaid=")
 				ins(res, IDs[2])
 				ins(res, "\">Area ")
 				ins(res, IDs[2])
 				ins(res, "</a>)")
 			end
 		elseif (s[1] == "G") then
-			ins(res, "<a href=\"Groups?action=groupdetails&groupname=")
+			ins(res, "<a href=\"")
+			ins(res, PAGE_NAME_GROUPS)
+			ins(res, "?action=groupdetails&groupname=")
 			ins(res, s[2])
 			ins(res, "\">Group ")
 			ins(res, s[2])
@@ -1461,9 +1480,9 @@ function InitWeb()
 	end
 
 	-- Register the webadmin tabs:
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Areas",       HandleAreasRequest)
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Groups",      HandleGroupsRequest)
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab("Maintenance", HandleMaintenanceRequest)
+	cPluginManager:Get():GetCurrentPlugin():AddWebTab(PAGE_NAME_AREAS,       HandleAreasRequest)
+	cPluginManager:Get():GetCurrentPlugin():AddWebTab(PAGE_NAME_GROUPS,      HandleGroupsRequest)
+	cPluginManager:Get():GetCurrentPlugin():AddWebTab(PAGE_NAME_MAINTENANCE, HandleMaintenanceRequest)
 
 	-- Read the "preview not available yet" image:
 	g_PreviewNotAvailableYetPng = cFile:ReadWholeFile(cPluginManager:GetCurrentPlugin():GetLocalFolder() .. "/PreviewNotAvailableYet.png")
