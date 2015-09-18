@@ -327,7 +327,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 	if (Stmt == nil) then
 		ErrMsg = (ErrCode or "<unknown>") .. " (" .. (ErrMsg or "<no message>") .. ")"
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot prepare SQL \"" .. a_SQL .. "\": " .. ErrMsg)
-		LOGWARNING(PLUGIN_PREFIX .. "  Params = {" .. table.concat(a_Params, ", ") .. "}")
+		LOGWARNING(PLUGIN_PREFIX .. "  Params = {" .. table.concat(a_Params or {}, ", ") .. "}")
 		return nil, ErrMsg
 	end
 	
@@ -808,6 +808,33 @@ function SQLite:GetNumApprovedAreas()
 	if not(IsSuccess) then
 		return false, Msg
 	end
+	return res
+end
+
+
+
+
+
+--- Retrieves a map of AreaID => true for all areas that have been sponged
+-- Areas that are not sponged are not in the map at all
+-- Returns false and optional message on error
+function SQLite:GetSpongedAreaIDsMap()
+	-- Check params:
+	assert(self)
+	
+	-- Load data from the DB:
+	local res = {}
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT AreaID FROM ExportSponges",
+		nil,
+		function (a_Values)
+			res[a_Values.AreaID] = true
+		end
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+	
 	return res
 end
 

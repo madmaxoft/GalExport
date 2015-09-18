@@ -22,6 +22,12 @@ local PAGE_NAME_GROUPS = "Groups"
 -- URL name of the Maintenance page:
 local PAGE_NAME_MAINTENANCE = "Maintenance"
 
+--- Maps the IntendedUse metadata to true if such a group doesn't need sponging
+local g_SpongelessIntendedUse =
+{
+	["trees"] = true,
+}
+
 
 
 
@@ -1202,8 +1208,24 @@ local function FormatSpongingCheckResults(a_Results)
 		return "[All OK]"
 	end
 	
-	-- TODO: For each area make a link to its details
-	return a_Results
+	-- Display each unsponged area:
+	local IDs = StringSplit(a_Results, "~")
+	local res = { GetAreasHTMLHeader() }
+	local Areas = {}
+	for _, id in ipairs(IDs) do
+		local area = g_DB:GetAreaByID(id)
+		if not(area) then
+			ins(res, "<tr><td><b>Unknown area (ID")
+			ins(res, id)
+			ins(res, "</td></tr>")
+		else
+			ins(res, GetAreaHTMLRow(area))
+			ins(Areas, area)
+		end
+	end  -- for id - IDs[]
+	RefreshPreviewForAreas(Areas)
+	
+	return table.concat(res)
 end
 
 
@@ -1349,6 +1371,56 @@ local function ExecuteCheckConnectors(a_Request)
 	-- Return the HTML:
 	return [[
 		<p>Connectors have been checked. To view the results, return to the <a href="?action=">Maintenance page</a></p>
+	]]
+end
+
+
+
+
+
+--- Checks all approved areas whether they are sponged (if they need sponging)
+-- Updates the last check status and returns the HTML to redirect back to Maintenance page
+local function ExecuteCheckSponging(a_Request)
+	-- Load from DB:
+	local AllAreas, AllGroups, SpongedAreaIDs, Msg
+	AllAreas, Msg = g_DB:GetAllApprovedAreas()
+	if not(AllAreas) then
+		return HTMLError("Cannot query the DB for approved areas: " .. (Msg or "<unknown DB error>"))
+	end
+	AllGroups, Msg = g_DB:GetAllGroupNames()
+	if not(AllGroups) then
+		return HTMLError("Cannot query the DB for export groups: " .. (Msg or "<unknown DB error>"))
+	end
+	SpongedAreaIDs, Msg = g_DB:GetSpongedAreaIDsMap()
+	if not(SpongedAreaIDs) then
+		return HTMLError("Cannot query the DB for sponged areas: " .. (Msg or "<unknown DB error>"))
+	end
+	
+	-- Prepare the intended use for each export group:
+	local GroupIntendedUse = {}  -- Map of "GroupName" -> <IntendedUse>
+	for _, grpName in ipairs(AllGroups) do
+		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
+		GroupIntendedUse[grpName] = string.lower(GroupMetas["IntendedUse"] or "")
+	end
+	
+	-- Check each area:
+	local Issues = {}
+	for _, area in ipairs(AllAreas) do
+		if (
+			not(SpongedAreaIDs[area.ID]) and  -- Area is not sponged
+			not(g_SpongelessIntendedUse[area.ExportGroupName])  -- Area is in an export group that needs sponging
+		) then
+			ins(Issues, area.ID)
+		end
+	end
+	
+	-- Save to DB:
+	local Result = table.concat(Issues, "~")
+	g_DB:SetMaintenanceCheckStatus("Sponging", Result)
+
+	-- Return the HTML:
+	return [[
+		<p>Area sponging has been checked. To view the results, return to the <a href="?action=">Maintenance page</a></p>
 	]]
 end
 
