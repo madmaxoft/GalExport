@@ -1070,6 +1070,46 @@ end
 
 
 
+--- Sets the sponging in the DB for the selected area
+-- a_Sponging is the area containing only sponge blocks or air
+-- Returns true on success, false and message on failure
+function SQLite:SetAreaSponging(a_AreaID, a_Sponging)
+	-- Check the params:
+	assert(self)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID)
+	assert(tolua.type(a_Sponging) == "cBlockArea")
+	
+	-- Remove all existing sponges for the specified area:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"DELETE FROM ExportSponges WHERE AreaID = ?",
+		{
+			AreaID
+		}
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+
+	-- Convert the sponging into DB-friendly representation:
+	local SchematicData = a_Sponging:SaveToSchematicString()
+	local AreaRep = Base64Encode(SchematicData)
+	
+	-- Save the sponge area into the DB:
+	IsSuccess, Msg = self:ExecuteStatement(
+		"INSERT INTO ExportSponges (AreaID, Sponges) VALUES (?, ?)",
+		{
+			AreaID,
+			AreaRep
+		}
+	)
+	return IsSuccess, Msg
+end
+
+
+
+
+
 --- Sets the metadata value for the specified group.
 -- Returns true on success, false and optional message on failure
 function SQLite:SetGroupMetadata(a_GroupName, a_Name, a_Value)
@@ -1319,38 +1359,17 @@ end
 function SQLite:UpdateAreaSponges(a_AreaID, a_SpongedBlockArea)
 	-- Check the params:
 	assert(self)
-	local AreaID = tonumber(a_AreaID)
-	assert(AreaID)
 	assert(tolua.type(a_SpongedBlockArea) == "cBlockArea")
-	
-	-- Remove all existing sponges for the specified area:
-	local IsSuccess, Msg = self:ExecuteStatement(
-		"DELETE FROM ExportSponges WHERE AreaID = ?",
-		{
-			AreaID
-		}
-	)
-	if not(IsSuccess) then
-		return false, Msg
-	end
-	
+
 	-- Create a block area that has sponges where a_SpongedBlockArea has sponges, and air everywhere else:
 	local BA = cBlockArea()
 	BA:CopyFrom(a_SpongedBlockArea)
 	BA:Fill(cBlockArea.baTypes + cBlockArea.baMetas, E_BLOCK_SPONGE, 0)
 	BA:Merge(a_SpongedBlockArea, 0, 0, 0, cBlockArea.msMask)
-	local SchematicData = BA:SaveToSchematicString()
-	local AreaRep = Base64Encode(SchematicData)
-	
-	-- Save the sponge area into the DB:
-	IsSuccess, Msg = self:ExecuteStatement(
-		"INSERT INTO ExportSponges (AreaID, Sponges) VALUES (?, ?)",
-		{
-			AreaID,
-			AreaRep
-		}
-	)
-	BA:Clear();
+
+	-- Update in the DB:
+	local IsSuccess, Msg = self:SetAreaSponging(a_AreaID, BA)
+	BA:Clear()
 	return IsSuccess, Msg
 end
 

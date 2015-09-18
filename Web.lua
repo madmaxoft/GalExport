@@ -536,10 +536,13 @@ end
 
 
 --- Returns the HTML code for the area's row in the area list
-local function GetAreaHTMLRow(a_Area)
+-- a_ExtraActions is an area of extra actions to insert as action buttons
+local function GetAreaHTMLRow(a_Area, a_ExtraActions)
 	-- Check params:
 	assert(type(a_Area) == "table")
 	assert(a_Area.ID)
+	assert((a_ExtraActions == nil) or (type(a_ExtraActions) == "table"))
+	a_ExtraActions = a_ExtraActions or {}
 
 	local res = {}
 	if (g_Config.TwoLineAreaList) then
@@ -586,7 +589,21 @@ local function GetAreaHTMLRow(a_Area)
 	ins(res, GetHTMLInput("hidden", "areaid",  {value = a_Area.ID}))
 	ins(res, GetHTMLInput("submit", "details", {value = "Details"}))
 	ins(res, GetHTMLInput("hidden", "action",  {value = "areadetails"}))
-	ins(res, "</form></td></tr>")
+	ins(res, "</form>")
+	
+	-- Insert any extra actions:
+	for _, act in ipairs(a_ExtraActions) do
+		ins(res, "<form method=\"")
+		ins(res, act.method or "POST")
+		ins(res, "\" action=\"")
+		ins(res, act.page or PAGE_NAME_AREAS)
+		ins(res, "\">")
+		ins(res, GetHTMLInput("hidden", "areaid",  {value = a_Area.ID}))
+		ins(res, GetHTMLInput("submit", "do",      {value = act.title}))
+		ins(res, GetHTMLInput("hidden", "action",  {value = act.action}))
+		ins(res, "</form>")
+	end
+	ins(res, "</td></tr>")
 	
 	return table.concat(res)
 end
@@ -1199,6 +1216,13 @@ end
 
 
 
+--- Actions to be inserted for each area in the sponging result area list
+local g_SpongingActions =
+{
+	{ action = "setspongeempty", title = "Use no sponges",  page = PAGE_NAME_MAINTENANCE },
+	{ action = "setspongefull",  title = "Use all sponges", page = PAGE_NAME_MAINTENANCE },
+}
+
 --- Returns the sponging check results formatted as HTML
 -- Either no areas need sponging, then the text "[none]" is returned
 -- or the areas are listed, each linking to its details page
@@ -1219,7 +1243,7 @@ local function FormatSpongingCheckResults(a_Results)
 			ins(res, id)
 			ins(res, "</td></tr>")
 		else
-			ins(res, GetAreaHTMLRow(area))
+			ins(res, GetAreaHTMLRow(area, g_SpongingActions))
 			ins(Areas, area)
 		end
 	end  -- for id - IDs[]
@@ -1252,7 +1276,7 @@ local function ShowMaintenancePage(a_Request)
 		<input type="submit" value="Unlock all areas"/>
 		</form>
 		<br/><hr/><br/>
-		<h3>Check connectors</h3>
+		<a name="connectors"><h3>Check connectors</h3></a>
 		<p>Checks each approved area's connectors for basic sanity:
 		<ul>
 			<li>Connector has to be on hitbox border</li>
@@ -1274,10 +1298,10 @@ local function ShowMaintenancePage(a_Request)
 		</td></tr></table>
 		<form method="POST">
 		<input type="hidden" name="action" value="chkconn"/>
-		<input type="submit" value="Check connectors"/>
+		<input type="submit" value="(Re-)check connectors"/>
 		</form>
 		<br/><hr/><br/>
-		<h3>Check sponging</h3>
+		<a name="sponging"><h3>Check sponging</h3></a>
 		<p>Checks that all approved areas are either sponged, or in a group that doesn't need sponging
 		(IntendedUse is set to Trees etc.)</p>
 		<table><tr><td>Last checked: </td><td>
@@ -1293,7 +1317,7 @@ local function ShowMaintenancePage(a_Request)
 		</td></tr></table>
 		<form method="POST">
 		<input type="hidden" name="action" value="chksponging"/>
-		<input type="submit" value="Check sponging"/>
+		<input type="submit" value="(Re-)check sponging"/>
 		</form>
 	]])
 	
@@ -1472,6 +1496,61 @@ end
 
 
 
+--- Helper function that sets the sponging for the area specified in the request to single-blocktype-filled
+-- Returns HTML code to either indicate an error, or success
+local function SetSponge(a_Request, a_BlockType, a_BlockMeta)
+	-- Check params:
+	assert(type(a_BlockType) == "number")
+	assert(type(a_BlockMeta) == "number")
+	local AreaID = tonumber(a_Request.PostParams["areaid"])
+	if not(AreaID) then
+		return HTMLError("Invalid AreaID.")
+	end
+	local Area = g_DB:GetAreaByID(AreaID)
+	if not(Area) then
+		return HTMLError("No such area.")
+	end
+	
+	-- Create the BlockArea to use as the sponging:
+	local img = cBlockArea()
+	img:Create(Area.MaxX - Area.MinX, 256, Area.MaxZ - Area.MinZ)
+	img:Fill(a_BlockType, a_BlockMeta)
+	
+	-- Update the DB:
+	g_DB:SetAreaSponging(AreaID, img)
+	img:Clear()
+	
+	-- Re-run the sponging check to update the results:
+	ExecuteCheckSponging()
+	
+	return [[
+		<p>Area sponge has been set.</p>
+		<p>Return to the <a href="?action=#sponging">Maintenance page</a></p>
+	]]
+end
+
+
+
+
+
+--- Adds an empty sponging for the specified area and returns the HTML to redirect back to Maintenance page
+local function ExecuteSetSpongeEmpty(a_Request)
+	return SetSponge(a_Request, E_BLOCK_AIR, 0)
+end
+
+
+
+
+
+--- Adds a full sponging for the specified area and returns the HTML to redirect back to Maintenance page
+local function ExecuteSetSpongeFull(a_Request)
+	return SetSponge(a_Request, E_BLOCK_SPONGE, 0)
+end
+
+
+
+
+
 --- Unlocks all areas and returns the HTML to redirect back to Maintenance page
 local function ExecuteUnlockAllAreas(a_Request)
 	local IsSuccess, Msg = g_DB:UnlockAllAreas()
@@ -1524,12 +1603,14 @@ local g_GroupsActionHandlers =
 --- Action handlers for the Maintenance page:
 local g_MaintenanceActionHandlers =
 {
-	[""]             = ShowMaintenancePage,
-	["chkconn"]      = ExecuteCheckConnectors,
-	["chksponging"]  = ExecuteCheckSponging,
-	["delconn"]      = ExecuteDelConn,
-	["lockapproved"] = ExecuteLockApprovedAreas,
-	["unlockall"]    = ExecuteUnlockAllAreas,
+	[""]               = ShowMaintenancePage,
+	["chkconn"]        = ExecuteCheckConnectors,
+	["chksponging"]    = ExecuteCheckSponging,
+	["delconn"]        = ExecuteDelConn,
+	["lockapproved"]   = ExecuteLockApprovedAreas,
+	["setspongeempty"] = ExecuteSetSpongeEmpty,
+	["setspongefull"]  = ExecuteSetSpongeFull,
+	["unlockall"]      = ExecuteUnlockAllAreas,
 }
 
 
