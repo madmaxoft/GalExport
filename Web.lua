@@ -25,6 +25,9 @@ local PAGE_NAME_MAINTENANCE = "Maintenance"
 --- URL name of the CheckSponging page:
 local PAGE_NAME_CHECKSPONGING = "Sponging"
 
+-- URL name of the CheckConnector page:
+local PAGE_NAME_CHECKCONNECTORS = "Connectors"
+
 --- Maps the lowercased IntendedUse metadata to true if such a group doesn't need sponging
 local g_SpongelessIntendedUse =
 {
@@ -1145,83 +1148,9 @@ end
 
 
 
---- Returns the sponging check results formatted as HTML
--- Either no problems were found, then the text "[All OK]" is returned
--- or the connectors, areas or groups are listed, each linking to its details page
-local function FormatConnectorCheckResults(a_Results)
-	if not(a_Results) then
-		return "[All OK]"
-	end
-	
-	local res = {"<table><tr><th>Item</th><th>Problem</th><th>Action</th></tr>"}
-	local Items = StringSplit(a_Results, "~")
-	for _, item in ipairs(Items) do
-		local s = StringSplit(item, "|")
-		ins(res, "<tr><td>")
-		
-		-- Add item description, plus any links:
-		if (s[1] == "A") then
-			ins(res, "<a href=\"")
-			ins(res, PAGE_NAME_AREAS)
-			ins(res, "?action=areadetails&areaid=")
-			ins(res, s[2])
-			ins(res, "\">Area ")
-			ins(res, s[2])
-			ins(res, "</a>")
-		elseif (s[1] == "C") then
-			local IDs = StringSplit(s[2], "@")
-			ins(res, "Connector ")
-			ins(res, IDs[1])
-			if (IDs[2]) then
-				ins(res, " (<a href=\"")
-				ins(res, PAGE_NAME_AREAS)
-				ins(res, "?action=areadetails&areaid=")
-				ins(res, IDs[2])
-				ins(res, "\">Area ")
-				ins(res, IDs[2])
-				ins(res, "</a>)")
-			end
-		elseif (s[1] == "G") then
-			ins(res, "<a href=\"")
-			ins(res, PAGE_NAME_GROUPS)
-			ins(res, "?action=groupdetails&groupname=")
-			ins(res, s[2])
-			ins(res, "\">Group ")
-			ins(res, s[2])
-			ins(res, "</a>")
-		else
-			ins(res, "[unknown]")
-		end
-		
-		-- Add the reason for listing:
-		ins(res, "</td><td>")
-		ins(res, cWebAdmin:GetHTMLEscapedString(s[3]))
-		ins(res, "</td><td>")
-		
-		-- Add action buttons depending on what item we're showing:
-		if (s[1] == "C") then
-			local IDs = StringSplit(s[2], "@")
-			ins(res, "<form method=\"POST\">")
-			ins(res, GetHTMLInput("hidden", "action",  {value = "delconn"}))
-			ins(res, GetHTMLInput("hidden", "connid",  {value = IDs[1]}))
-			ins(res, GetHTMLInput("submit", "delconn", {value = "Delete connector"}))
-			ins(res, "</form>")
-		end
-		
-		ins(res, "</td></tr>")
-	end
-	ins(res, "</table>")
-	
-	return table.concat(res)
-end
-
-
-
-
-
 --- Returns the entire Maintenance page contents
 local function ShowMaintenancePage(a_Request)
-	local res = {[[
+	return [[
 		<h3>Lock approved areas</h3>
 		<p>Locks all areas that are approved for export. This prevents even their owners from editing them, thus
 		preserving the area as approved. Users with the "gallery.admin.overridelocked" permissions may still
@@ -1239,107 +1168,6 @@ local function ShowMaintenancePage(a_Request)
 		<input type="submit" value="Unlock all areas"/>
 		</form>
 		<br/><hr/><br/>
-		<a name="connectors"><h3>Check connectors</h3></a>
-		<p>Checks each approved area's connectors for basic sanity:
-		<ul>
-			<li>Connector has to be on hitbox border</li>
-			<li>Each area has at least one connector</li>
-			<li>Each connector type has a counter-type present in the same group</li>
-		</ul>
-		</p>
-		<p>Note that the operation is asynchronous</p>
-		<table><tr><td valign="top">Last checked: </td><td>
-	]]}
-	local LastConnCheck = g_DB:GetMaintenanceCheckStatus("Connectors") or {}
-	ins(res, LastConnCheck.DateTime or "[never]")
-	if (LastConnCheck.DateTime) then
-		ins(res, "</td></tr><tr><td valign=\"top\">Last result</td><td>")
-		ins(res, FormatConnectorCheckResults(LastConnCheck.Result))
-	end
-	ins(res,
-	[[
-		</td></tr></table>
-		<form method="POST">
-		<input type="hidden" name="action" value="chkconn"/>
-		<input type="submit" value="(Re-)check connectors"/>
-		</form>
-		<br/><hr/><br/>
-	]])
-	
-	return table.concat(res)
-end
-
-
-
-
-
---- Checks all connectors, updates the last check status and returns the HTML to redirect back to Maintenance page
-local function ExecuteCheckConnectors(a_Request)
-	-- Load all from DB, convert areas from array to map of AreaID -> {AreaDesc}
-	local Connectors = g_DB:GetAllConnectors()
-	local AreasArr = g_DB:GetAllApprovedAreas()
-	local Areas = {}
-	for _, area in ipairs(AreasArr) do
-		Areas[area.ID] = area
-	end
-	
-	-- Process each connector:
-	local Issues = {}
-	local ConnectorTypeCounts = {}
-	for _, conn in ipairs(Connectors) do
-		local area = Areas[conn.AreaID]
-		if not(area) then
-			table.insert(Issues, "C|" .. conn.ID .. "@" .. conn.AreaID .. "|Area is not approved")
-		elseif not(IsConnectorReachableThroughHitbox(conn, area)) then
-			table.insert(Issues, "C|" .. conn.ID .. "@" .. conn.AreaID .. "|Connector not on hitbox border, it will never connect to anything")
-		else
-			-- Collect per-group connector type counts:
-			local ctc = ConnectorTypeCounts[area.ExportGroupName]
-			if not(ctc) then
-				ctc = {}
-				ConnectorTypeCounts[area.ExportGroupName] = ctc
-			end
-			ctc[conn.TypeNum] = (ctc[conn.TypeNum] or 0) + 1
-		end
-	end
-	
-	-- Villages have extra roads not included in the export group, add their connectors to the counts
-	for grpName, counts in pairs(ConnectorTypeCounts) do
-		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
-		local IntendedUse = string.lower(GroupMetas["IntendedUse"] or "")
-		if (IntendedUse == "village") then
-			counts[-2] = (counts[-2] or 0) + 2
-			counts[1]  = (counts[1]  or 0) + 2
-		end
-	end
-
-	-- Check per-group connector type counts:
-	for grpName, counts in pairs(ConnectorTypeCounts) do
-		for connType, connCount in pairs(counts) do
-			if ((counts[-connType] or 0) == 0) then
-				table.insert(Issues, "G|" .. grpName .. "|Connector type " .. connType .. " has no counter-connector")
-			end
-		end
-	end
-	
-	-- Check that each area has at least one connector:
-	for _, conn in ipairs(Connectors) do
-		local area = Areas[conn.AreaID] or {}
-		area.HasConnector = true
-	end
-	for _, area in pairs(Areas) do
-		if not(area.HasConnector) then
-			table.insert(Issues, "A|" .. area.ID .. "|Area has no connectors")
-		end
-	end
-	
-	-- Store the check result:
-	local Result = table.concat(Issues, "~")
-	g_DB:SetMaintenanceCheckStatus("Connectors", Result)
-	
-	-- Return the HTML:
-	return [[
-		<p>Connectors have been checked. To view the results, return to the <a href="?action=">Maintenance page</a></p>
 	]]
 end
 
@@ -1361,12 +1189,9 @@ local function ExecuteDelConn(a_Request)
 		return HTMLError("Cannot delete connector from the DB: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
 	end
 	
-	-- Re-check connectors, to update the status:
-	ExecuteCheckConnectors()
-	
 	-- Return the HTML:
 	return [[
-		<p>Connector has been deleted. Return to the <a href="?action=">Maintenance page</a></p>
+		<p>Connector has been deleted. Return to the <a href="?action=">Connectors page</a></p>
 	]]
 end
 
@@ -1530,6 +1355,116 @@ end
 
 
 
+--- Returns the HTML contents of the entire CheckConnectors page
+local function ShowCheckConnectorsPage(a_Request)
+	local res = {[[
+		<a name="connectors"><h3>Check connectors</h3></a>
+		<p>Checks each approved area's connectors for basic sanity:
+		<ul>
+			<li>Connector has to be on hitbox border</li>
+			<li>Each area has at least one connector</li>
+			<li>Each connector type has a counter-type present in the same group</li>
+		</ul>
+		</p>
+		<table>
+	]]}
+	
+	-- Load all from DB, convert areas from array to map of AreaID -> {AreaDesc}
+	local Connectors = g_DB:GetAllConnectors()
+	local AreasArr = g_DB:GetAllApprovedAreas()
+	local Areas = {}
+	for _, area in ipairs(AreasArr) do
+		Areas[area.ID] = area
+	end
+	
+	-- Process each connector:
+	local Issues = {}
+	local ConnectorTypeCounts = {}
+	for _, conn in ipairs(Connectors) do
+		local area = Areas[conn.AreaID]
+		if not(area) then
+			ins(res, "<tr><td>Connector ")
+			ins(res, conn.ID)
+			ins(res, "</td><td>Area is not approved</td><td>")
+			ins(res, "<form method=\"POST\">")
+			ins(res, GetHTMLInput("hidden", "action",  {value = "delconn"}))
+			ins(res, GetHTMLInput("hidden", "connid",  {value = conn.ID}))
+			ins(res, GetHTMLInput("submit", "delconn", {value = "Delete connector"}))
+			ins(res, "</form></td></tr>")
+		elseif not(IsConnectorReachableThroughHitbox(conn, area)) then
+			ins(res, "<tr><td>Connector ")
+			ins(res, conn.ID)
+			ins(res, " (<a href=\"")
+			ins(res, PAGE_NAME_AREAS)
+			ins(res, "?action=areadetails&areaid=")
+			ins(res, area.ID)
+			ins(res, "\">")
+			ins(res, GetAreaDescription(area))
+			ins(res, "</a>)</td><td>Connector not on hitbox border, it will never connect to anything</td><td/></tr>")
+		else
+			-- Collect per-group connector type counts:
+			local ctc = ConnectorTypeCounts[area.ExportGroupName]
+			if not(ctc) then
+				ctc = {}
+				ConnectorTypeCounts[area.ExportGroupName] = ctc
+			end
+			ctc[conn.TypeNum] = (ctc[conn.TypeNum] or 0) + 1
+		end
+	end
+	
+	-- Villages have extra roads not included in the export group, add their connectors to the counts
+	for grpName, counts in pairs(ConnectorTypeCounts) do
+		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
+		local IntendedUse = string.lower(GroupMetas["IntendedUse"] or "")
+		if (IntendedUse == "village") then
+			counts[-2] = (counts[-2] or 0) + 2
+			counts[1]  = (counts[1]  or 0) + 2
+		end
+	end
+
+	-- Check per-group connector type counts:
+	for grpName, counts in pairs(ConnectorTypeCounts) do
+		for connType, connCount in pairs(counts) do
+			if ((counts[-connType] or 0) == 0) then
+				local HtmlName = cWebAdmin:GetHTMLEscapedString(grpName)
+				ins(res, "<tr><td><a href=\"")
+				ins(res, PAGE_NAME_GROUPS)
+				ins(res, "?action=groupdetails&groupname=")
+				ins(res, HtmlName)
+				ins(res, "\">Group ")
+				ins(res, HtmlName)
+				ins(res, "</a></td><td>Connector type ")
+				ins(res, connType)
+				ins(res, " has no counter-connector</td><td/></tr>")
+			end
+		end
+	end
+	
+	-- Check that each area has at least one connector:
+	for _, conn in ipairs(Connectors) do
+		local area = Areas[conn.AreaID] or {}
+		area.HasConnector = true
+	end
+	for _, area in pairs(Areas) do
+		if not(area.HasConnector) then
+			ins(res, "<tr><td><a href=\"")
+			ins(res, PAGE_NAME_AREAS)
+			ins(res, "?action=areadetails&areaid=")
+			ins(res, area.ID)
+			ins(res, "\">")
+			ins(res, GetAreaDescription(area))
+			ins(res, "</a></td><td>Area has no connectors</td><td/></tr>")
+		end
+	end
+	ins(res, "</table>")
+	
+	return table.concat(res)
+end
+
+
+
+
+
 -- Action handlers for the Areas page:
 local g_AreasActionHandlers =
 {
@@ -1566,8 +1501,6 @@ local g_GroupsActionHandlers =
 local g_MaintenanceActionHandlers =
 {
 	[""]               = ShowMaintenancePage,
-	["chkconn"]        = ExecuteCheckConnectors,
-	["delconn"]        = ExecuteDelConn,
 	["lockapproved"]   = ExecuteLockApprovedAreas,
 	["unlockall"]      = ExecuteUnlockAllAreas,
 }
@@ -1581,6 +1514,16 @@ local g_CheckSpongingActionHandlers =
 	[""]               = ShowCheckSpongingPage,
 	["setspongeempty"] = ExecuteSetSpongeEmpty,
 	["setspongefull"]  = ExecuteSetSpongeFull,
+}
+
+
+
+
+
+local g_CheckConnectorsActionHandlers =
+{
+	[""]        = ShowCheckConnectorsPage,
+	["delconn"] = ExecuteDelConn,
 }
 
 
@@ -1616,10 +1559,11 @@ function InitWeb()
 
 	-- Register the webadmin tabs:
 	local Plugin = cPluginManager:Get():GetCurrentPlugin()
-	Plugin:AddWebTab(PAGE_NAME_AREAS,         CreateRequestHandler(g_AreasActionHandlers))
-	Plugin:AddWebTab(PAGE_NAME_GROUPS,        CreateRequestHandler(g_GroupsActionHandlers))
-	Plugin:AddWebTab(PAGE_NAME_MAINTENANCE,   CreateRequestHandler(g_MaintenanceActionHandlers))
-	Plugin:AddWebTab(PAGE_NAME_CHECKSPONGING, CreateRequestHandler(g_CheckSpongingActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_AREAS,           CreateRequestHandler(g_AreasActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_GROUPS,          CreateRequestHandler(g_GroupsActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_MAINTENANCE,     CreateRequestHandler(g_MaintenanceActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_CHECKSPONGING,   CreateRequestHandler(g_CheckSpongingActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_CHECKCONNECTORS, CreateRequestHandler(g_CheckConnectorsActionHandlers))
 
 	-- Read the "preview not available yet" image:
 	g_PreviewNotAvailableYetPng = cFile:ReadWholeFile(cPluginManager:GetCurrentPlugin():GetLocalFolder() .. "/PreviewNotAvailableYet.png")
