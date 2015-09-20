@@ -22,7 +22,10 @@ local PAGE_NAME_GROUPS = "Groups"
 -- URL name of the Maintenance page:
 local PAGE_NAME_MAINTENANCE = "Maintenance"
 
---- Maps the IntendedUse metadata to true if such a group doesn't need sponging
+--- URL name of the CheckSponging page:
+local PAGE_NAME_CHECKSPONGING = "Sponging"
+
+--- Maps the lowercased IntendedUse metadata to true if such a group doesn't need sponging
 local g_SpongelessIntendedUse =
 {
 	["trees"] = true,
@@ -1216,46 +1219,6 @@ end
 
 
 
---- Actions to be inserted for each area in the sponging result area list
-local g_SpongingActions =
-{
-	{ action = "setspongeempty", title = "Use no sponges",  page = PAGE_NAME_MAINTENANCE },
-	{ action = "setspongefull",  title = "Use all sponges", page = PAGE_NAME_MAINTENANCE },
-}
-
---- Returns the sponging check results formatted as HTML
--- Either no areas need sponging, then the text "[none]" is returned
--- or the areas are listed, each linking to its details page
-local function FormatSpongingCheckResults(a_Results)
-	-- If no areas need sponging, return simple text:
-	if not(a_Results) then
-		return "[All OK]"
-	end
-	
-	-- Display each unsponged area:
-	local IDs = StringSplit(a_Results, "~")
-	local res = { GetAreasHTMLHeader() }
-	local Areas = {}
-	for _, id in ipairs(IDs) do
-		local area = g_DB:GetAreaByID(id)
-		if not(area) then
-			ins(res, "<tr><td><b>Unknown area (ID")
-			ins(res, id)
-			ins(res, "</td></tr>")
-		else
-			ins(res, GetAreaHTMLRow(area, g_SpongingActions))
-			ins(Areas, area)
-		end
-	end  -- for id - IDs[]
-	RefreshPreviewForAreas(Areas)
-	
-	return table.concat(res)
-end
-
-
-
-
-
 --- Returns the entire Maintenance page contents
 local function ShowMaintenancePage(a_Request)
 	local res = {[[
@@ -1301,24 +1264,6 @@ local function ShowMaintenancePage(a_Request)
 		<input type="submit" value="(Re-)check connectors"/>
 		</form>
 		<br/><hr/><br/>
-		<a name="sponging"><h3>Check sponging</h3></a>
-		<p>Checks that all approved areas are either sponged, or in a group that doesn't need sponging
-		(IntendedUse is set to Trees etc.)</p>
-		<table><tr><td>Last checked: </td><td>
-	]])
-	local LastSpongingCheck = g_DB:GetMaintenanceCheckStatus("Sponging") or {}
-	ins(res, LastSpongingCheck.DateTime or "[never]")
-	if (LastSpongingCheck.DateTime) then
-		ins(res, "</td></tr><tr><td>Last result</td><td>")
-		ins(res, FormatSpongingCheckResults(LastSpongingCheck.Result))
-	end
-	ins(res,
-	[[
-		</td></tr></table>
-		<form method="POST">
-		<input type="hidden" name="action" value="chksponging"/>
-		<input type="submit" value="(Re-)check sponging"/>
-		</form>
 	]])
 	
 	return table.concat(res)
@@ -1402,56 +1347,6 @@ end
 
 
 
---- Checks all approved areas whether they are sponged (if they need sponging)
--- Updates the last check status and returns the HTML to redirect back to Maintenance page
-local function ExecuteCheckSponging(a_Request)
-	-- Load from DB:
-	local AllAreas, AllGroups, SpongedAreaIDs, Msg
-	AllAreas, Msg = g_DB:GetAllApprovedAreas()
-	if not(AllAreas) then
-		return HTMLError("Cannot query the DB for approved areas: " .. (Msg or "<unknown DB error>"))
-	end
-	AllGroups, Msg = g_DB:GetAllGroupNames()
-	if not(AllGroups) then
-		return HTMLError("Cannot query the DB for export groups: " .. (Msg or "<unknown DB error>"))
-	end
-	SpongedAreaIDs, Msg = g_DB:GetSpongedAreaIDsMap()
-	if not(SpongedAreaIDs) then
-		return HTMLError("Cannot query the DB for sponged areas: " .. (Msg or "<unknown DB error>"))
-	end
-	
-	-- Prepare the intended use for each export group:
-	local GroupIntendedUse = {}  -- Map of "GroupName" -> <IntendedUse>
-	for _, grpName in ipairs(AllGroups) do
-		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
-		GroupIntendedUse[grpName] = string.lower(GroupMetas["IntendedUse"] or "")
-	end
-	
-	-- Check each area:
-	local Issues = {}
-	for _, area in ipairs(AllAreas) do
-		if (
-			not(SpongedAreaIDs[area.ID]) and  -- Area is not sponged
-			not(g_SpongelessIntendedUse[area.ExportGroupName])  -- Area is in an export group that needs sponging
-		) then
-			ins(Issues, area.ID)
-		end
-	end
-	
-	-- Save to DB:
-	local Result = table.concat(Issues, "~")
-	g_DB:SetMaintenanceCheckStatus("Sponging", Result)
-
-	-- Return the HTML:
-	return [[
-		<p>Area sponging has been checked. To view the results, return to the <a href="?action=">Maintenance page</a></p>
-	]]
-end
-
-
-
-
-
 --- Deletes the specified connector and returns the HTML to redirect back to Maintenance page
 local function ExecuteDelConn(a_Request)
 	-- Check params:
@@ -1520,12 +1415,9 @@ local function SetSponge(a_Request, a_BlockType, a_BlockMeta)
 	g_DB:SetAreaSponging(AreaID, img)
 	img:Clear()
 	
-	-- Re-run the sponging check to update the results:
-	ExecuteCheckSponging()
-	
 	return [[
 		<p>Area sponge has been set.</p>
-		<p>Return to the <a href="?action=#sponging">Maintenance page</a></p>
+		<p>Return to the <a href="?action=">Sponging page</a></p>
 	]]
 end
 
@@ -1562,6 +1454,76 @@ local function ExecuteUnlockAllAreas(a_Request)
 		<p>All areas have been unlocked.</p>
 		<p>Return to the <a href="?action=">Maintenance page</a></p>
 	]]
+end
+
+
+
+
+
+--- Actions to be inserted for each area in the sponging check result area list
+local g_SpongingActions =
+{
+	{ action = "setspongeempty", title = "Use no sponges",  page = PAGE_NAME_CHECKSPONGING },
+	{ action = "setspongefull",  title = "Use all sponges", page = PAGE_NAME_CHECKSPONGING },
+}
+
+--- Returns the HTML contents of the entire CheckSponging page
+local function ShowCheckSpongingPage(a_Request)
+	-- Load from DB:
+	local AllAreas, AllGroups, SpongedAreaIDs, Msg
+	AllAreas, Msg = g_DB:GetAllApprovedAreas()
+	if not(AllAreas) then
+		return HTMLError("Cannot query the DB for approved areas: " .. (Msg or "<unknown DB error>"))
+	end
+	AllGroups, Msg = g_DB:GetAllGroupNames()
+	if not(AllGroups) then
+		return HTMLError("Cannot query the DB for export groups: " .. (Msg or "<unknown DB error>"))
+	end
+	SpongedAreaIDs, Msg = g_DB:GetSpongedAreaIDsMap()
+	if not(SpongedAreaIDs) then
+		return HTMLError("Cannot query the DB for sponged areas: " .. (Msg or "<unknown DB error>"))
+	end
+	
+	-- Prepare the intended use for each export group:
+	local GroupIntendedUse = {}  -- Map of "GroupName" -> <IntendedUseLowerCase>
+	for _, grpName in ipairs(AllGroups) do
+		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
+		GroupIntendedUse[grpName] = string.lower(GroupMetas["IntendedUse"] or "")
+	end
+	
+	-- Check each area:
+	local Issues = {}
+	for _, area in ipairs(AllAreas) do
+		if (
+			not(SpongedAreaIDs[area.ID]) and  -- Area is not sponged
+			not(g_SpongelessIntendedUse[GroupIntendedUse[area.ExportGroupName]])  -- Area is in an export group that needs sponging
+		) then
+			ins(Issues, area)
+		end
+	end
+	
+	-- If all OK, return the special text for All OK:
+	if not(Issues[1]) then
+		return [[
+			All approved areas have met their sponging requirements. No action is necessary.
+		]]
+	end
+	
+	-- List the unsponged areas:
+	local res = {
+		[[
+			<p>Areas listed below are in a group that requires sponging (based on its IntendedUse metadata) but don't
+			have their sponging defined in the DB.</p>
+			<table>
+		]],
+		GetAreasHTMLHeader()
+	}
+	for _, area in ipairs(Issues) do
+		ins(res, GetAreaHTMLRow(area, g_SpongingActions))
+	end  -- for id - IDs[]
+	RefreshPreviewForAreas(Issues)
+	
+	return table.concat(res)
 end
 
 
@@ -1605,11 +1567,8 @@ local g_MaintenanceActionHandlers =
 {
 	[""]               = ShowMaintenancePage,
 	["chkconn"]        = ExecuteCheckConnectors,
-	["chksponging"]    = ExecuteCheckSponging,
 	["delconn"]        = ExecuteDelConn,
 	["lockapproved"]   = ExecuteLockApprovedAreas,
-	["setspongeempty"] = ExecuteSetSpongeEmpty,
-	["setspongefull"]  = ExecuteSetSpongeFull,
 	["unlockall"]      = ExecuteUnlockAllAreas,
 }
 
@@ -1617,51 +1576,30 @@ local g_MaintenanceActionHandlers =
 
 
 
---- Returns the entire Areas tab's HTML contents, based on the player's request
-local function HandleAreasRequest(a_Request)
-	local Action = (a_Request.PostParams["action"] or "")
-	local Handler = g_AreasActionHandlers[Action]
-	if (Handler == nil) then
-		return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
+local g_CheckSpongingActionHandlers =
+{
+	[""]               = ShowCheckSpongingPage,
+	["setspongeempty"] = ExecuteSetSpongeEmpty,
+	["setspongefull"]  = ExecuteSetSpongeFull,
+}
+
+
+
+
+
+--- Returns a functino that takes a HTTP request and returns the HTML page, using the specified action handlers
+local function CreateRequestHandler(a_ActionHandlers)
+	return function(a_Request)
+		local Action = (a_Request.PostParams["action"] or "")
+		local Handler = a_ActionHandlers[Action]
+		if (Handler == nil) then
+			return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
+		end
+		
+		local PageContent = Handler(a_Request)
+		
+		return PageContent
 	end
-	
-	local PageContent = Handler(a_Request)
-	
-	return PageContent
-end
-
-
-
-
-
---- Returns the entire Groups tab's HTML contents, based on the player's request
-local function HandleGroupsRequest(a_Request)
-	local Action = (a_Request.PostParams["action"] or "")
-	local Handler = g_GroupsActionHandlers[Action]
-	if (Handler == nil) then
-		return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
-	end
-	
-	local PageContent = Handler(a_Request)
-	
-	return PageContent
-end
-
-
-
-
-
---- Returns the entire Maintenance tab's HTML contents, based on the player's request
-local function HandleMaintenanceRequest(a_Request)
-	local Action = (a_Request.PostParams["action"] or "")
-	local Handler = g_MaintenanceActionHandlers[Action]
-	if (Handler == nil) then
-		return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
-	end
-	
-	local PageContent = Handler(a_Request)
-	
-	return PageContent
 end
 
 
@@ -1677,9 +1615,11 @@ function InitWeb()
 	end
 
 	-- Register the webadmin tabs:
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab(PAGE_NAME_AREAS,       HandleAreasRequest)
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab(PAGE_NAME_GROUPS,      HandleGroupsRequest)
-	cPluginManager:Get():GetCurrentPlugin():AddWebTab(PAGE_NAME_MAINTENANCE, HandleMaintenanceRequest)
+	local Plugin = cPluginManager:Get():GetCurrentPlugin()
+	Plugin:AddWebTab(PAGE_NAME_AREAS,         CreateRequestHandler(g_AreasActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_GROUPS,        CreateRequestHandler(g_GroupsActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_MAINTENANCE,   CreateRequestHandler(g_MaintenanceActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_CHECKSPONGING, CreateRequestHandler(g_CheckSpongingActionHandlers))
 
 	-- Read the "preview not available yet" image:
 	g_PreviewNotAvailableYetPng = cFile:ReadWholeFile(cPluginManager:GetCurrentPlugin():GetLocalFolder() .. "/PreviewNotAvailableYet.png")
