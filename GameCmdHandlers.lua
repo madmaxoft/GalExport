@@ -923,7 +923,7 @@ function HandleCmdExportThis(a_Split, a_Player)
 	end
 	
 	-- Export the area using the specified exporter:
-	local IsSuccess, Msg = g_Exporters[Format].ExportArea(Area, Notifier)
+	local IsSuccess, Msg = g_Exporters[Format].ExportArea(g_Config.ExportFolder, Area, Notifier)
 	if not(IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Cannot export: " .. (Msg or "<Unknown error>"), mtFailure))
 		return true

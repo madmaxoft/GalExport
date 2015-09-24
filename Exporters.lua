@@ -507,7 +507,8 @@ end
 -- a_ExternalSchematic specifies whether to put the prefab data into an external schematic file, or inline into the cubeset source
 -- Returns the source as a string if successful
 -- Returns nil and error message if unsuccessful
-local function MakeCubesetSource(a_BlockArea, a_AreaDef, a_Indent, a_ExternalSchematic)
+local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent, a_ExternalSchematic)
+	assert(type(a_BaseFolder) == "string")
 	assert(tolua.type(a_BlockArea) == "cBlockArea")
 	assert(type(a_AreaDef) == "table")
 	a_Indent = a_Indent or ""
@@ -550,7 +551,7 @@ local function MakeCubesetSource(a_BlockArea, a_AreaDef, a_Indent, a_ExternalSch
 	if (a_ExternalSchematic) then
 		-- Export the block data to a .schematic file, reference the file in the cubeset source
 		local fnam = a_AreaDef.ExportGroupName .. "/" .. a_AreaDef.ID .. ".schematic"
-		a_BlockArea:SaveToSchematicFile(g_Config.ExportFolder .. "/" .. fnam)
+		a_BlockArea:SaveToSchematicFile(a_BaseFolder .. "/" .. fnam)
 		ins(res, con({
 			Indent, "SchematicFileName = \"", fnam, "\",\n"
 		}))
@@ -635,16 +636,17 @@ end
 
 
 --- Exports the area into a .schematic file
-local function ExportSchematic(a_AreaDef, a_Callback)
+local function ExportSchematic(a_BaseFolder, a_AreaDef, a_Callback)
 	-- Check params:
+	assert(type(a_BaseFolder) == "string")
 	assert(type(a_AreaDef) == "table")
 	assert((a_Callback == nil) or (type(a_Callback) == "function"))
 	
 	-- Queue the ChunkStay operation:
 	DoWithArea(a_AreaDef,
 		function(a_BlockArea)
-			cFile:CreateFolder(g_Config.ExportFolder)
-			local FileName = g_Config.ExportFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
+			cFile:CreateFolder(a_BaseFolder)
+			local FileName = a_BaseFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
 			cFile:CreateFolder(FileName)
 			local ExportName = a_AreaDef.ExportName
 			if ((ExportName == nil) or (ExportName == "")) then
@@ -667,8 +669,9 @@ end
 --- Exports all areas (assumed in a single group) into their respective .schematic files
 -- If all the areas are exported successfully, calls a_SuccessCallback (with no params)
 -- If any of the areas fail to export, a_FailureCallback is called with one parameter, the failure message (possibly nil)
-local function ExportSchematicGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
+local function ExportSchematicGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_FailureCallback)
 	-- Check params:
+	assert(type(a_BaseFolder) == "string")
 	assert(type(a_Areas) == "table")
 	assert(a_Areas[1] ~= nil)  -- At least one area to export
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
@@ -679,8 +682,8 @@ local function ExportSchematicGroup(a_Areas, a_SuccessCallback, a_FailureCallbac
 	local function ProcessOneArea(a_BlockArea)
 		-- Write the area into a file:
 		local Area = a_Areas[CurrArea]
-		cFile:CreateFolder(g_Config.ExportFolder)
-		local FileName = g_Config.ExportFolder .. "/" .. (Area.ExportGroupName or "undefined_group") .. "/"
+		cFile:CreateFolder(a_BaseFolder)
+		local FileName = a_BaseFolder .. "/" .. (Area.ExportGroupName or "undefined_group") .. "/"
 		cFile:CreateFolder(FileName)
 		local ExportName = Area.ExportName
 		if ((ExportName == nil) or (ExportName == "")) then
@@ -713,16 +716,17 @@ end
 
 
 -- Exports the area into a cpp source file
-local function ExportCpp(a_AreaDef, a_Callback)
+local function ExportCpp(a_BaseFolder, a_AreaDef, a_Callback)
 	-- Check params:
+	assert(type(a_BaseFolder) == "string")
 	assert(type(a_AreaDef) == "table")
 	assert((a_Callback == nil) or (type(a_Callback) == "function"))
 
 	-- Define a callback for ChunkStay that exports the area, once loaded:
 	local function DoExport(a_BlockArea)
 		-- Create the folder and the filename to use:
-		cFile:CreateFolder(g_Config.ExportFolder)
-		local FileName = g_Config.ExportFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
+		cFile:CreateFolder(a_BaseFolder)
+		local FileName = a_BaseFolder .. "/" .. (a_AreaDef.ExportGroupName or "undefined_group") .. "/"
 		cFile:CreateFolder(FileName)
 		local ExportName = a_AreaDef.ExportName
 		if ((ExportName == nil) or (ExportName == "")) then
@@ -763,8 +767,9 @@ end
 -- If all the areas are exported successfully, calls a_SuccessCallback (with no params)
 -- If any of the areas fail to export, no output is written and a_FailureCallback is called
 -- with one parameter, the failure message (possibly nil)
-local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
+local function ExportCppGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_FailureCallback)
 	-- Check params:
+	assert(type(a_BaseFolder) == "string")
 	assert(type(a_Areas) == "table")
 	assert(a_Areas[1] ~= nil)  -- At least one area to export
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
@@ -779,7 +784,7 @@ local function ExportCppGroup(a_Areas, a_SuccessCallback, a_FailureCallback)
 	-- Store usefull stuff:
 	local GroupName = a_Areas[1].ExportGroupName
 	local CurrArea = 1
-	local FileNameBase = g_Config.ExportFolder .. "/" .. GroupName .. "Prefabs"
+	local FileNameBase = a_BaseFolder .. "/" .. GroupName .. "Prefabs"
 	
 	-- Open the output files:
 	local cpp = io.open(FileNameBase .. ".cpp", "w")
@@ -877,8 +882,9 @@ end
 -- If all the areas are exported successfully, calls a_SuccessCallback (with no params)
 -- If any of the areas fail to export, no output is written and a_FailureCallback is called
 -- with one parameter, the failure message (possibly nil)
-local function ExportCubesetGroup(a_Areas, a_ExternalSchematic, a_SuccessCallback, a_FailureCallback)
+local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_SuccessCallback, a_FailureCallback)
 	-- Check params:
+	assert(type(a_BaseFolder) == "string")
 	assert(type(a_Areas) == "table")
 	assert(a_Areas[1] ~= nil)  -- At least one area to export
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
@@ -892,10 +898,10 @@ local function ExportCubesetGroup(a_Areas, a_ExternalSchematic, a_SuccessCallbac
 	
 	-- Store usefull stuff:
 	local GroupName = a_Areas[1].ExportGroupName
-	local FileName = g_Config.ExportFolder .. "/" .. GroupName .. ".cubeset"
+	local FileName = a_BaseFolder .. "/" .. GroupName .. ".cubeset"
 	
 	-- Open the output files:
-	cFile:CreateFolder(g_Config.ExportFolder)
+	cFile:CreateFolder(a_BaseFolder)
 	local f, msg = io.open(FileName, "w")
 	if not(f) then
 		a_FailureCallback("Cannot open file " .. FileName .. " for output")
@@ -932,7 +938,7 @@ local function ExportCubesetGroup(a_Areas, a_ExternalSchematic, a_SuccessCallbac
 	local function ProcessOneArea(a_BlockArea)
 		-- Write source for the area into the file:
 		local Area = a_Areas[CurrArea]
-		local Src, Msg = MakeCubesetSource(a_BlockArea, Area, "\t\t", a_ExternalSchematic)
+		local Src, Msg = MakeCubesetSource(a_BaseFolder, a_BlockArea, Area, "\t\t", a_ExternalSchematic)
 		Src = Src or ("-- Error: Area " .. Area.GalleryName .. "_" .. Area.ID .. " failed to export source: " .. (Msg or "<Unknown error>"))
 		f:write(Src)
 		
@@ -993,8 +999,8 @@ local CppExporterDesc =
 local CubesetExporterDesc =
 {
 	ExportArea = ExportCubesetArea,
-	ExportGroup = function(a_Areas, a_SuccessCallback, a_FailureCallback)
-		ExportCubesetGroup(a_Areas, false, a_SuccessCallback, a_FailureCallback)
+	ExportGroup = function(a_BaseFolder, a_Areas, a_SuccessCallback, a_FailureCallback)
+		ExportCubesetGroup(a_BaseFolder, a_Areas, false, a_SuccessCallback, a_FailureCallback)
 	end
 }
 
@@ -1006,8 +1012,8 @@ local CubesetExporterDesc =
 local CubesetExtExporterDesc =
 {
 	ExportArea = ExportCubesetArea,
-	ExportGroup = function(a_Areas, a_SuccessCallback, a_FailureCallback)
-		ExportCubesetGroup(a_Areas, true, a_SuccessCallback, a_FailureCallback)
+	ExportGroup = function(a_BaseFolder, a_Areas, a_SuccessCallback, a_FailureCallback)
+		ExportCubesetGroup(a_BaseFolder, a_Areas, true, a_SuccessCallback, a_FailureCallback)
 	end
 }
 

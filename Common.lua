@@ -299,7 +299,7 @@ function QueueExportAreaGroup(a_GroupName, a_Format, a_PlayerName, a_SuccessCall
 	local function ReportFailure(a_Message)
 		SendPlayerMessage(a_PlayerName, cCompositeChat("Cannot export group: " .. (a_Message or "<no details>"), mtFailure))
 	end
-	Exporter.ExportGroup(Areas, a_SuccessCallback or ReportSuccess, a_FailureCallback or ReportFailure)
+	Exporter.ExportGroup(g_Config.ExportFolder, Areas, a_SuccessCallback or ReportSuccess, a_FailureCallback or ReportFailure)
 	return true
 end
 
