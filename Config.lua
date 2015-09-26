@@ -53,7 +53,7 @@ end
 
 --- Loads the galleries from the config file CONFIG_FILE
 function LoadConfig()
-	if not(cFile:Exists(CONFIG_FILE)) then
+	if not(cFile:IsFile(CONFIG_FILE)) then
 		-- No file to read from, bail out with a log message
 		-- But first copy our example file to the folder, to let the admin know the format:
 		local PluginFolder = cPluginManager:Get():GetCurrentPlugin():GetLocalFolder()
