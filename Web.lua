@@ -28,10 +28,39 @@ local PAGE_NAME_CHECKSPONGING = "Sponging"
 -- URL name of the CheckConnector page:
 local PAGE_NAME_CHECKCONNECTORS = "Connectors"
 
+-- URL name of the Exports page:
+local PAGE_NAME_EXPORTS = "Exports"
+
 --- Maps the lowercased IntendedUse metadata to true if such a group doesn't need sponging
 local g_SpongelessIntendedUse =
 {
 	["trees"] = true,
+}
+
+
+
+
+
+--- Array of exporter descriptions
+-- Each item is a table with a Title (user-visible) and Name (program use)
+local g_ExporterDescs =
+{
+	{
+		Title = "Cubeset",
+		Name = "cubeset",
+	},
+	{
+		Title = "Cubeset (with external schematics)",
+		Name = "cubesetext",
+	},
+	{
+		Title = "CPP source",
+		Name = "cpp",
+	},
+	{
+		Title = "Schematic files",
+		Name = "schematic",
+	}
 }
 
 
@@ -47,6 +76,14 @@ local DirectionToString =
 	[BLOCK_FACE_ZM] = "Z-",
 	[BLOCK_FACE_ZP] = "Z+",
 }
+
+
+
+
+
+--- Dictionary of exports that have started and not yet completed
+-- Maps "<exporterCode>|<groupName>" -> "<startTime>" for such exports.
+local g_PendingExports = {}
 
 
 
@@ -410,7 +447,7 @@ local function RefreshPreviewForAreas(a_Areas)
 		for rot = 0, 3 do
 			local fnam = GetAreaPreviewFileName(area.ID, rot)
 			if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam))) then
-				table.insert(ToExport, { Area = area, NumRotations = 0})
+				table.insert(ToExport, { Area = area, NumRotations = rot})
 			end
 		end
 	end
@@ -766,7 +803,7 @@ local function ShowAreaDetails(a_Request)
 	ins(res, "<table><tr><th>Export name: </th><td><form method=\"POST\">")
 	ins(res, GetHTMLInput("hidden", "areaid",   {value = Area.ID}))
 	ins(res, GetHTMLInput("hidden", "action",   {value = "renamearea"}))
-	ins(res, GetHTMLInput("text",   "areaname", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Area.ExportName)}))
+	ins(res, GetHTMLInput("text",   "areaname", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Area.ExportName or "")}))
 	ins(res, GetHTMLInput("submit", "rename",   {value = "Rename"}))
 	ins(res, "</form></td></tr>")
 	
@@ -1465,6 +1502,283 @@ end
 
 
 
+local g_PathSep = cFile:GetPathSeparator()
+
+
+
+
+
+--- Returns the folder where exports for the specified group using the specified exporter are saved
+-- The returned string doesn't terminate with a path separator
+local function GetExportBaseFolder(a_GroupName, a_ExporterName)
+	-- Check params:
+	assert(type(a_GroupName) == "string")
+	assert(type(a_ExporterName) == "string")
+	
+	
+	return
+		g_Config.WebPreview.ThumbnailFolder .. g_PathSep ..
+		"exports" .. g_PathSep ..
+		a_ExporterName .. g_PathSep ..
+		a_GroupName
+end
+
+
+
+
+
+--- Returns the HTML contents of a single exporter table cell for the specified group
+local function GetGroupExporterCell(a_GroupName, a_ExporterDesc)
+	-- Check params:
+	assert(type(a_GroupName) == "string")
+	assert(type(a_ExporterDesc) == "table")
+	assert(a_ExporterDesc.Name)
+	
+	local ExportButtonText = "Export"
+	local ExportIdentifier = a_ExporterDesc.Name .. "|" .. a_GroupName
+
+	-- If the export is pending, return a non-interactive info text:
+	if (g_PendingExports[ExportIdentifier]) then
+		return "Pending since " .. g_PendingExports[ExportIdentifier]
+	end
+
+	local res = {}
+
+	-- Locate any previous results:
+	local BaseFolder = GetExportBaseFolder(a_GroupName, a_ExporterDesc.Name)
+	if (cFile:IsFolder(BaseFolder)) then
+		local LastExportDateTime = FormatDateTime(cFile:GetLastModificationTime(BaseFolder))
+		ins(res, "Last exported: ")
+		ins(res, LastExportDateTime)
+
+		ins(res, "<form method='POST'>")
+		ins(res, GetHTMLInput("hidden", "action",    {value = "exportgroup"}))
+		ins(res, GetHTMLInput("hidden", "groupname", {value = a_GroupName}))
+		ins(res, GetHTMLInput("hidden", "exporter",  {value = a_ExporterDesc.Name}))
+		ins(res, GetHTMLInput("submit", "export",    {value = "Re-export"}))
+		ins(res, "</form>")
+	
+		-- TODO: If there's only a single file, give a link to it directly
+		
+		ins(res, "<form method='GET'>")
+		ins(res, GetHTMLInput("hidden", "action",    {value = "listfiles"}))
+		ins(res, GetHTMLInput("hidden", "groupname", {value = a_GroupName}))
+		ins(res, GetHTMLInput("hidden", "exporter",  {value = a_ExporterDesc.Name}))
+		ins(res, GetHTMLInput("submit", "list",      {value = "List files"}))
+		ins(res, "</form><br/>")
+	else
+		ins(res, "[not yet exported]")
+		ins(res, "<form method='POST'>")
+		ins(res, GetHTMLInput("hidden", "action",    {value = "exportgroup"}))
+		ins(res, GetHTMLInput("hidden", "groupname", {value = a_GroupName}))
+		ins(res, GetHTMLInput("hidden", "exporter",  {value = a_ExporterDesc.Name}))
+		ins(res, GetHTMLInput("submit", "export",    {value = "Export"}))
+		ins(res, "</form><br/>")
+	end
+
+	return table.concat(res)
+end
+
+
+
+
+
+--- Returns the HTML contents of the entire Exports page
+local function ShowExportsPage(a_Request)
+	-- Add a per-exporter header:
+	local res = {"<table><tr><th>Group</th>"}
+	for _, exporter in ipairs(g_ExporterDescs) do
+		ins(res, "<th>")
+		ins(res, exporter.Title)
+		ins(res, "</th>")
+	end
+	ins(res, "</tr><tr>")
+	
+	-- Output a row for each group:
+	local AllGroups = g_DB:GetAllGroupNames()
+	table.sort(AllGroups)
+	for _, grpName in ipairs(AllGroups) do
+		ins(res, "<td valign='top'>")
+		ins(res, grpName)
+		ins(res, "</td>")
+		for _, exporter in ipairs(g_ExporterDescs) do
+			ins(res, "<td valign='top'>")
+			ins(res, GetGroupExporterCell(grpName, exporter))
+			ins(res, "</td>")
+		end
+		ins(res, "</tr>")
+	end
+	ins(res, "</table>")
+	
+	return table.concat(res)
+end
+
+
+
+
+
+--- Queues an export of the specified group using the specified exporter
+-- Returns the HTML code to navigate back to the Exports page
+local function ExecuteExportGroup(a_Request)
+	-- Check params:
+	local ExporterName = a_Request.PostParams["exporter"]
+	if not(ExporterName) then
+		return HTMLError("Missing exporter name")
+	end
+	local Exporter = g_Exporters[ExporterName]
+	if not(Exporter) then
+		return HTMLError("Invalid exporter name")
+	end
+	local GroupName = a_Request.PostParams["groupname"]
+	if not(GroupName) then
+		return HTMLError("Missing group name")
+	end
+	
+	-- Before export, clear the destination folder:
+	local BaseFolder = GetExportBaseFolder(GroupName, ExporterName)
+	cFile:CreateFolderRecursive(BaseFolder)
+	cFile:DeleteFolderContents(BaseFolder)
+	
+	-- Get the area ident for each area in the group:
+	local Areas, Msg = g_DB:GetApprovedAreasInGroup(GroupName)
+	if (not(Areas) or not(Areas[1])) then
+		return HTMLError("Cannot load areas in group: " .. (Msg or "[unknown DB error]"))
+	end
+	
+	-- Mark the export as pending:
+	local ExportIdentifier = ExporterName .. "|" .. GroupName
+	g_PendingExports[ExportIdentifier] = FormatDateTime(os.time())
+	
+	-- Queue the export:
+	Exporter.ExportGroup(BaseFolder, Areas,
+		function()  -- success callback
+			LOG("Successfully exported group " .. GroupName .. " using exporter " .. ExporterName)
+			g_PendingExports[ExportIdentifier] = nil
+		end,
+		function(a_ErrMsg)  -- failure callback
+			LOG("Export for group " .. GroupName .. " using exporter " .. ExporterName .. " has failed (" .. (a_ErrMsg or "<uknown error>") .. "), removing folder")
+			g_PendingExports[ExportIdentifier] = nil
+			DeleteFolderRecursive(BaseFolder)
+		end
+	)
+	
+	return
+	[[
+		<p>Export was queued. Return to the <a href="?action=">Exports page</a>.</p>
+	]]
+end
+
+
+
+
+
+--- Returns the contents of a folder, including the contents of its subfolders
+-- The items returned are specified relative to a_Folder
+local function GetFolderContentsRecursive(a_Folder)
+	-- Check params:
+	assert(type(a_Folder) == "string")
+	
+	local ImmediateContents = cFile:GetFolderContents(a_Folder)
+	local BaseFolder = a_Folder .. g_PathSep
+	local res = {}
+	for _, item in ipairs(ImmediateContents) do
+		if ((item ~= ".") and (item ~= "..")) then
+			local ItemName = BaseFolder .. item
+			if (cFile:IsFolder(ItemName)) then
+				for _, subitem in ipairs(GetFolderContentsRecursive(ItemName)) do
+					ins(res, item .. g_PathSep .. subitem)
+				end
+			else
+				ins(res, item)
+			end
+		end  -- if (not "." and not "..")
+	end  -- for item - ImmediateContents[]
+	
+	return res
+end
+
+
+
+
+
+local function ExecuteListFiles(a_Request)
+	-- Check params:
+	local ExporterName = a_Request.PostParams["exporter"]
+	if not(ExporterName) then
+		return HTMLError("Missing exporter name")
+	end
+	local Exporter = g_Exporters[ExporterName]
+	if not(Exporter) then
+		return HTMLError("Invalid exporter name")
+	end
+	local GroupName = a_Request.PostParams["groupname"]
+	if not(GroupName) then
+		return HTMLError("Missing group name")
+	end
+	
+	-- Get the filelist:
+	local BaseFolder = GetExportBaseFolder(GroupName, ExporterName)
+	local Files = GetFolderContentsRecursive(BaseFolder)
+	if not(Files[1]) then
+		return "<p>No files produced by the export</p>"
+	end
+	
+	-- List all files with their download link:
+	local res = {"<table><tr><th>FileName</th><th>Size</th><th>Download</th></tr>"}
+	local GroupNameHtml = cWebAdmin:GetHTMLEscapedString(GroupName)
+	for _, fnam in ipairs(Files) do
+		ins(res, "<tr><td>")
+		ins(res, cWebAdmin:GetHTMLEscapedString(fnam))
+		ins(res, "</td><td>")
+		ins(res, (cFile:GetSize(BaseFolder .. g_PathSep .. fnam)))
+		ins(res, "</td><td>")
+		ins(res, "<a href='/~webadmin/GalExport/")
+		ins(res, PAGE_NAME_EXPORTS)
+		ins(res, "?action=dl&exporter=")
+		ins(res, ExporterName)
+		ins(res, "&groupname=")
+		ins(res, GroupNameHtml)
+		ins(res, "&fnam=")
+		ins(res, fnam)
+		ins(res, "'>Download</a></td></tr>")
+	end
+	ins(res, "</table>")
+	
+	return table.concat(res)
+end
+
+
+
+
+
+--- Returns the contents of the specified file
+local function DownloadExportedFile(a_Request)
+	-- Check params:
+	local ExporterName = a_Request.PostParams["exporter"]
+	if not(ExporterName) then
+		return HTMLError("Missing exporter name")
+	end
+	local Exporter = g_Exporters[ExporterName]
+	if not(Exporter) then
+		return HTMLError("Invalid exporter name")
+	end
+	local GroupName = a_Request.PostParams["groupname"]
+	if not(GroupName) then
+		return HTMLError("Missing group name")
+	end
+	local FileName = a_Request.PostParams["fnam"]
+	if not(FileName) then
+		return HTMLError("Missing file name")
+	end
+	
+	local BaseFolder = GetExportBaseFolder(GroupName, ExporterName)
+	return cFile:ReadWholeFile(BaseFolder .. g_PathSep .. FileName)
+end
+
+
+
+
+
 -- Action handlers for the Areas page:
 local g_AreasActionHandlers =
 {
@@ -1530,6 +1844,18 @@ local g_CheckConnectorsActionHandlers =
 
 
 
+local g_ExportsActionHandlers =
+{
+	[""]            = ShowExportsPage,
+	["dl"]          = DownloadExportedFile,
+	["listfiles"]   = ExecuteListFiles,
+	["exportgroup"] = ExecuteExportGroup,
+}
+
+
+
+
+
 --- Returns a functino that takes a HTTP request and returns the HTML page, using the specified action handlers
 local function CreateRequestHandler(a_ActionHandlers)
 	return function(a_Request)
@@ -1564,6 +1890,7 @@ function InitWeb()
 	Plugin:AddWebTab(PAGE_NAME_MAINTENANCE,     CreateRequestHandler(g_MaintenanceActionHandlers))
 	Plugin:AddWebTab(PAGE_NAME_CHECKSPONGING,   CreateRequestHandler(g_CheckSpongingActionHandlers))
 	Plugin:AddWebTab(PAGE_NAME_CHECKCONNECTORS, CreateRequestHandler(g_CheckConnectorsActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_EXPORTS,         CreateRequestHandler(g_ExportsActionHandlers))
 
 	-- Read the "preview not available yet" image:
 	g_PreviewNotAvailableYetPng = cFile:ReadWholeFile(cPluginManager:GetCurrentPlugin():GetLocalFolder() .. "/PreviewNotAvailableYet.png")

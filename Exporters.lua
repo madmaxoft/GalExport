@@ -550,8 +550,10 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 	
 	if (a_ExternalSchematic) then
 		-- Export the block data to a .schematic file, reference the file in the cubeset source
-		local fnam = a_AreaDef.ExportGroupName .. "/" .. a_AreaDef.ID .. ".schematic"
-		a_BlockArea:SaveToSchematicFile(a_BaseFolder .. "/" .. fnam)
+		local PathSep = cFile:GetPathSeparator()
+		local fnam = a_AreaDef.ExportGroupName .. PathSep .. a_AreaDef.ID .. ".schematic"
+		cFile:CreateFolderRecursive(a_BaseFolder .. PathSep .. a_AreaDef.ExportGroupName)
+		a_BlockArea:SaveToSchematicFile(a_BaseFolder .. PathSep .. fnam)
 		ins(res, con({
 			Indent, "SchematicFileName = \"", fnam, "\",\n"
 		}))
@@ -901,7 +903,7 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 	local FileName = a_BaseFolder .. "/" .. GroupName .. ".cubeset"
 	
 	-- Open the output files:
-	cFile:CreateFolder(a_BaseFolder)
+	cFile:CreateFolderRecursive(a_BaseFolder)
 	local f, msg = io.open(FileName, "w")
 	if not(f) then
 		a_FailureCallback("Cannot open file " .. FileName .. " for output")
