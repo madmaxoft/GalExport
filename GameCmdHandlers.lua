@@ -1320,6 +1320,7 @@ function HandleCmdSpongeHide(a_Split, a_Player)
 			BA2: Clear()
 		end
 	)
+	return true
 end
 
 
@@ -1372,6 +1373,7 @@ function HandleCmdSpongeSave(a_Split, a_Player)
 			SendPlayerMessage(PlayerName, cCompositeChat("Sponge saved.", mtInfo))
 		end
 	)
+	return true
 end
 
 
@@ -1451,6 +1453,7 @@ function HandleCmdSpongeShow(a_Split, a_Player)
 			Sponges:Clear()
 		end
 	)
+	return true
 end
 
 
