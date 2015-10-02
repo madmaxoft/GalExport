@@ -98,6 +98,58 @@ end
 
 
 
+--- For each area in the array, adds an IsStarting meta-value based on the area's IsStarting meta
+local function AddAreasStartingFlag(a_Areas)
+	-- Check params:
+	assert(type(a_Areas) == "table")
+
+	for _, area in ipairs(a_Areas) do
+		if (area.IsStarting == nil) then
+			local Metadata = g_DB:GetMetadataForArea(area.ID, false)
+			area.IsStarting = (tostring(Metadata["IsStarting"]) == "1")
+		end
+	end
+end
+
+
+
+
+
+--- Sorts areas. To be called before displaying areas in a list
+-- Adds the IsStarting meta-value to each area
+local function SortAreas(a_Areas)
+	-- Check params:
+	assert(type(a_Areas) == "table")
+
+	-- Add the IsStarting flag to each area:
+	AddAreasStartingFlag(a_Areas)
+
+	-- Sort the areas, starting ones first (#31):
+	table.sort(a_Areas,
+		function (a_Area1, a_Area2)
+			if (a_Area1.IsStarting) then
+				if (a_Area2.IsStarting) then
+					-- Both areas are starting, sort by ID:
+					return (a_Area1.ID < a_Area2.ID)
+				else
+					-- a_Area1 is starting, a_Area2 is not:
+					return true
+				end
+			elseif (a_Area2.IsStarting) then
+				-- a_Area1 is not starting, a_Area2 is:
+				return false
+			else
+				-- Neither area is starting, sort by ID:
+				return (a_Area1.ID < a_Area2.ID)
+			end
+		end
+	)
+end
+
+
+
+
+
 --- Returns HTML code for an <input> tag of the specified type ane name, with optional attributes
 -- a_Attribs is a dictionary of "name" -> "value", for which 'name="value"' is added
 local function GetHTMLInput(a_Type, a_Name, a_Attribs)
@@ -1117,6 +1169,7 @@ local function ShowGroupDetails(a_Request)
 	RefreshPreviewForAreas(Areas)
 	
 	-- Output the group's areas:
+	SortAreas(Areas)
 	ins(res, "<br/><h3>Group's areas:</h3><table>")
 	ins(res, GetAreasHTMLHeader())
 	for _, area in ipairs(Areas) do
