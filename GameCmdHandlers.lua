@@ -654,7 +654,8 @@ function HandleCmdConnReposition(a_Split, a_Player)
 	end
 	
 	-- Change the connector position in the DB:
-	local IsSuccess, Msg = g_DB:ChangeConnectorPos(ConnID, BlockX, BlockY, BlockZ)
+	local Direction = GetDirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
+	local IsSuccess, Msg = g_DB:ChangeConnectorPos(ConnID, BlockX, BlockY, BlockZ, Direction)
 	if not(IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Cannot change connector " .. ConnID .. "'s position: " .. (Msg or "<no details>"), mtFailure))
 		return true

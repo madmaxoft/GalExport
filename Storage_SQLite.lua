@@ -156,9 +156,9 @@ end
 
 
 
---- Changes the position of the specified connector in the DB
+--- Changes the position and, optionally, direction of the specified connector in the DB
 -- Returns true on success, false and potentially a message on failure
-function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
+function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ, a_NewDir)
 	-- Check params:
 	assert(self)
 	local ConnID = tonumber(a_ConnID)
@@ -168,12 +168,24 @@ function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
 	assert(NewY)
 	assert(NewZ)
 	
-	return self:ExecuteStatement(
-		"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
-		{
-			NewX, NewY, NewZ, ConnID
-		}
-	)
+	if (a_NewDir) then
+		local NewDir = tonumber(a_NewDir)
+		assert(NewDir)
+
+		return self:ExecuteStatement(
+			"UPDATE Connectors SET X = ?, Y = ?, Z = ?, Direction = ? WHERE ID = ?",
+			{
+				NewX, NewY, NewZ, NewDir, ConnID
+			}
+		)
+	else
+		return self:ExecuteStatement(
+			"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
+			{
+				NewX, NewY, NewZ, ConnID
+			}
+		)
+	end
 end
 
 
