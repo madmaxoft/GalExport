@@ -72,9 +72,9 @@ function GetDirectionFromPlayerRotation(a_PlayerPitch, a_PlayerYaw)
 	
 	-- Decide on the direction:
 	if (PlayerPitch > 70) then
-		return BLOCK_FACE_YP
-	elseif (PlayerPitch < -70) then
 		return BLOCK_FACE_YM
+	elseif (PlayerPitch < -70) then
+		return BLOCK_FACE_YP
 	else
 		if ((PlayerYaw < -135) or (PlayerYaw >= 135)) then
 			return BLOCK_FACE_ZM
