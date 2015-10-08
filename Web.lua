@@ -865,7 +865,9 @@ local function ShowAreaDetails(a_Request)
 	ins(res, GetHTMLInput("hidden", "action",    {value = "regrouparea"}))
 	ins(res, GetHTMLInput("text",   "groupname", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Area.ExportGroupName)}))
 	ins(res, GetHTMLInput("submit", "regroup",   {value = "Set"}))
-	ins(res, "</form></td></tr>")
+	ins(res, "</form><a href=\"Groups?action=groupdetails&groupname=")
+	ins(res, cWebAdmin:GetHTMLEscapedString(Area.ExportGroupName))
+	ins(res, "\">View group</a></td></tr>")
 
 	-- Define a helper function for adding a property to the view
 	local function AddProp(a_Title, a_Value)
