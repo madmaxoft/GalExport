@@ -1406,7 +1406,7 @@ function HandleCmdSpongeShow(a_Split, a_Player)
 	local Sponges, Msg = g_DB:GetSpongesForArea(AreaID)
 	if (Sponges == nil) then
 		a_Player:SendMessage(cCompositeChat("Cannot show sponge, " .. Msg, mtFailure))
-		return
+		return true
 	end
 	
 	-- Load all the chunks for the area::
