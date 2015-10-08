@@ -1795,7 +1795,7 @@ local function ExecuteListFiles(a_Request)
 		ins(res, GroupNameHtml)
 		ins(res, "&fnam=")
 		ins(res, fnam)
-		ins(res, "'>Download</a></td></tr>")
+		ins(res, "' download=''>Download</a></td></tr>")
 	end
 	ins(res, "</table>")
 	
