@@ -368,39 +368,27 @@ end
 -- a_Areas is an array of { Area = <db-Area>, NumRotations = <number> }
 local ExportCounter = 0
 local function ExportPreviewForAreas(a_Areas)
-	-- Write the list file:
-	local fnam = g_Config.WebPreview.ThumbnailFolder .. "/export" .. ExportCounter .. ".txt"
-	ExportCounter = ExportCounter + 1
-	local f, msg = io.open(fnam, "w")
-	if not(f) then
-		LOG(PLUGIN_PREFIX .. "Cannot export preview, failed to open list file for MCSchematicToPng: " .. (msg or "<unknown error>"))
+	local stp = g_Config.WebPreview.MCSchematicToPng
+	if not(stp) then
+		-- MCSchematicToPng is not available, bail out
 		return
 	end
+	stp:ReconnectIfNeeded()
+	
+	-- Write the list to MCSchematicToPng's TCP link:
 	for _, area in ipairs(a_Areas) do
-		f:write(GetAreaSchematicFileName(area.Area.ID) .. "\n")
-		f:write(" outfile: " .. GetAreaPreviewFileName(area.Area.ID, area.NumRotations) .. "\n")
-		f:write(" numcwrotations: " .. area.NumRotations .. "\n")
-		f:write(" horzsize: 6\n vertsize: 8\n")
+		stp:Write(GetAreaSchematicFileName(area.Area.ID) .. "\n")
+		stp:Write(" outfile: " .. GetAreaPreviewFileName(area.Area.ID, area.NumRotations) .. "\n")
+		stp:Write(" numcwrotations: " .. area.NumRotations .. "\n")
+		stp:Write(" horzsize: 6\n vertsize: 8\n")
 		
 		local Connectors = g_DB:GetAreaConnectors(area.Area.ID) or {}
 		for _, conn in ipairs(Connectors) do
 			local rotconn = RotateConnector(conn, area.Area, area.NumRotations)
-			f:write(" marker: " .. rotconn.x .. ", " .. rotconn.y .. ", " .. rotconn.z .. ", " .. rotconn.shape .. ", ff0000\n")
+			stp:Write(" marker: " .. rotconn.x .. ", " .. rotconn.y .. ", " .. rotconn.z .. ", " .. rotconn.shape .. ", ff0000\n")
 		end
 	end
-	f:close()
-	f = nil
-	
-	-- Start MCSchematicToPng:
-	local cmdline = g_Config.WebPreview.MCSchematicToPng .. " " .. fnam .. " >" .. fnam .. ".out 2>" .. fnam .. ".err"
-	if (cFile:GetExecutableExt() == ".exe") then
-		-- We're on a Windows-like OS, use "start /b <cmd>" to execute in the background:
-		cmdline = "start /b " .. cmdline
-	else
-		-- We're on a Linux-like OS, use "<cmd> &" to execute in the background:
-		cmdline = cmdline .. " &"
-	end
-	os.execute(cmdline)  -- There's no platform-independent way of checking the result
+	stp:Write("\4\n")  -- End of text - process the last area
 end
 
 
