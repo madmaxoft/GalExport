@@ -1783,6 +1783,8 @@ local function ExecuteListFiles(a_Request)
 		ins(res, GroupNameHtml)
 		ins(res, "&fnam=")
 		ins(res, fnam)
+		ins(res, "' download='")
+		ins(res, cWebAdmin:GetHTMLEscapedString(fnam))
 		ins(res, "'>Download</a></td></tr>")
 	end
 	ins(res, "</table>")
