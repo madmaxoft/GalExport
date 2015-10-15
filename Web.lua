@@ -31,6 +31,9 @@ local PAGE_NAME_CHECKCONNECTORS = "Connectors"
 -- URL name of the Exports page:
 local PAGE_NAME_EXPORTS = "Exports"
 
+-- URL name of the CheckMetadata page:
+local PAGE_NAME_CHECKMETA = "Metadata"
+
 --- Maps the lowercased IntendedUse metadata to true if such a group doesn't need sponging
 local g_SpongelessIntendedUse =
 {
@@ -606,12 +609,27 @@ end
 
 
 --- Returns the HTML code for the area list header
-local function GetAreasHTMLHeader()
+-- If a_ExtraColumn is non-nil, it is a header of an extra inserted column (corresponding to GetAreaHTMLRow's a_ExtraText)
+local function GetAreasHTMLHeader(a_ExtraColumn)
+	-- Check params:
+	assert((a_ExtraColumn == nil) or (type(a_ExtraColumn) == "string"))
+	
+	-- Add the preview line(s):
+	local res
 	if (g_Config.TwoLineAreaList) then
-		return "<tr><th colspan=6>Preview</th></tr><tr><th>Area</th><th>Group</th><th>Connectors</th><th>Author</th><th>Approved</th><th width='1%'>Action</th></tr>"
+		res = "<tr><th colspan=6>Preview</th></tr><tr>"
 	else
-		return "<tr><th colspan=4>Preview</th><th>Area</th><th>Group</th><th>Connectors</th><th>Author</th><th>Approved</th><th width='1%'>Action</th></tr>"
+		res = "<tr><th colspan=4>Preview</th>"
 	end
+	res = res .. "<th>Area</th><th>Group</th><th>Connectors</th><th>Author</th><th>Approved</th>"
+	
+	-- Add the extra column, if requested:
+	if (a_ExtraColumn) then
+		res = res .. "<th>" .. a_ExtraColumn .. "</th>"
+	end
+	
+	-- Add the rest of the table:
+	return res .. "<th width='1%'>Action</th></tr>"
 end
 
 
@@ -620,11 +638,13 @@ end
 
 --- Returns the HTML code for the area's row in the area list
 -- a_ExtraActions is an area of extra actions to insert as action buttons
-local function GetAreaHTMLRow(a_Area, a_ExtraActions)
+-- a_ExtraText is a text that is output in a separate column; the column is skipped if nil
+local function GetAreaHTMLRow(a_Area, a_ExtraActions, a_ExtraText)
 	-- Check params:
 	assert(type(a_Area) == "table")
 	assert(a_Area.ID)
 	assert((a_ExtraActions == nil) or (type(a_ExtraActions) == "table"))
+	assert((a_ExtraText == nil) or (type(a_ExtraText) == "string"))
 	a_ExtraActions = a_ExtraActions or {}
 
 	local res = {}
@@ -664,8 +684,12 @@ local function GetAreaHTMLRow(a_Area, a_ExtraActions)
 	ins(res, "</center></td><td valign='top'>")
 	ins(res, cWebAdmin:GetHTMLEscapedString(a_Area.PlayerName) or "&nbsp;")
 	ins(res, "</td><td valign='top'>")
-	ins(res, (a_Area.DateApproved or "&nbsp;") .. "<br/>by " .. (a_Area.ApprovedBy or "&lt;unknown&gt;"))
+	ins(res, (a_Area.DateApproved or "&nbsp;"):gsub("T", " ") .. "<br/>by " .. (a_Area.ApprovedBy or "&lt;unknown&gt;"))
 	ins(res, "</td><td valign='top'>")
+	if (a_ExtraText) then
+		ins(res, a_ExtraText)
+		ins(res, "</td><td valign='top'>")
+	end
 	ins(res, "<form method=\"GET\" action=\"")
 	ins(res, PAGE_NAME_AREAS)
 	ins(res, "\">")
@@ -1841,6 +1865,29 @@ end
 
 
 
+--- Returns the HTML contents of the entire CheckMeta page
+local function ShowCheckMetaPage(a_Request)
+	local issuesFound, msg = checkAllAreasMetadata()
+	if not(issuesFound) then
+		return HTMLError("Failed to check area metadata: " .. (msg or "[unknown error]"))
+	end
+	if not(issuesFound[1]) then
+		return "<p>No issues with metadata were found.</p>"
+	end
+	
+	local res = {"<p>The following metadata-related issues were found:</p><table>"}
+	ins(res, GetAreasHTMLHeader("Issue"))
+	for _, issue in ipairs(issuesFound) do
+		ins(res, GetAreaHTMLRow(issue.Area, nil, "<b>" .. issue.Issue .. "</b>"))
+	end
+	ins(res, "</table>")
+	return table.concat(res)
+end
+
+
+
+
+
 -- Action handlers for the Areas page:
 local g_AreasActionHandlers =
 {
@@ -1906,6 +1953,15 @@ local g_CheckConnectorsActionHandlers =
 
 
 
+local g_CheckMetaActionHandlers =
+{
+	[""] = ShowCheckMetaPage,
+}
+
+
+
+
+
 local g_ExportsActionHandlers =
 {
 	[""]            = ShowExportsPage,
@@ -1952,6 +2008,7 @@ function InitWeb()
 	Plugin:AddWebTab(PAGE_NAME_MAINTENANCE,     CreateRequestHandler(g_MaintenanceActionHandlers))
 	Plugin:AddWebTab(PAGE_NAME_CHECKSPONGING,   CreateRequestHandler(g_CheckSpongingActionHandlers))
 	Plugin:AddWebTab(PAGE_NAME_CHECKCONNECTORS, CreateRequestHandler(g_CheckConnectorsActionHandlers))
+	Plugin:AddWebTab(PAGE_NAME_CHECKMETA,       CreateRequestHandler(g_CheckMetaActionHandlers))
 	Plugin:AddWebTab(PAGE_NAME_EXPORTS,         CreateRequestHandler(g_ExportsActionHandlers))
 
 	-- Read the "preview not available yet" image:
