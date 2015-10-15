@@ -1570,6 +1570,57 @@ end
 
 
 
+--- Returns the contents of a folder, including the contents of its subfolders
+-- The items returned are specified relative to a_Folder
+local function GetFolderContentsRecursive(a_Folder)
+	-- Check params:
+	assert(type(a_Folder) == "string")
+	
+	local ImmediateContents = cFile:GetFolderContents(a_Folder)
+	local BaseFolder = a_Folder .. g_PathSep
+	local res = {}
+	for _, item in ipairs(ImmediateContents) do
+		if ((item ~= ".") and (item ~= "..")) then
+			local ItemName = BaseFolder .. item
+			if (cFile:IsFolder(ItemName)) then
+				for _, subitem in ipairs(GetFolderContentsRecursive(ItemName)) do
+					ins(res, item .. g_PathSep .. subitem)
+				end
+			else
+				ins(res, item)
+			end
+		end  -- if (not "." and not "..")
+	end  -- for item - ImmediateContents[]
+	
+	return res
+end
+
+
+
+
+
+local function GetExportFileDownloadLink(a_ExporterName, a_GroupNameHtml, a_FileName)
+	-- Check params:
+	assert(type(a_ExporterName) == "string")
+	assert(type(a_GroupNameHtml) == "string")
+	assert(type(a_FileName) == "string")
+	
+	local res = {"<a href='/~webadmin/GalExport/", PAGE_NAME_EXPORTS, "?action=dl&exporter=" }
+	ins(res, a_ExporterName)
+	ins(res, "&groupname=")
+	ins(res, a_GroupNameHtml)
+	ins(res, "&fnam=")
+	ins(res, cWebAdmin:GetHTMLEscapedString(a_FileName))
+	ins(res, "' download='")
+	ins(res, a_FileName)
+	ins(res, "'>Download</a>")
+	return table.concat(res)
+end
+
+
+
+
+
 --- Returns the HTML contents of a single exporter table cell for the specified group
 local function GetGroupExporterCell(a_GroupName, a_ExporterDesc)
 	-- Check params:
@@ -1601,14 +1652,18 @@ local function GetGroupExporterCell(a_GroupName, a_ExporterDesc)
 		ins(res, GetHTMLInput("submit", "export",    {value = "Re-export"}))
 		ins(res, "</form>")
 	
-		-- TODO: If there's only a single file, give a link to it directly
-		
-		ins(res, "<form method='GET'>")
-		ins(res, GetHTMLInput("hidden", "action",    {value = "listfiles"}))
-		ins(res, GetHTMLInput("hidden", "groupname", {value = a_GroupName}))
-		ins(res, GetHTMLInput("hidden", "exporter",  {value = a_ExporterDesc.Name}))
-		ins(res, GetHTMLInput("submit", "list",      {value = "List files"}))
-		ins(res, "</form><br/>")
+		-- If there's only a single file, give a link to it directly:
+		local files = GetFolderContentsRecursive(BaseFolder)
+		if (files[1] and not(files[2])) then
+			ins(res, GetExportFileDownloadLink(a_ExporterDesc.Name, a_GroupName, files[1]))
+		else
+			ins(res, "<form method='GET'>")
+			ins(res, GetHTMLInput("hidden", "action",    {value = "listfiles"}))
+			ins(res, GetHTMLInput("hidden", "groupname", {value = a_GroupName}))
+			ins(res, GetHTMLInput("hidden", "exporter",  {value = a_ExporterDesc.Name}))
+			ins(res, GetHTMLInput("submit", "list",      {value = "List files"}))
+			ins(res, "</form><br/>")
+		end
 	else
 		ins(res, "[not yet exported]")
 		ins(res, "<form method='POST'>")
@@ -1715,35 +1770,6 @@ end
 
 
 
---- Returns the contents of a folder, including the contents of its subfolders
--- The items returned are specified relative to a_Folder
-local function GetFolderContentsRecursive(a_Folder)
-	-- Check params:
-	assert(type(a_Folder) == "string")
-	
-	local ImmediateContents = cFile:GetFolderContents(a_Folder)
-	local BaseFolder = a_Folder .. g_PathSep
-	local res = {}
-	for _, item in ipairs(ImmediateContents) do
-		if ((item ~= ".") and (item ~= "..")) then
-			local ItemName = BaseFolder .. item
-			if (cFile:IsFolder(ItemName)) then
-				for _, subitem in ipairs(GetFolderContentsRecursive(ItemName)) do
-					ins(res, item .. g_PathSep .. subitem)
-				end
-			else
-				ins(res, item)
-			end
-		end  -- if (not "." and not "..")
-	end  -- for item - ImmediateContents[]
-	
-	return res
-end
-
-
-
-
-
 local function ExecuteListFiles(a_Request)
 	-- Check params:
 	local ExporterName = a_Request.PostParams["exporter"]
@@ -1775,15 +1801,8 @@ local function ExecuteListFiles(a_Request)
 		ins(res, "</td><td>")
 		ins(res, (cFile:GetSize(BaseFolder .. g_PathSep .. fnam)))
 		ins(res, "</td><td>")
-		ins(res, "<a href='/~webadmin/GalExport/")
-		ins(res, PAGE_NAME_EXPORTS)
-		ins(res, "?action=dl&exporter=")
-		ins(res, ExporterName)
-		ins(res, "&groupname=")
-		ins(res, GroupNameHtml)
-		ins(res, "&fnam=")
-		ins(res, fnam)
-		ins(res, "'>Download</a></td></tr>")
+		ins(res, GetExportFileDownloadLink(ExporterName, GroupName, fnam))
+		ins(res, "</td></tr>")
 	end
 	ins(res, "</table>")
 	
