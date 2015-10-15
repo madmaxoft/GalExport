@@ -490,9 +490,12 @@ local function MakeCubesetMetadataSource(a_AreaDef, a_Indent)
 	
 	-- List all the metadata values:
 	local ins = table.insert
+	local md = {}
 	for k, v in pairs(a_AreaDef.Metadata) do
-		ins(res, string.format("%s\t[%q] = %q,\n", a_Indent, k, tostring(v)))
+		ins(md, string.format("%s\t[%q] = %q,\n", a_Indent, k, tostring(v)))
 	end
+	table.sort(md)
+	ins(res, table.concat(md))
 	ins(res, a_Indent)
 	ins(res, "},\n")
 	return table.concat(res)
