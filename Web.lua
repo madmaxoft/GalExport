@@ -731,6 +731,8 @@ local function GetAreaMetaNamesHTMLDatalist()
 			<option value="MergeStrategy">
 			<option value="MoveToGround">
 			<option value="ShouldExpandFloor">
+			<option value="VerticalLimit">
+			<option value="VerticalStrategy">
 		</datalist>
 	]]
 end
@@ -743,8 +745,15 @@ end
 local function GetGroupMetaNamesHTMLDatalist()
 	return [[
 		<datalist id="groupmetanames">
+			<option value="GridSizeX"/>
+			<option value="GridSizeZ"/>
 			<option value="IntendedUse"/>
 			<option value="MaxDensity"/>
+			<option value="MaxDepth"/>
+			<option value="MaxOffsetX"/>
+			<option value="MaxOffsetZ"/>
+			<option value="MaxStructureSizeX"/>
+			<option value="MaxStructureSizeZ"/>
 			<option value="MinDensity"/>
 			<option value="VillageRoadBlockType"/>
 			<option value="VillageRoadBlockMeta"/>
