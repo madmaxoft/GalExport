@@ -91,6 +91,46 @@ local g_VerticalLimitParams =
 
 
 
+--- Known values of IntendedUse group-meta
+-- Maps each known value to true
+local g_IsGroupIntendedUseKnown =
+{
+	piecestructures = true,
+	trees = true,
+	village = true,
+}
+
+
+
+
+
+--- Group-metadata checking functions
+-- Maps lowercased metadata name to a function that checks the value
+-- If a meta name value is not present, there's no check for it (-> not necessarily invalid name)
+-- Checker signature: fn(a_OutputArray, a_GroupName, a_MetaValue); issues are appended to a_OutputArray
+local g_GroupMetaChecker =
+{
+	intendeduse = function (a_Out, a_GroupName, a_MetaValue)
+		if not(g_IsGroupIntendedUseKnown[string.lower(a_MetaValue)]) then
+			ins(a_Out, { GroupName = a_GroupName, Issue = "Unknown IntendedUse value: \"" .. a_MetaValue .. "\""})
+		end
+	end,
+	
+	allowedbiomes = function (a_Out, a_GroupName, a_MetaValue)
+		local biomes = StringSplitAndTrim(a_MetaValue, ",")
+		for _, biomeStr in ipairs(biomes) do
+			local biomeValue = StringToBiome(biomeStr)
+			if (biomeValue == biInvalidBiome) then
+				ins(a_Out, { GroupName = a_GroupName, Issue = "Unknown biome in AllowedBiomes: \"" .. biomeStr .. "\""})
+			end
+		end
+	end,
+}
+
+
+
+
+
 --- Checks the VerticalStrategy string for validness
 -- Returns true if the strategy is valid, false and reason string if not
 local function checkVerticalStrategy(a_VerticalStrategy)
@@ -142,7 +182,7 @@ end
 
 
 --- Checks metadata for the specified areas
--- Returns an array of all issues found
+-- Returns an array of all issues found, { Area = <AreaDesc>, Issue = "" }
 -- Returns false and an optional error message on error
 local function checkAreasMetadata(a_Areas)
 	local res = {}
@@ -186,8 +226,39 @@ end
 
 
 
+--- Checks the specified groups' metadata
+-- Returns an array of all issues found, { GroupName = "", Issue = "" }
+-- Returns false and an optional error message on error
+local function checkGroupsMetadata(a_GroupNames)
+	local res = {}
+	for _, grp in ipairs(a_GroupNames) do
+		local groupMeta, msg = g_DB:GetMetadataForGroup(grp)
+		if not(groupMeta) then
+			ins(res, { GroupName = grp, Issue = "Cannot retrieve group metadata from the DB: " .. (msg or "<unknown error>")})
+		else
+			-- Check that IntendedUse is always present:
+			local intendedUse = groupMeta["IntendedUse"]
+			if not(intendedUse) then
+				ins(res, { GroupName = grp, Issue = "The value for IntendedUse is not set"})
+			end
+			-- If there is a checker for the meta, call it:
+			for mn, mv in pairs(groupMeta) do
+				local checker = g_GroupMetaChecker[string.lower(mn)]
+				if (checker) then
+					checker(res, grp, mv)
+				end
+			end
+		end
+	end  -- for grp - a_GroupNames[]
+	return res
+end
+
+
+
+
+
 --- Checks metadata for all areas in the DB
--- Returns an array of all issues found
+-- Returns an array of all issues found, { Area = <AreaDesc>, Issue = "" }
 -- Returns false and an optional error message on error
 function checkAllAreasMetadata()
 	-- Get all areas:
@@ -197,6 +268,24 @@ function checkAllAreasMetadata()
 	end
 	
 	return checkAreasMetadata(areas)
+end
+
+
+
+
+
+--- Checks all export groups' metadata
+-- Returns an array of all issues found, { GroupName = "", Issue = "" }
+-- Returns false and an optional error message on error
+function checkAllGroupsMetadata()
+	-- Get all groups:
+	local groups, msg = g_DB:GetAllGroupNames()
+	if not(groups) then
+		return false, "Cannot load export groups from the DB: " .. (msg or "[unknown error]")
+	end
+	table.sort(groups)
+	
+	return checkGroupsMetadata(groups)
 end
 
 

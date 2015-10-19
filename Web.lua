@@ -1876,20 +1876,49 @@ end
 
 --- Returns the HTML contents of the entire CheckMeta page
 local function ShowCheckMetaPage(a_Request)
+	-- Check the areas' meta:
+	local res = {}
 	local issuesFound, msg = checkAllAreasMetadata()
 	if not(issuesFound) then
-		return HTMLError("Failed to check area metadata: " .. (msg or "[unknown error]"))
-	end
-	if not(issuesFound[1]) then
-		return "<p>No issues with metadata were found.</p>"
+		ins(res, HTMLError("Failed to check area metadata: " .. (msg or "[unknown error]")))
+	else
+		if not(issuesFound[1]) then
+			ins(res, "<p>No issues with areas' metadata were found.</p>")
+		else
+			ins(res, "<p>The following metadata-related issues were found:</p><table>")
+			ins(res, GetAreasHTMLHeader("Issue"))
+			for _, issue in ipairs(issuesFound) do
+				ins(res, GetAreaHTMLRow(issue.Area, nil, "<b>" .. issue.Issue .. "</b>"))
+			end
+			ins(res, "</table>")
+		end
 	end
 	
-	local res = {"<p>The following metadata-related issues were found:</p><table>"}
-	ins(res, GetAreasHTMLHeader("Issue"))
-	for _, issue in ipairs(issuesFound) do
-		ins(res, GetAreaHTMLRow(issue.Area, nil, "<b>" .. issue.Issue .. "</b>"))
+	-- Check the groups' meta:
+	issuesFound, msg = checkAllGroupsMetadata()
+	if not(issuesFound) then
+		ins(res, HTMLError("Failed to check group metadata: " .. (msg or "[unknown error]")))
+	else
+		if not(issuesFound[1]) then
+			ins(res, "<p>No issues with groups' metadata were found.</p>")
+		else
+			ins(res, "<p>The following group metadata-related issues were found:</p><table>")
+			ins(res, "<tr><th>Group</th><th>Issue</th></tr>")
+			for _, issue in ipairs(issuesFound) do
+				ins(res, "<tr><td><a href='")
+				ins(res, PAGE_NAME_GROUPS)
+				ins(res, "?action=groupdetails&groupname=")
+				ins(res, issue.GroupName)
+				ins(res, "'>")
+				ins(res, issue.GroupName)
+				ins(res, "</a></td><td>")
+				ins(res, cWebAdmin:GetHTMLEscapedString(issue.Issue))
+				ins(res, "</td></tr>")
+			end
+			ins(res, "</table>")
+		end
 	end
-	ins(res, "</table>")
+	
 	return table.concat(res)
 end
 
