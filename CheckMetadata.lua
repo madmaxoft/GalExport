@@ -100,6 +100,7 @@ local g_RequiredParamsPerIntendedValue =
 	{
 		"GridSizeX",
 		"GridSizeZ",
+		"MaxDepth",
 		"MaxOffsetX",
 		"MaxOffsetZ",
 		"MaxStructureSizeX",
