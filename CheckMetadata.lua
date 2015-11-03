@@ -91,13 +91,28 @@ local g_VerticalLimitParams =
 
 
 
---- Known values of IntendedUse group-meta
--- Maps each known value to true
-local g_IsGroupIntendedUseKnown =
+--- Group parameters that are required, based on the value of group's IntendedUse
+-- Maps lowercased IntendedUse to an array of requires group parameter names
+-- Also used to determine whether IntendedUse is known or not, so all IntendedUse values must be present (with empty arrays if needed)
+local g_RequiredParamsPerIntendedValue =
 {
-	piecestructures = true,
-	trees = true,
-	village = true,
+	piecestructures =
+	{
+		"GridSizeX",
+		"GridSizeZ",
+		"MaxOffsetX",
+		"MaxOffsetZ",
+		"MaxStructureSizeX",
+		"MaxStructureSizeZ",
+	},
+
+	trees =
+	{
+	},
+
+	village =
+	{
+	},
 }
 
 
@@ -111,7 +126,7 @@ local g_IsGroupIntendedUseKnown =
 local g_GroupMetaChecker =
 {
 	intendeduse = function (a_Out, a_GroupName, a_MetaValue)
-		if not(g_IsGroupIntendedUseKnown[string.lower(a_MetaValue)]) then
+		if not(g_RequiredParamsPerIntendedValue[string.lower(a_MetaValue)]) then
 			ins(a_Out, { GroupName = a_GroupName, Issue = "Unknown IntendedUse value: \"" .. a_MetaValue .. "\""})
 		end
 	end,
@@ -241,6 +256,16 @@ local function checkGroupsMetadata(a_GroupNames)
 			if not(intendedUse) then
 				ins(res, { GroupName = grp, Issue = "The value for IntendedUse is not set"})
 			end
+
+			-- Check the required params for the intended use:
+			if (intendedUse) then
+				for _, rn in ipairs(g_RequiredParamsPerIntendedValue[string.lower(intendedUse)] or {}) do
+					if not(groupMeta[rn]) then
+						ins(res, { GroupName = grp, Issue = string.format("Required parameter \"%s\" is not set", rn)})
+					end
+				end
+			end
+
 			-- If there is a checker for the meta, call it:
 			for mn, mv in pairs(groupMeta) do
 				local checker = g_GroupMetaChecker[string.lower(mn)]
