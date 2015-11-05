@@ -105,6 +105,7 @@ local g_RequiredParamsPerIntendedValue =
 		"MaxOffsetZ",
 		"MaxStructureSizeX",
 		"MaxStructureSizeZ",
+		"SeedOffset",
 	},
 
 	trees =
