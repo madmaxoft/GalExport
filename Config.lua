@@ -21,6 +21,13 @@ local function VerifyConfig(a_Config)
 	a_Config.DatabaseEngine = a_Config.DatabaseEngine or "sqlite"
 	a_Config.DatabaseParams = a_Config.DatabaseParams or {}
 	a_Config.ExportFolder   = a_Config.ExportFolder or "GalExports"
+	local defaultLineEnds
+	if (cFile:GetExecutableExt() == ".exe") then
+		defaultLineEnds = "\r\n"
+	else
+		defaultLineEnds = "\n"
+	end
+	a_Config.ExportLineEnds = a_Config.ExportLineEnds or defaultLineEnds
 
 	-- Check the WebPreview, if it doesn't have all the requirements, set it to nil to disable previewing:
 	if (a_Config.WebPreview) then

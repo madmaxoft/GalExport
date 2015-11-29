@@ -17,6 +17,12 @@ that lists the formats' names and the functions to call for the actual export.
 
 
 
+local ins = table.insert
+
+
+
+
+
 --- Reads an area from the world and then calls the specified callback on it
 -- This is a helper function called from most exporters to read the area data from the world
 -- It uses a ChunkStay mechanism to read the area, because the chunks for the areas needn't be loaded
@@ -745,10 +751,11 @@ local function ExportCpp(a_BaseFolder, a_AreaDef, a_Callback)
 			a_Callback(false, Msg)
 			return
 		end
+		Txt = Txt:gsub("\n", g_Config.ExportLineEnds)
 		
 		-- Save to file:
 		local f
-		f, Msg = io.open(FileName, "w")
+		f, Msg = io.open(FileName, "wb")
 		if (f == nil) then
 			a_Callback(false, Msg)
 			return
@@ -907,20 +914,22 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 	
 	-- Open the output files:
 	cFile:CreateFolderRecursive(a_BaseFolder)
-	local f, msg = io.open(FileName, "w")
+	local f, msg = io.open(FileName, "wb")
 	if not(f) then
 		a_FailureCallback("Cannot open file " .. FileName .. " for output")
 		return
 	end
 	
 	-- Write the file header:
-	f:write("\n-- ", GroupName, ".cubeset\n\n-- Defines the prefabs in the group ", GroupName, "\n\n")
-	f:write("-- NOTE: This file has been generated automatically by GalExport!\n")
-	f:write("-- Any manual changes will be overwritten by the next automatic export!\n\n\n\n\n")
-	f:write("Cubeset =\n{\n\tMetadata =\n\t{\n\t\tCubesetFormatVersion = 1,\n")
-	f:write("\t\tExportDate = \"", os.date("%Y-%m-%d %H:%M:%S"), "\",\n")
+	local out = {
+		"\n-- ", GroupName, ".cubeset\n\n-- Defines the prefabs in the group ", GroupName, "\n\n",
+		"-- NOTE: This file has been generated automatically by GalExport!\n",
+		"-- Any manual changes will be overwritten by the next automatic export!\n\n\n\n\n",
+		"Cubeset =\n{\n\tMetadata =\n\t{\n\t\tCubesetFormatVersion = 1,\n",
+		"\t\tExportDate = \"", os.date("%Y-%m-%d %H:%M:%S"), "\",\n",
+	}
 	if (a_ExternalSchematic) then
-		f:write("\t\tExternalSchematic = true,\n")
+		ins(out, "\t\tExternalSchematic = true,\n")
 	end
 	
 	-- Write the group metadata:
@@ -935,8 +944,8 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 		table.insert(gmd, string.format("\t\t[%q] = %q,\n", k, v))
 	end
 	table.sort(gmd)
-	f:write(table.concat(gmd))
-	f:write("\t},\n\n\tPieces =\n\t{\n")
+	ins(out, table.concat(gmd))
+	ins(out, "\t},\n\n\tPieces =\n\t{\n")
 	
 	-- Callback to be called when area chunks have been loaded:
 	local CurrArea = 1
@@ -945,19 +954,22 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 		local Area = a_Areas[CurrArea]
 		local Src, Msg = MakeCubesetSource(a_BaseFolder, a_BlockArea, Area, "\t\t", a_ExternalSchematic)
 		Src = Src or ("-- Error: Area " .. Area.GalleryName .. "_" .. Area.ID .. " failed to export source: " .. (Msg or "<Unknown error>"))
-		f:write(Src)
+		ins(out, Src)
 		
 		-- Advance to next area:
 		CurrArea = CurrArea + 1
 		if (a_Areas[CurrArea] == nil) then
 			-- No more areas in this group, finish the export:
-			f:write("\t},  -- Pieces\n}\n\n\n\n\n")
+			ins(out, "\t},  -- Pieces\n}\n\n\n\n\n")
+			local txt = table.concat(out)
+			txt = txt:gsub("\n", g_Config.ExportLineEnds)
+			f:write(txt)
 			f:close()
 			a_SuccessCallback()
 			return
 		else
 			-- There are more areas to process:
-			f:write("\n\n\n")
+			ins(out, "\n\n\n")
 			if (CurrArea % 50 == 0) then
 				-- Give the server a break after each 50 areas, so that it can unload chunks and free up the Lua stack
 				cRoot:Get():GetDefaultWorld():QueueTask(
