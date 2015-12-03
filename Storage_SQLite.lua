@@ -92,8 +92,11 @@ function SQLite:AddConnector(a_AreaID, a_BlockX, a_BlockY, a_BlockZ, a_Direction
 	if not(IsSuccess) or not(RowID) then
 		return nil, Msg
 	end
-	
-	-- Return the connector ident by loading the area:
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(AreaID)
+
+	-- Return the connector ident by loading it from the DB:
 	return self:GetConnectorByID(RowID)
 end
 
@@ -147,7 +150,10 @@ function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid,
 	if not(IsSuccess) then
 		return nil, "DB write failed"
 	end
-	
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+
 	-- Report success
 	return true
 end
@@ -168,24 +174,33 @@ function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ, a_NewDir)
 	assert(NewY)
 	assert(NewZ)
 	
+	local IsSuccess, Msg
 	if (a_NewDir) then
 		local NewDir = tonumber(a_NewDir)
 		assert(NewDir)
 
-		return self:ExecuteStatement(
+		IsSuccess, Msg = self:ExecuteStatement(
 			"UPDATE Connectors SET X = ?, Y = ?, Z = ?, Direction = ? WHERE ID = ?",
 			{
 				NewX, NewY, NewZ, NewDir, ConnID
 			}
 		)
 	else
-		return self:ExecuteStatement(
+		IsSuccess, Msg = self:ExecuteStatement(
 			"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
 			{
 				NewX, NewY, NewZ, ConnID
 			}
 		)
 	end
+	if not(IsSuccess) then
+		return false, Msg
+	end
+
+	-- Mark the connector's area as changed:
+	self:MarkConnectorsAreaChangedNow(ConnID)
+
+	return true
 end
 
 
@@ -202,12 +217,18 @@ function SQLite:ChangeConnectorType(a_ConnID, a_NewType)
 	local NewType = tonumber(a_NewType)
 	assert(NewType)
 	
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Connectors SET TypeNum = ? WHERE ID = ?",
 		{
 			NewType, ConnID
 		}
 	)
+	if not(IsSuccess) then
+		return false, "Failed to update connector type: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the connector's area as changed:
+	self:MarkConnectorsAreaChangedNow(ConnID)
 end
 
 
@@ -287,11 +308,31 @@ function SQLite:DeleteConnector(a_ConnID)
 	local ConnID = tonumber(a_ConnID)
 	assert(ConnID)
 	
+	-- Get the connector's AreaID (for marking the area as changed):
+	local AreaID
+	self:ExecuteStatement(
+		"SELECT AreaID FROM Connectors WHERE ID = ?",
+		{ ConnID },
+		function (a_Values)
+			AreaID = a_Values["AreaID"]
+		end
+	)
+
 	-- Delete from the DB:
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"DELETE FROM Connectors WHERE ID = ?",
 		{ ConnID }
 	)
+	if not(IsSuccess) then
+		return false, "Failed to delete connector from the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	if (AreaID) then
+		self:MarkAreaChangedNow(AreaID)
+	end
+
+	return true
 end
 
 
@@ -314,7 +355,14 @@ function SQLite:DisapproveArea(a_AreaID)
 			AreaID
 		}
 	)
-	return IsSuccess, Msg
+	if not(IsSuccess) then
+		return false, "Failed to update are in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(AreaID)
+
+	return true
 end
 
 
@@ -478,7 +526,7 @@ function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
 	assert(type(a_BlockZ) == "number")
 	
 	-- Load from the DB:
-	local res = {}
+	local res
 	if not(self:ExecuteStatement(
 		"SELECT * FROM Areas WHERE (MinX <= ?) AND (MaxX > ?) AND (MinZ < ?) AND (MaxZ > ?)",
 		{
@@ -486,18 +534,15 @@ function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
 			a_BlockZ, a_BlockZ,
 		},
 		function (a_Values)
-			-- Copy all values to the result table:
-			for k, v in pairs(a_Values) do
-				res[k] = v
-			end
+			res = a_Values
 		end
 	)) then
 		-- DB error or no data (?)
 		return nil
 	end
 	
-	if not(res.ID) then
-		-- No data has been returned by the DB call
+	if (not(res) or not(res.ID)) then
+		-- No valid data has been returned by the DB call
 		return nil
 	end
 	
@@ -962,8 +1007,61 @@ end
 -- Returns true on success, false and optional error msg on failure
 function SQLite:LockApprovedAreas()
 	return self:ExecuteStatement(
-		"UPDATE Areas SET IsLocked = 1 WHERE CAST(IsApproved AS NUMBER) = 1"
+		"UPDATE Areas SET IsLocked = 1, DateLastChanged = ? WHERE (CAST(IsApproved AS NUMBER) = 1) AND (CAST(IsLocked AS NUMBER) <> 0)",
+		{ FormatDateTime(os.time()) }
 	)
+end
+
+
+
+
+
+--- Sets the specified area's DateLastChanged to current time
+-- Called from all relevant other SQLite access functions
+-- Returns true on success, false and optional error msg on failure
+function SQLite:MarkAreaChangedNow(a_AreaID)
+	-- Check params:
+	assert(self)
+	assert(type(a_AreaID) == "number")
+
+	-- Update the DB:
+	return self:ExecuteStatement(
+		"UPDATE Areas SET DateLastChanged = ? WHERE ID = ?",
+		{
+			FormatDateTime(os.time()), a_AreaID
+		}
+	)
+end
+
+
+
+
+
+--- Sets the specified connector's area's DateLastChanged to current time
+-- Called from all relevant SQLite access functions handling connectors
+-- Returns true on success, false and optional error msg on failure
+function SQLite:MarkConnectorsAreaChangedNow(a_ConnID)
+	-- Check params:
+	assert(self)
+	assert(type(a_ConnID) == "number")
+
+	-- Get the AreaID of the connector:
+	local AreaID
+	local IsSuccess, Msg = self:ExecuteStatement("SELECT AreaID FROM Connectors WHERE ID = ?", {ConnID},
+		function (a_Values)
+			AreaID = a_Values["AreaID"]
+		end
+	)
+	if not(IsSuccess) then
+		return false, "Failed to get connector's AreaID: " .. (Msg or "<unknown error>")
+	end
+
+	-- Mark the area as changed:
+	if (AreaID) then
+		return self:MarkAreaChangedNow(AreaID)
+	end
+
+	return false, "Connector's Area ID not found in the DB"
 end
 
 
@@ -1009,12 +1107,20 @@ function SQLite:SetAreaExportGroup(a_AreaID, a_GroupName)
 	assert(type(a_GroupName) == "string")
 	
 	-- Update in DB:
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportGroupName = ? WHERE ID = ?",
 		{
 			a_GroupName, a_AreaID
 		}
 	)
+	if not(IsSuccess) then
+		return false, "Failed to update area in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+
+	return true
 end
 
 
@@ -1030,12 +1136,20 @@ function SQLite:SetAreaExportName(a_AreaID, a_AreaName)
 	assert(type(a_AreaName) == "string")
 	
 	-- Rename in DB:
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportName = ? WHERE ID = ?",
 		{
 			a_AreaName, a_AreaID
 		}
 	)
+	if not(IsSuccess) then
+		return false, "Failed to update area in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+
+	return true
 end
 
 
@@ -1074,7 +1188,10 @@ function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 			return false, "Failed to set new value: " .. (Msg or "<no details>")
 		end
 	end
-	
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+
 	return true
 end
 
@@ -1083,7 +1200,7 @@ end
 
 
 --- Sets the sponging in the DB for the selected area
--- a_Sponging is the area containing only sponge blocks or air
+-- a_Sponging is the area containing only sponge blocks or air, inside a cBlockArea object
 -- Returns true on success, false and message on failure
 function SQLite:SetAreaSponging(a_AreaID, a_Sponging)
 	-- Check the params:
@@ -1115,7 +1232,14 @@ function SQLite:SetAreaSponging(a_AreaID, a_Sponging)
 			AreaRep
 		}
 	)
-	return IsSuccess, Msg
+	if not(IsSuccess) then
+		return false, "Failed to update area sponges in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(AreaID)
+	
+	return true
 end
 
 
@@ -1211,12 +1335,18 @@ function SQLite:SetConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
 	assert(NewZ)
 	
 	-- Update in the DB:
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
 		{
 			NewX, NewY, NewZ, ConnID
 		}
 	)
+	if not(IsSuccess) then
+		return false, "Failed to update connector in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkConnectorsAreaChangedNow(ConnID)
 end
 
 
@@ -1252,7 +1382,7 @@ function SQLite:UnlockAllAreas()
 	assert(self)
 	
 	return self:ExecuteStatement(
-		"UPDATE Areas SET IsLocked = 0"
+		"UPDATE Areas SET IsLocked = 0, DateLastChanged = ? WHERE CAST(IsLocked AS NUMBER) = 1"
 	)
 end
 
@@ -1279,6 +1409,10 @@ function SQLite:UnsetAreaMetadata(a_AreaID, a_Name)
 	if not(IsSuccess) then
 		return false, "Failed to remove old value: " .. (Msg or "<no details>")
 	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(AreaID)
+	
 	return true
 end
 
@@ -1325,13 +1459,21 @@ function SQLite:UpdateAreaBBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY,
 	assert(tonumber(a_MaxZ))
 	
 	-- Write into DB:
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportMinX = ?, ExportMinY = ?, ExportMinZ = ?, ExportMaxX = ?, ExportMaxY = ?, ExportMaxZ = ? WHERE ID = ?",
 		{
 			a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ,
 			a_AreaID
 		}
 	)
+	if not(IsSuccess) then
+		return false, "Failed to update area in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+	
+	return true
 end
 
 
@@ -1352,20 +1494,28 @@ function SQLite:UpdateAreaHBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY,
 	assert(tonumber(a_MaxZ))
 	
 	-- Write into DB:
-	return self:ExecuteStatement(
+	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET HitboxMinX = ?, HitboxMinY = ?, HitboxMinZ = ?, HitboxMaxX = ?, HitboxMaxY = ?, HitboxMaxZ = ? WHERE ID = ?",
 		{
 			a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ,
 			a_AreaID
 		}
 	)
+	if not(IsSuccess) then
+		return false, "Failed to update area in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+	
+	return true
 end
 
 
 
 
 
---- Updates all the sponges in the DB for the selected area
+--- Updates all the sponges in the DB for the selected area, based on the area's image
 -- a_SpongedBlockArea is the area containing the sponge blocks; the sponge blocks are extracted and saved to DB
 -- Returns true on success, false and message on failure
 function SQLite:UpdateAreaSponges(a_AreaID, a_SpongedBlockArea)
@@ -1382,7 +1532,14 @@ function SQLite:UpdateAreaSponges(a_AreaID, a_SpongedBlockArea)
 	-- Update in the DB:
 	local IsSuccess, Msg = self:SetAreaSponging(a_AreaID, BA)
 	BA:Clear()
-	return IsSuccess, Msg
+	if not(IsSuccess) then
+		return false, "Failed to set area's sponging in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+	
+	return true
 end
 
 
