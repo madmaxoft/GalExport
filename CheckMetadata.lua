@@ -91,6 +91,18 @@ local g_VerticalLimitParams =
 
 
 
+--- Maps valid lowercased ExpandFloorStrategy values to <true>
+local g_ValidExpandFloorStrategyValues =
+{
+	["none"] = true,
+	["repeattillnonair"] = true,
+	["repeattillsolid"] = true,
+}
+
+
+
+
+
 --- Group parameters that are required, based on the value of group's IntendedUse
 -- Maps lowercased IntendedUse to an array of requires group parameter names
 -- Also used to determine whether IntendedUse is known or not, so all IntendedUse values must be present (with empty arrays if needed)
@@ -115,6 +127,16 @@ local g_RequiredParamsPerIntendedValue =
 	village =
 	{
 	},
+}
+
+
+
+
+
+--- Maps obsolete parameter values to their recommended new counterparts
+local g_ObsoleteParams =
+{
+	ShouldExpandFloor = "ExpandFloorStrategy",
 }
 
 
@@ -198,6 +220,65 @@ end
 
 
 
+--- Checks metadata for a single area
+-- Appends all issues into the output array
+-- a_Area is the area to check
+-- a_Metadata is the metadata dictionary
+-- a_Output is the output array into which all issues are appended
+local function checkAreaMetadata(a_Area, a_Metadata, a_Output)
+	-- Check params:
+	assert(type(a_Area) == "table")
+	assert(type(a_Metadata) == "table")
+	assert(type(a_Output) == "table")
+
+	-- Check for obsolete metadata:
+	for k, _ in pairs(a_Metadata) do
+		if (g_ObsoleteParams[k]) then
+			ins(a_Output, { Area = a_Area, Issue = string.format("Area is using an obsolete parameter %s, use %s instead", k, g_ObsoleteParams[k])})
+		end
+	end
+
+	-- Check the ExpandFloorStrategy value:
+	local expandFloorStrategy = a_Metadata["ExpandFloorStrategy"]
+	if (expandFloorStrategy) then
+		if not(g_ValidExpandFloorStrategyValues[string.lower(expandFloorStrategy)]) then
+			ins(a_Output, { Area = a_Area, Issue = "Invalid ExpandFloorStrategy value: " .. expandFloorStrategy})
+		end
+	end
+
+	-- Check metadata specific to whether the piece is starting (VerticalStrategy / VerticalLimit):
+	local isStarting = (tostring(a_Metadata["IsStarting"]) == "1")
+	if (isStarting) then
+		local verticalStrategy = a_Metadata["VerticalStrategy"]
+		if not(verticalStrategy) then
+			ins(a_Output, { Area = a_Area, Issue = "Area is starting, but has no VerticalStrategy assigned to it"})
+		else
+			local isValid, msg = checkVerticalStrategy(verticalStrategy)
+			if not(isValid) then
+				ins(a_Output, { Area = a_Area, Issue = "VerticalStrategy is invalid: " .. msg})
+			end
+		end
+		if (a_Metadata["VerticalLimit"]) then
+			ins(a_Output, { Area = a_Area, Issue = "Area is starting, but has a VerticalLimit assigned to it"})
+		end
+	else
+		if (a_Metadata["VerticalStrategy"]) then
+			ins(a_Output, { Area = a_Area, Issue = "Area is not starting, but has a VerticalStrategy assigned to it"})
+		end
+		local verticalLimit = a_Metadata["VerticalLimit"]
+		if (verticalLimit) then
+			local isValid, msg = checkVerticalLimit(verticalLimit)
+			if not(isValid) then
+				ins(a_Output, { Area = a_Area, Issue = "VerticalLimit is invalid: " .. msg})
+			end
+		end
+	end  -- else (isStarting)
+end
+
+
+
+
+
 --- Checks metadata for the specified areas
 -- Returns an array of all issues found, { Area = <AreaDesc>, Issue = "" }
 -- Returns false and an optional error message on error
@@ -208,32 +289,7 @@ local function checkAreasMetadata(a_Areas)
 		if not(metadata) then
 			ins(res, { Area = area, Issue = "Failed to query area metadata from the DB: " .. (msg or "<unknown error>")})
 		else
-			local isStarting = (tostring(metadata["IsStarting"]) == "1")
-			if (isStarting) then
-				local verticalStrategy = metadata["VerticalStrategy"]
-				if not(verticalStrategy) then
-					ins(res, { Area = area, Issue = "Area is starting, but has no VerticalStrategy assigned to it"})
-				else
-					local isValid, msg = checkVerticalStrategy(verticalStrategy)
-					if not(isValid) then
-						ins(res, { Area = area, Issue = "VerticalStrategy is invalid: " .. msg})
-					end
-				end
-				if (metadata["VerticalLimit"]) then
-					ins(res, { Area = area, Issue = "Area is starting, but has a VerticalLimit assigned to it"})
-				end
-			else
-				if (metadata["VerticalStrategy"]) then
-					ins(res, { Area = area, Issue = "Area is not starting, but has a VerticalStrategy assigned to it"})
-				end
-				local verticalLimit = metadata["VerticalLimit"]
-				if (verticalLimit) then
-					local isValid, msg = checkVerticalLimit(verticalLimit)
-					if not(isValid) then
-						ins(res, { Area = area, Issue = "VerticalLimit is invalid: " .. msg})
-					end
-				end
-			end  -- else (isStarting)
+			checkAreaMetadata(area, metadata, res)
 		end  -- else (metadata)
 	end  -- for area - a_Areas[]
 	return res

@@ -187,14 +187,9 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 
 	-- ShouldExtendFloor:
 	ins(res, a_Indent)
-	ins(res, "\t// ShouldExtendFloor:\n")
+	ins(res, "\t// ExpandFloorStrategy:\n")
 	ins(res, a_Indent)
-	ins(res, "\t")
-	if ((tonumber(a_AreaDef.Metadata.ShouldExpandFloor) or 0) ~= 0) then
-		ins(res, "true,\n\n")
-	else
-		ins(res, "false,\n\n")
-	end
+	ins(res, string.format("\t%q,\n\n", a_AreaDef.Metadata.ExpandFloorStrategy or "None"))
 
 	-- DefaultWeight:
 	ins(res, a_Indent)

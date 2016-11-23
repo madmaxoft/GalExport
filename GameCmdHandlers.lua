@@ -23,8 +23,9 @@ local g_UnderstoodMetadataNames =
 	-- Must be a valid MergeStrategy name in the cBlockArea class, such as "msSpongePrint"
 	["MergeStrategy"] = true,
 
-	-- Whether the area should expand its lowest level towards the nearest non-air block; 0 or 1
-	["ShouldExpandFloor"] = true,
+	-- How to handle the space between the bottom of the piece and the terrain
+	-- Possible values: "None", "RepeatBottomTillNonAir", "RepeatBottomTillSolid"
+	["ExpandFloorStrategy"] = "None",
 
 	-- The weight to use for this prefab, unless there's any other modifier active
 	["DefaultWeight"] = true,

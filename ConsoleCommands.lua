@@ -7,6 +7,29 @@
 
 
 
+-- Fixes various issues that have evolved during GalExport's lifetime,
+-- such as converting ShouldExpandFloor metadata to ExpandFloorStrategy metadata
+function HandleConEvolve()
+	-- ge evolve
+
+	-- Convert ShouldExpandFloor metadata to ExpandFloorStrategy metadata:
+	local isSuccess, msg
+	isSuccess, msg = g_DB:ExecuteStatement("UPDATE Metadata SET Name = 'ExpandFloorStrategy', Value = 'None' WHERE Name = 'ShouldExpandFloor' AND Value = '0'")
+	if not(isSuccess) then
+		return true, "Failed to evolve ShouldExpandFloor(0), DB failure: " .. (msg or "<no message>")
+	end
+	isSuccess, msg = g_DB:ExecuteStatement("UPDATE Metadata SET Name = 'ExpandFloorStrategy', Value = 'RepeatTillNonAir' WHERE Name = 'ShouldExpandFloor' AND Value = '1'")
+	if not(isSuccess) then
+		return true, "Failed to evolve ShouldExpandFloor(1), DB failure: " .. (msg or "<no message>")
+	end
+
+	return true, "Evolving complete"
+end
+
+
+
+
+
 function HandleConExportAll(a_Split)
 	-- ge all <Format>
 

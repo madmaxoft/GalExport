@@ -458,6 +458,12 @@ and edited with the help of WorldEdit and its WECUI link.
 					Handler = HandleConExportAll,
 				},
 
+				evolve =
+				{
+					HelpString = "Fixes various issues that have evolved during GalExport's lifetime, such as converting ShouldExpandFloor metadata to ExpandFloorStrategy metadata",
+					Handler = HandleConEvolve,
+				},
+
 				group =
 				{
 					HelpString = "Exports the approved areas in the specified group",
@@ -476,8 +482,8 @@ and edited with the help of WorldEdit and its WECUI link.
 							ParameterCombinations =
 							{
 								{
-									Params = "GroupName MetaName MetaValue",
-									Help = "Sets the specified group's metadata",
+									Params = "GroupName",
+									Help = "Lists the metadata assigned to the specified group",
 								},
 							},
 						},  -- list

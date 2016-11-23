@@ -727,10 +727,10 @@ local function GetAreaMetaNamesHTMLDatalist()
 			<option value="AllowedRotations">
 			<option value="DefaultWeight">
 			<option value="DepthWeight">
+			<option value="ExpandFloorStrategy">
 			<option value="IsStarting">
 			<option value="MergeStrategy">
 			<option value="MoveToGround">
-			<option value="ShouldExpandFloor">
 			<option value="VerticalLimit">
 			<option value="VerticalStrategy">
 		</datalist>
