@@ -32,17 +32,17 @@ local function DoWithArea(a_AreaDef, a_SuccessCallback, a_FailureCallback)
 	assert(type(a_AreaDef) == "table")
 	assert(type(a_SuccessCallback) == "function")
 	assert((a_FailureCallback == nil) or (type(a_FailureCallback) == "function"))
-	
+
 	-- Get the array of chunks that need to be loaded:
 	local Chunks = GetChunksForAreaExport(a_AreaDef)
 	assert(Chunks[1] ~= nil)  -- There must be at least 1 chunk in the table
-	
+
 	-- Create a cuboid for the exported coords:
 	local Bounds = cCuboid(
 		a_AreaDef.ExportMinX, a_AreaDef.ExportMinY, a_AreaDef.ExportMinZ,
 		a_AreaDef.ExportMaxX, a_AreaDef.ExportMaxY, a_AreaDef.ExportMaxZ
 	)
-	
+
 	-- Initiate the ChunkStay:
 	local World = cRoot:Get():GetWorld(a_AreaDef.WorldName)
 	World:ChunkStay(Chunks,
@@ -58,7 +58,7 @@ local function DoWithArea(a_AreaDef, a_SuccessCallback, a_FailureCallback)
 					local OfsZ = a_AreaDef.MinZ - a_AreaDef.ExportMinZ
 					BA:Merge(Sponges, OfsX, OfsY, OfsZ, cBlockArea.msFillAir)
 				end
-				
+
 				-- Call the callback:
 				a_SuccessCallback(BA)
 			else
@@ -77,7 +77,7 @@ end
 local function GetAreaExportName(a_AreaDef)
 	-- Check params:
 	assert(type(a_AreaDef) == "table")
-	
+
 	-- If the area's ExportName is defined, use that
 	if (a_AreaDef.ExportName and (a_AreaDef.ExportName ~= "")) then
 		return a_AreaDef.ExportName
@@ -95,14 +95,14 @@ end
 -- a_Indent is inserted at each line's start
 local function MakeCppConnectorsSource(a_AreaDef, a_Indent)
 	-- No need to check params, they were checked by MakeCppSource, which is the only allowed caller
-	
+
 	-- Use simple local values for these functions instead of table lookups in each loop:
 	local ins = table.insert
 	local con = table.concat
-	
+
 	-- Write the header:
 	local res = {"\n", a_Indent, "\t// Connectors:\n", a_Indent}
-	
+
 	-- Write out each connector's definition:
 	local Connectors = g_DB:GetAreaConnectors(a_AreaDef.ID)
 	local ConnDefs = {}
@@ -114,14 +114,14 @@ local function MakeCppConnectorsSource(a_AreaDef, a_Indent)
 			conn.TypeNum, X, Y, Z, conn.Direction, conn.TypeNum, DirectionToString(conn.Direction)
 		))
 	end
-	
+
 	-- Join the connector definitions into the output:
 	ins(res, con(ConnDefs, "\n" .. a_Indent))
 	if (ConnDefs[1] == nil) then
 		ins(res, "\t\"\"")
 	end
 	ins(res, ",\n")
-	
+
 	-- Join the output into a single string:
 	return con(res)
 end
@@ -136,7 +136,7 @@ local function GetRotationsDesc(a_Rotations)
 	-- Check params:
 	local Rotations = tonumber(a_Rotations)
 	assert(Rotations ~= nil)
-	
+
 	if (Rotations == 0) then
 		return "No rotations allowed"
 	elseif (Rotations == 1) then
@@ -166,7 +166,7 @@ end
 local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	local ins = table.insert
 	local res = {}
-	
+
 	-- Allowed rotations:
 	ins(res, a_Indent)
 	ins(res, "\t// AllowedRotations:\n")
@@ -176,7 +176,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, ",  /* ")
 	ins(res, GetRotationsDesc(a_AreaDef.Metadata.AllowedRotations))
 	ins(res, " */\n\n")
-	
+
 	-- Merge strategy:
 	ins(res, a_Indent)
 	ins(res, "\t// Merge strategy:\n")
@@ -184,7 +184,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, "\tcBlockArea::")
 	ins(res, a_AreaDef.Metadata.MergeStrategy)
 	ins(res, ",\n\n")
-	
+
 	-- ShouldExtendFloor:
 	ins(res, a_Indent)
 	ins(res, "\t// ShouldExtendFloor:\n")
@@ -195,7 +195,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	else
 		ins(res, "false,\n\n")
 	end
-	
+
 	-- DefaultWeight:
 	ins(res, a_Indent)
 	ins(res, "\t// DefaultWeight:\n")
@@ -203,7 +203,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, "\t")
 	ins(res, (tonumber(a_AreaDef.Metadata.DefaultWeight) or 100))
 	ins(res, ",\n\n")
-	
+
 	-- DepthWeight:
 	ins(res, a_Indent)
 	ins(res, "\t// DepthWeight:\n")
@@ -211,7 +211,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	ins(res, "\t\"")
 	ins(res, a_AreaDef.Metadata.DepthWeight or "")
 	ins(res, "\",\n\n")
-	
+
 	-- AddWeightIfSame:
 	ins(res, a_Indent)
 	ins(res, "\t// AddWeightIfSame:\n")
@@ -230,7 +230,7 @@ local function MakeCppMetadataSource(a_AreaDef, a_Indent)
 	else
 		ins(res, "false,\n")
 	end
-	
+
 	return table.concat(res)
 end
 
@@ -249,7 +249,7 @@ local function MakeCppHitboxSource(a_AreaDef, a_Indent)
 	local MaxX = (a_AreaDef.HitboxMaxX or a_AreaDef.ExportMaxX) - a_AreaDef.ExportMinX
 	local MaxY = (a_AreaDef.HitboxMaxY or a_AreaDef.ExportMaxY) - a_AreaDef.ExportMinY
 	local MaxZ = (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ
-	
+
 	-- Write the coords:
 	local ins = table.insert
 	local res = {}
@@ -259,7 +259,7 @@ local function MakeCppHitboxSource(a_AreaDef, a_Indent)
 	ins(res, string.format("\t%d, %d, %d,  // MinX, MinY, MinZ\n", MinX, MinY, MinZ))
 	ins(res, a_Indent)
 	ins(res, string.format("\t%d, %d, %d,  // MaxX, MaxY, MaxZ\n", MaxX, MaxY, MaxZ))
-	
+
 	return table.concat(res)
 end
 
@@ -275,7 +275,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	assert(tolua.type(a_BlockArea) == "cBlockArea")
 	assert(type(a_AreaDef) == "table")
 	a_Indent = a_Indent or ""
-	
+
 	-- Write the header:
 	local ExportName = GetAreaExportName(a_AreaDef)
 	local res = {a_Indent, string.rep("/", 80), "\n",
@@ -284,7 +284,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 		a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, ", created by ", a_AreaDef.PlayerName, "\n",
 		a_Indent, "{\n"
 	}
-	
+
 	-- Use simple local values for these functions instead of table lookups in each loop:
 	local ins = table.insert
 	local con = table.concat
@@ -293,7 +293,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	NOTE: This function uses "BlockDef" extensively. It is a number that represents a combination of
 	BlockType + BlockMeta uniquely simply by multiplying BlockType by 16 and adding it to BlockMeta.
 	--]]
-	
+
 	-- Prepare the tables used for blockdef-counting:
 	-- Force use "." for air and "m" for sponge, so insert it here already
 	local BlockToLetter = {[E_BLOCK_AIR * 16] = ".", [E_BLOCK_SPONGE * 16] = "m"}  -- dict: BlockDef -> Letter
@@ -302,7 +302,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	local MaxLetters = string.len(Letters)
 	local LastLetterIdx = 1   -- Index into Letters for the next letter to use for new BlockDef
 	local SizeX, SizeY, SizeZ = a_BlockArea:GetSize()
-	
+
 	-- Create a horizontal ruler text, used on each level:
 	local HorzRuler = {a_Indent, "\t/* z\\x*   "}
 	if (SizeX > 9) then
@@ -360,17 +360,17 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 		ins(Levels, con(Level))
 	end  -- for y
 	ins(def, con(Levels, "\n"))
-	
+
 	-- Write the dimensions:
 	ins(res, a_Indent)
 	ins(res, "\t// Size:\n")
 	ins(res, a_Indent)
 	ins(res, con({"\t", SizeX, ", ", SizeY, ", ", SizeZ, ",  // SizeX = ", SizeX, ", SizeY = ", SizeY, ", SizeZ = ", SizeZ, "\n\n"}))
-	
+
 	-- Write the hitbox:
 	ins(res, MakeCppHitboxSource(a_AreaDef, a_Indent))
 	ins(res, "\n")
-	
+
 	-- Write the letter-to-blockdef table:
 	local LetterToBlockDef = {}
 	for ltr, blk in pairs(LetterToBlock) do
@@ -387,7 +387,7 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	ins(res, a_Indent)
 	ins(res, con(LetterToBlockDef, "\n" .. a_Indent))
 	ins(res, ",\n")
-	
+
 	-- Write the block data:
 	ins(res, "\n")
 	ins(res, a_Indent)
@@ -397,16 +397,16 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 	-- Write the connectors:
 	ins(res, MakeCppConnectorsSource(a_AreaDef, a_Indent))
 	ins(res, "\n")
-	
+
 	-- Write the metadata:
 	ins(res, MakeCppMetadataSource(a_AreaDef, a_Indent))
-	
+
 	-- Finalize the definition:
 	ins(res, a_Indent)
 	ins(res, "},  // ")
 	ins(res, ExportName)
 	ins(res, "\n")
-	
+
 	return con(res)
 end
 
@@ -420,13 +420,13 @@ local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
 	-- Use simple local values for these functions instead of table lookups in each loop:
 	local ins = table.insert
 	local con = table.concat
-	
+
 	-- Write the header:
 	local res = {
 		a_Indent, "Connectors =\n",
 		a_Indent, "{\n",
 	}
-	
+
 	-- Write out each connector's definition:
 	local Connectors = g_DB:GetAreaConnectors(a_AreaDef.ID)
 	local ConnDefs = {}
@@ -444,7 +444,7 @@ local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
 	end
 	ins(res, a_Indent)
 	ins(res, "},\n")
-	
+
 	-- Join the output into a single string:
 	return con(res)
 end
@@ -464,7 +464,7 @@ local function MakeCubesetHitboxSource(a_AreaDef, a_Indent)
 	local MaxX = (a_AreaDef.HitboxMaxX or a_AreaDef.ExportMaxX) - a_AreaDef.ExportMinX
 	local MaxY = (a_AreaDef.HitboxMaxY or a_AreaDef.ExportMaxY) - a_AreaDef.ExportMinY
 	local MaxZ = (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ
-	
+
 	-- Write the coords:
 	local res =
 	{
@@ -478,7 +478,7 @@ local function MakeCubesetHitboxSource(a_AreaDef, a_Indent)
 		a_Indent, "\tMaxZ = ", MaxZ, ",\n",
 		a_Indent, "},\n",
 	}
-	
+
 	return table.concat(res)
 end
 
@@ -493,7 +493,7 @@ local function MakeCubesetMetadataSource(a_AreaDef, a_Indent)
 		a_Indent, "Metadata =\n",
 		a_Indent, "{\n"
 	}
-	
+
 	-- List all the metadata values:
 	local ins = table.insert
 	local md = {}
@@ -522,7 +522,7 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 	assert(type(a_AreaDef) == "table")
 	a_Indent = a_Indent or ""
 	local SizeX, SizeY, SizeZ = a_BlockArea:GetSize()
-	
+
 	-- Use simple local values for these functions instead of table lookups / string joins in each loop:
 	local ins = table.insert
 	local con = table.concat
@@ -533,7 +533,7 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 	NOTE: This function uses "BlockDef" extensively. It is a number that represents a combination of
 	BlockType + BlockMeta uniquely simply by multiplying BlockType by 16 and adding it to BlockMeta.
 	--]]
-	
+
 	local res =
 	{
 		a_Indent, "{\n",
@@ -556,7 +556,7 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 		MakeCubesetConnectorsSource(a_AreaDef, Indent),
 		MakeCubesetMetadataSource(a_AreaDef, Indent)
 	}
-	
+
 	if (a_ExternalSchematic) then
 		-- Export the block data to a .schematic file, reference the file in the cubeset source
 		local PathSep = cFile:GetPathSeparator()
@@ -568,7 +568,7 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 		}))
 	else
 		-- Inline the block data into the cubeset source
-		
+
 		-- Prepare the tables used for blockdef-counting:
 		-- Force use "." for air and "m" for sponge, so insert it here already
 		local BlockToLetter = {[E_BLOCK_AIR * 16] = ".", [E_BLOCK_SPONGE * 16] = "m"}  -- dict: BlockDef -> Letter
@@ -576,7 +576,7 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 		local Letters = "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*,<>/?;[{]}|_-=+~"  -- Letters that can be used in the definition
 		local MaxLetters = string.len(Letters)
 		local LastLetterIdx = 1   -- Index into Letters for the next letter to use for new BlockDef
-		
+
 		-- Transform blocktypes to letters:
 		local def = {}
 		local Levels = {}
@@ -608,7 +608,7 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 			ins(Levels, con(Level))
 		end  -- for y
 		ins(def, con(Levels, "\n"))
-		
+
 		-- Create the letter-to-blockdef table:
 		local LetterToBlockDef = {}
 		for ltr, blk in pairs(LetterToBlock) do
@@ -633,12 +633,12 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 			Indent, "},\n"
 		}))
 	end
-	
+
 	ins(res, a_Indent)
 	ins(res, "},  -- ")
 	ins(res, ExportName)
 	ins(res, "\n")
-	
+
 	return con(res)
 end
 
@@ -652,7 +652,7 @@ local function ExportSchematic(a_BaseFolder, a_AreaDef, a_Callback)
 	assert(type(a_BaseFolder) == "string")
 	assert(type(a_AreaDef) == "table")
 	assert((a_Callback == nil) or (type(a_Callback) == "function"))
-	
+
 	-- Queue the ChunkStay operation:
 	DoWithArea(a_AreaDef,
 		function(a_BlockArea)
@@ -718,7 +718,7 @@ local function ExportSchematicGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_
 			DoWithArea(a_Areas[CurrArea], ProcessOneArea, a_FailureCallback)
 		end
 	end
-	
+
 	return DoWithArea(a_Areas[1], ProcessOneArea, a_FailureCallback)
 end
 
@@ -744,7 +744,7 @@ local function ExportCpp(a_BaseFolder, a_AreaDef, a_Callback)
 			ExportName = a_AreaDef.ID
 		end
 		FileName = FileName .. ExportName .. ".cpp"
-		
+
 		-- Convert the BlockArea into a cpp source:
 		local Txt, Msg = MakeCppSource(a_BlockArea, a_AreaDef)
 		if (Txt == nil) then
@@ -752,7 +752,7 @@ local function ExportCpp(a_BaseFolder, a_AreaDef, a_Callback)
 			return
 		end
 		Txt = Txt:gsub("\n", g_Config.ExportLineEnds)
-		
+
 		-- Save to file:
 		local f
 		f, Msg = io.open(FileName, "wb")
@@ -762,10 +762,10 @@ local function ExportCpp(a_BaseFolder, a_AreaDef, a_Callback)
 		end
 		f:write(Txt)
 		f:close()
-		
+
 		a_Callback(true)
 	end
-	
+
 	-- Queue the ChunkStay operation:
 	DoWithArea(a_AreaDef, DoExport)
 	return true
@@ -786,18 +786,18 @@ local function ExportCppGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_Failur
 	assert(a_Areas[1] ~= nil)  -- At least one area to export
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
 	assert((a_FailureCallback == nil) or (type(a_SuccessCallback) == "function"))
-	
+
 	-- Read the areas' metadata, if not present already:
 	for _, area in ipairs(a_Areas) do
 		area.Metadata = area.Metadata or g_DB:GetMetadataForArea(area.ID, true)
 		area.Metadata.IsStarting = tonumber(area.Metadata.IsStarting)
 	end
-	
+
 	-- Store usefull stuff:
 	local GroupName = a_Areas[1].ExportGroupName
 	local CurrArea = 1
 	local FileNameBase = a_BaseFolder .. "/" .. GroupName .. "Prefabs"
-	
+
 	-- Open the output files:
 	local cpp = io.open(FileNameBase .. ".cpp", "w")
 	if (cpp == nil) then
@@ -810,7 +810,7 @@ local function ExportCppGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_Failur
 		a_FailureCallback("Cannot open file " .. FileNameBase .. ".h for output")
 		return
 	end
-	
+
 	-- Write the file headers:
 	cpp:write("\n// ", GroupName, "Prefabs.cpp\n\n// Defines the prefabs in the group ", GroupName, "\n\n")
 	cpp:write("// NOTE: This file has been generated automatically by GalExport!\n")
@@ -824,7 +824,7 @@ local function ExportCppGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_Failur
 	hdr:write("extern const size_t g_", GroupName, "PrefabsCount;\n")
 	hdr:write("extern const size_t g_", GroupName, "StartingPrefabsCount;\n")
 	hdr:close()
-	
+
 	-- Sort areas so that the starting ones come last; then by their export name:
 	table.sort(a_Areas,
 		function (a_Area1, a_Area2)
@@ -844,7 +844,7 @@ local function ExportCppGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_Failur
 			return (GetAreaExportName(a_Area1) < GetAreaExportName(a_Area2))
 		end
 	)
-	
+
 	-- Callback to be called when area data has been loaded:
 	local HasStarting = false
 	local function ProcessOneArea(a_BlockArea)
@@ -853,7 +853,7 @@ local function ExportCppGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_Failur
 		local Src = MakeCppSource(a_BlockArea, Area, "\t")
 		Src = Src or ("/* Error: Area " .. Area.GalleryName .. "_" .. Area.ID .. " failed to export source! */")
 		cpp:write(Src)
-		
+
 		-- Advance to next area:
 		CurrArea = CurrArea + 1
 		if (a_Areas[CurrArea] == nil) then
@@ -881,7 +881,7 @@ local function ExportCppGroup(a_BaseFolder, a_Areas, a_SuccessCallback, a_Failur
 			DoWithArea(a_Areas[CurrArea], ProcessOneArea, a_FailureCallback)
 		end
 	end
-	
+
 	return DoWithArea(a_Areas[1], ProcessOneArea, a_FailureCallback)
 end
 
@@ -901,17 +901,17 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 	assert(a_Areas[1] ~= nil)  -- At least one area to export
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
 	assert((a_FailureCallback == nil) or (type(a_SuccessCallback) == "function"))
-	
+
 	-- Read the areas' metadata, if not present already:
 	for _, area in ipairs(a_Areas) do
 		area.Metadata = area.Metadata or g_DB:GetMetadataForArea(area.ID, true)
 		area.Metadata.IsStarting = tonumber(area.Metadata.IsStarting)
 	end
-	
+
 	-- Store usefull stuff:
 	local GroupName = a_Areas[1].ExportGroupName
 	local FileName = a_BaseFolder .. "/" .. GroupName .. ".cubeset"
-	
+
 	-- Open the output files:
 	cFile:CreateFolderRecursive(a_BaseFolder)
 	local f, msg = io.open(FileName, "wb")
@@ -919,7 +919,7 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 		a_FailureCallback("Cannot open file " .. FileName .. " for output")
 		return
 	end
-	
+
 	-- Write the file header:
 	local out = {
 		"\n-- ", GroupName, ".cubeset\n\n-- Defines the prefabs in the group ", GroupName, "\n\n",
@@ -931,7 +931,7 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 	if (a_ExternalSchematic) then
 		ins(out, "\t\tExternalSchematic = true,\n")
 	end
-	
+
 	-- Write the group metadata:
 	local GroupMeta, Msg = g_DB:GetMetadataForGroup(GroupName)
 	if not(GroupMeta) then
@@ -946,7 +946,7 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 	table.sort(gmd)
 	ins(out, table.concat(gmd))
 	ins(out, "\t},\n\n\tPieces =\n\t{\n")
-	
+
 	-- Callback to be called when area chunks have been loaded:
 	local CurrArea = 1
 	local function ProcessOneArea(a_BlockArea)
@@ -955,7 +955,7 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 		local Src, Msg = MakeCubesetSource(a_BaseFolder, a_BlockArea, Area, "\t\t", a_ExternalSchematic)
 		Src = Src or ("-- Error: Area " .. Area.GalleryName .. "_" .. Area.ID .. " failed to export source: " .. (Msg or "<Unknown error>"))
 		ins(out, Src)
-		
+
 		-- Advance to next area:
 		CurrArea = CurrArea + 1
 		if (a_Areas[CurrArea] == nil) then
@@ -982,7 +982,7 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 			end
 		end
 	end
-	
+
 	return DoWithArea(a_Areas[1], ProcessOneArea, a_FailureCallback)
 end
 
@@ -1044,15 +1044,15 @@ g_Exporters =
 	-- cpp export:
 	["c"]   = CppExporterDesc,
 	["cpp"] = CppExporterDesc,
-	
+
 	-- cubeset export (with inlined block data):
 	["cs"]      = CubesetExporterDesc,
 	["cubeset"] = CubesetExporterDesc,
-	
+
 	-- cubeset export (with external .schematic files):
 	["cse"]        = CubesetExtExporterDesc,
 	["cubesetext"] = CubesetExtExporterDesc,
-	
+
 	-- schematic export:
 	["s"]         = SchematicExporterDesc,
 	["schem"]     = SchematicExporterDesc,

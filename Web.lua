@@ -160,7 +160,7 @@ local function GetHTMLInput(a_Type, a_Name, a_Attribs)
 	assert(a_Type and tostring(a_Type))
 	assert(a_Name and tostring(a_Name))
 	assert(not(a_Attribs) or (type(a_Attribs) == "table"))  -- either not present, or a table
-	
+
 	local res = { "<input type=\"", a_Type, "\" name=\"", a_Name, "\""}
 	for n, v in pairs(a_Attribs or {}) do
 		ins(res, " ")
@@ -170,7 +170,7 @@ local function GetHTMLInput(a_Type, a_Name, a_Attribs)
 		ins(res, "\"")
 	end
 	ins(res, "/>")
-	
+
 	return table.concat(res)
 end
 
@@ -185,7 +185,7 @@ local function IsConnectorReachableThroughHitbox(a_Connector, a_AreaDef)
 	-- Check params:
 	assert(type(a_Connector) == "table")
 	assert(type(a_AreaDef) == "table")
-	
+
 	if (a_Connector.Direction == BLOCK_FACE_XM) then
 		return (a_Connector.X <= (a_AreaDef.HitboxMinX or a_AreaDef.ExportMinX))
 	elseif (a_Connector.Direction == BLOCK_FACE_XP) then
@@ -199,7 +199,7 @@ local function IsConnectorReachableThroughHitbox(a_Connector, a_AreaDef)
 	elseif (a_Connector.Direction == BLOCK_FACE_ZP) then
 		return (a_Connector.Z >= (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ))
 	end
-	
+
 	-- Not a known direction, mark as failure:
 	return false
 end
@@ -234,7 +234,7 @@ end
 local function GetAreaSchematicFolderName(a_AreaID)
 	-- Check params
 	assert(tonumber(a_AreaID))
-	
+
 	return g_Config.WebPreview.ThumbnailFolder .. "/" .. tostring(math.floor(a_AreaID / 100))
 end
 
@@ -247,7 +247,7 @@ local function GetAreaSchematicFileName(a_AreaID)
 	-- Check params:
 	assert(tonumber(a_AreaID))
 	assert(g_Config.WebPreview)
-	
+
 	return GetAreaSchematicFolderName(a_AreaID) .. "/" .. a_AreaID .. ".schematic"
 end
 
@@ -260,7 +260,7 @@ local function GetAreaPreviewFileName(a_AreaID, a_NumRotations)
 	-- Check params:
 	assert(tonumber(a_AreaID))
 	assert(tonumber(a_NumRotations))
-	
+
 	return GetAreaSchematicFolderName(a_AreaID) .. "/" .. a_AreaID .. "." .. a_NumRotations .. ".png"
 end
 
@@ -291,7 +291,7 @@ local g_RotatedDirection =
 		[BLOCK_FACE_ZM] = BLOCK_FACE_ZM,
 		[BLOCK_FACE_ZP] = BLOCK_FACE_ZP,
 	},
-	
+
 	[1] =  -- 1 CW rotation
 	{
 		[BLOCK_FACE_XM] = BLOCK_FACE_ZM,
@@ -311,7 +311,7 @@ local g_RotatedDirection =
 		[BLOCK_FACE_ZM] = BLOCK_FACE_ZP,
 		[BLOCK_FACE_ZP] = BLOCK_FACE_ZM,
 	},
-	
+
 	[3] =  -- 3 CW rotations
 	{
 		[BLOCK_FACE_XM] = BLOCK_FACE_ZP,
@@ -334,13 +334,13 @@ local function RotateConnector(a_Connector, a_Area, a_NumRotations)
 	assert(type(a_Connector) == "table")
 	assert(type(a_Area) == "table")
 	assert(type(a_NumRotations) == "number")
-	
+
 	local res = {y = a_Connector.Y - a_Area.ExportMinY}
 	local RelX = a_Connector.X - a_Area.ExportMinX
 	local RelZ = a_Connector.Z - a_Area.ExportMinZ
 	local SizeX = a_Area.ExportMaxX - a_Area.ExportMinX
 	local SizeZ = a_Area.ExportMaxZ - a_Area.ExportMinZ
-	
+
 	-- Rotate the XZ coords:
 	if (a_NumRotations == 0) then
 		res.x = RelX
@@ -355,11 +355,11 @@ local function RotateConnector(a_Connector, a_Area, a_NumRotations)
 		res.x = RelZ
 		res.z = SizeX - RelX
 	end
-	
+
 	-- Rotate and textualize the marker shape:
 	local RotatedDir = g_RotatedDirection[a_NumRotations] or {}
 	res.shape = g_ShapeName[RotatedDir[a_Connector.Direction]] or "Cube"
-	
+
 	return res
 end
 
@@ -377,14 +377,14 @@ local function ExportPreviewForAreas(a_Areas)
 		return
 	end
 	stp:ReconnectIfNeeded()
-	
+
 	-- Write the list to MCSchematicToPng's TCP link:
 	for _, area in ipairs(a_Areas) do
 		stp:Write(GetAreaSchematicFileName(area.Area.ID) .. "\n")
 		stp:Write(" outfile: " .. GetAreaPreviewFileName(area.Area.ID, area.NumRotations) .. "\n")
 		stp:Write(" numcwrotations: " .. area.NumRotations .. "\n")
 		stp:Write(" horzsize: 6\n vertsize: 8\n")
-		
+
 		local Connectors = g_DB:GetAreaConnectors(area.Area.ID) or {}
 		for _, conn in ipairs(Connectors) do
 			local rotconn = RotateConnector(conn, area.Area, area.NumRotations)
@@ -404,7 +404,7 @@ local function GeneratePreviewForAreas(a_Areas)
 	if not(a_Areas[1]) then
 		return
 	end
-	
+
 	-- Get a list of .schematic files that need updating
 	local ToExport = {}
 	for _, area in ipairs(a_Areas) do
@@ -417,7 +417,7 @@ local function GeneratePreviewForAreas(a_Areas)
 			ToExport[area] = true
 		end
 	end
-	
+
 	-- Export the .schematic files for each area, process one are after another, using ChunkStays:
 	-- (after one area is written to a file, schedule another ChunkStay for the next area)
 	-- Note that due to multithreading, the export needs to be scheduled onto the World Tick thread, otherwise a deadlock may occur
@@ -483,7 +483,7 @@ local function RefreshPreviewForAreas(a_Areas)
 	-- Check params and preconditions:
 	assert(type(a_Areas) == "table")
 	assert(g_Config.WebPreview)
-	
+
 	-- Check each area and each rotation:
 	local ToExport = {}  -- array of {Area = <db-area>, NumRotations = <number>}
 	for _, area in ipairs(a_Areas) do
@@ -509,7 +509,7 @@ local function RefreshPreviewForAreas(a_Areas)
 			return (a_Item1.Area.MinZ < a_Item2.Area.MinZ)
 		end
 	)
-	
+
 	-- Export each area:
 	GeneratePreviewForAreas(ToExport)
 end
@@ -522,7 +522,7 @@ end
 local function GetGroupLimiter(a_Request, a_GroupNames)
 	-- Check if a limit is already applied:
 	local GroupLimit = a_Request.Params["Group"]
-	
+
 	-- TODO
 	return ""
 end
@@ -534,12 +534,12 @@ end
 --- Returns the HTML-formatted description of the specified area
 local function GetAreaDescription(a_Area)
 	assert(type(a_Area) == "table")
-	
+
 	-- If the area is not valid, return "<unclaimed>":
 	if (a_Area.Name == nil) then
 		return "<p style='color: grey'>&lt;unclaimed&gt;</p>"
 	end
-	
+
 	-- Return the area's name and position, unless they're equal:
 	local Position = a_Area.GalleryName .. " " .. a_Area.GalleryIndex
 	if not(a_Area.ExportName) then
@@ -573,12 +573,12 @@ local function GetPager(a_Request)
 	local CurrentPage = StartIdx / g_NumAreasPerPage + 1
 	local Path = a_Request.Path
 	local MaxPageNum = math.ceil((g_DB:GetNumApprovedAreas() or 0) / g_NumAreasPerPage)
-	
+
 	-- Insert the "first page" link:
 	local res = {"<table><tr><th><a href=\""}
 	ins(res, PathToPage(Path, 1))
 	ins(res, "\">|&lt;&lt;&lt</a></th><th width='100%' style='align: center'><center>")
-	
+
 	-- Insert the page links for up to 5 pages in each direction:
 	local Pager = {}
 	for PageNum = CurrentPage - 5, CurrentPage + 5 do
@@ -595,12 +595,12 @@ local function GetPager(a_Request)
 		end
 	end
 	ins(res, table.concat(Pager, " | "))
-	
+
 	-- Insert the "last page" link:
 	ins(res, "</center></th><th><a href=\"")
 	ins(res, PathToPage(Path, MaxPageNum))
 	ins(res, "\">&gt;&gt;&gt;|</a></th></table>")
-	
+
 	return table.concat(res)
 end
 
@@ -613,7 +613,7 @@ end
 local function GetAreasHTMLHeader(a_ExtraColumn)
 	-- Check params:
 	assert((a_ExtraColumn == nil) or (type(a_ExtraColumn) == "string"))
-	
+
 	-- Add the preview line(s):
 	local res
 	if (g_Config.TwoLineAreaList) then
@@ -622,12 +622,12 @@ local function GetAreasHTMLHeader(a_ExtraColumn)
 		res = "<tr><th colspan=4>Preview</th>"
 	end
 	res = res .. "<th>Area</th><th>Group</th><th>Connectors</th><th>Author</th><th>Approved</th>"
-	
+
 	-- Add the extra column, if requested:
 	if (a_ExtraColumn) then
 		res = res .. "<th>" .. a_ExtraColumn .. "</th>"
 	end
-	
+
 	-- Add the rest of the table:
 	return res .. "<th width='1%'>Action</th></tr>"
 end
@@ -697,7 +697,7 @@ local function GetAreaHTMLRow(a_Area, a_ExtraActions, a_ExtraText)
 	ins(res, GetHTMLInput("submit", "details", {value = "Details"}))
 	ins(res, GetHTMLInput("hidden", "action",  {value = "areadetails"}))
 	ins(res, "</form>")
-	
+
 	-- Insert any extra actions:
 	for _, act in ipairs(a_ExtraActions) do
 		ins(res, "<form method=\"")
@@ -711,7 +711,7 @@ local function GetAreaHTMLRow(a_Area, a_ExtraActions, a_ExtraText)
 		ins(res, "</form>")
 	end
 	ins(res, "</td></tr>")
-	
+
 	return table.concat(res)
 end
 
@@ -772,17 +772,17 @@ local function GetAreaList(a_Request)
 	-- Read the request params:
 	local StartIdx = tonumber(a_Request.Params["startidx"]) or 0
 	local EndIdx = StartIdx + g_NumAreasPerPage - 1
-	
+
 	-- Get the areas from the DB, as a map of Idx -> Area
 	local Areas = g_DB:LoadApprovedAreasRange(StartIdx, EndIdx)
-	
+
 	-- Queue the areas for re-export:
 	local AreaArray = {}
 	for idx, area in pairs(Areas) do
 		table.insert(AreaArray, area)
 	end
 	RefreshPreviewForAreas(AreaArray)
-	
+
 	-- Build the page:
 	local FormDest = "/" .. a_Request.Path .. "?startidx=" .. StartIdx
 	local Page = {"<table>"}
@@ -791,7 +791,7 @@ local function GetAreaList(a_Request)
 		ins(Page, GetAreaHTMLRow(Area))
 	end
 	ins(Page, "</table>")
-	
+
 	return table.concat(Page)
 end
 
@@ -802,14 +802,14 @@ end
 --- Returns the HTML code for the Areas page
 local function ShowAreasPage(a_Request)
 	local res = {}
-	
+
 	local Pager = GetPager(a_Request)
 	ins(res, Pager)
 	ins(res, GetAreaList(a_Request))
 	ins(res, Pager)
 	local Groups = g_DB:GetAllGroupNames()
 	ins(res, GetGroupLimiter(a_Request, Groups))
-	
+
 	return table.concat(res)
 end
 
@@ -827,7 +827,7 @@ local function ExecuteGetPreview(a_Request)
 	if not(areaID) or not(rot) then
 		return "Invalid identification"
 	end
-	
+
 	local fnam = GetAreaPreviewFileName(areaID, rot)
 	local f, msg = io.open(fnam, "rb")
 	if not(f) then
@@ -858,7 +858,7 @@ local function ShowAreaDetails(a_Request)
 		return HTMLError("Area " .. AreaID .. " has not been approved") .. ShowAreasPage(a_Request)
 	end
 	RefreshPreviewForAreas({Area})
-	
+
 	-- Output the preview:
 	local res = {"<table><tr>"}
 	for rot = 0, 3 do
@@ -871,7 +871,7 @@ local function ShowAreaDetails(a_Request)
 		ins(res, "\"/></td>")
 	end
 	ins(res, "</tr></table>")
-	
+
 	-- Output the name editor:
 	ins(res, "<table><tr><th>Export name: </th><td><form method=\"POST\">")
 	ins(res, GetHTMLInput("hidden", "areaid",   {value = Area.ID}))
@@ -879,7 +879,7 @@ local function ShowAreaDetails(a_Request)
 	ins(res, GetHTMLInput("text",   "areaname", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Area.ExportName or "")}))
 	ins(res, GetHTMLInput("submit", "rename",   {value = "Rename"}))
 	ins(res, "</form></td></tr>")
-	
+
 	-- Output the group editor:
 	ins(res, "<tr><th>Export group</th><td><form method=\"POST\">")
 	ins(res, GetHTMLInput("hidden", "areaid",    {value = Area.ID}))
@@ -898,7 +898,7 @@ local function ShowAreaDetails(a_Request)
 		ins(res, cWebAdmin:GetHTMLEscapedString(a_Value))
 		ins(res, "</td></tr>")
 	end
-	
+
 	-- Output the dimensions, hitbox etc.:
 	AddProp("Location", Area.GalleryName .. " " .. Area.GalleryIndex)
 	AddProp("Author", Area.PlayerName)
@@ -913,7 +913,7 @@ local function ShowAreaDetails(a_Request)
 	AddProp("Hitbox extra Z-", Area.ExportMinZ - (Area.HitboxMinZ or Area.ExportMinZ))
 	AddProp("Hitbox extra Z+", (Area.HitboxMaxZ or Area.ExportMaxZ) - Area.ExportMaxZ)
 	ins(res, "</table>")
-	
+
 	-- Output the area metadata:
 	ins(res, "<br/><h3>Metadata:</h3><table><tr><th>Name</th><th>Value</th></tr>")
 	local Metadata = g_DB:GetMetadataForArea(Area.ID, false)  -- Returns a dictionary {Name = Value}
@@ -950,7 +950,7 @@ local function ShowAreaDetails(a_Request)
 	ins(res, GetAreaMetaNamesHTMLDatalist())
 	ins(res, "</form></td></tr>")
 	ins(res, "</table>")
-	
+
 	-- Output the connectors:
 	ins(res, "<br/><h3>Connectors:</h3><table><tr><th>Index</th><th>X</th><th>Y</th><th>Z</th><th>Type</th><th>Direction</th></tr>")
 	local Connectors = g_DB:GetAreaConnectors(Area.ID)
@@ -978,7 +978,7 @@ local function ShowAreaDetails(a_Request)
 	end
 	-- TODO: Add new connector
 	ins(res, "</table>")
-	
+
 	return table.concat(res)
 end
 
@@ -996,13 +996,13 @@ local function ExecuteDelMeta(a_Request)
 	if not(MetaName) then
 		return HTMLError("Invalid meta name")
 	end
-	
+
 	-- Delete the meta from the DB:
 	local IsSuccess, Msg = g_DB:UnsetAreaMetadata(AreaID, MetaName)
 	if not(IsSuccess) then
 		return HTMLError("Failed to delete meta: " .. (Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Display a success page with a return link:
 	return "<p>Meta value deleted successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
 end
@@ -1021,13 +1021,13 @@ local function ExecuteRegroupArea(a_Request)
 	if not(NewGroup) then
 		return HTMLError("Invalid group name")
 	end
-	
+
 	-- Rename in the DB:
 	local IsSuccess, Msg = g_DB:SetAreaExportGroup(AreaID, NewGroup)
 	if not(IsSuccess) then
 		return HTMLError("Failed to set area group: " .. (Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Display a success page with a return link:
 	return "<p>Area moved to group " .. cWebAdmin:GetHTMLEscapedString(NewGroup) .. " successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
 end
@@ -1046,13 +1046,13 @@ local function ExecuteRenameArea(a_Request)
 	if not(NewName) then
 		return HTMLError("Invalid new name")
 	end
-	
+
 	-- Rename in the DB:
 	local IsSuccess, Msg = g_DB:SetAreaExportName(AreaID, NewName)
 	if not(IsSuccess) then
 		return HTMLError("Failed to rename area: " .. (Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Display a success page with a return link:
 	return "<p>Area renamed successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
 end
@@ -1075,13 +1075,13 @@ local function ExecuteUpdateMeta(a_Request)
 	if not(MetaValue) then
 		return HTMLError("Invalid meta value")
 	end
-	
+
 	-- Update the meta:
 	local IsSuccess, Msg = g_DB:SetAreaMetadata(AreaID, MetaName, MetaValue)
 	if not(IsSuccess) then
 		return HTMLError("Failed to update meta: " .. (Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Display a success page with a return link:
 	return "<p>Meta value updated successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
 end
@@ -1098,7 +1098,7 @@ local function ShowGroupsPage(a_Request)
 		return "<p>There are no groups</p>"
 	end
 	table.sort(Groups)
-	
+
 	-- Output the list of groups, with basic info and operations:
 	local res = {"<table><tr><th>Group</th><th>Areas</th><th>Starting areas</th><th>Action</th></tr>"}
 	for _, grp in ipairs(Groups) do
@@ -1122,7 +1122,7 @@ local function ShowGroupsPage(a_Request)
 		ins(res, GetHTMLInput("submit", "details",   {value = "Details"}))
 		ins(res, "</form></td></tr>")
 	end  -- for grp - Groups[]
-	
+
 	return table.concat(res)
 end
 
@@ -1146,7 +1146,7 @@ local function ShowGroupDetails(a_Request)
 	ins(res, "</form></td></tr><tr><th>Number of areas</th><td>")
 	ins(res, g_DB:GetGroupAreaCount(GroupName) or "[unknown]")
 	ins(res, "</td></tr></table>")
-	
+
 	-- Output the group metadata editor:
 	ins(res, "<br/><h3>Group metadata:</h3><table><tr><th>Name</th><th>Value</th><th>Action</th></tr>")
 	local Metas = g_DB:GetMetadataForGroup(GroupName)
@@ -1174,7 +1174,7 @@ local function ShowGroupDetails(a_Request)
 		ins(res, "</form></td>")
 		ins(res, "</tr>")
 	end
-	
+
 	-- Output the new metadata entry form:
 	ins(res, "<tr><td><form method=\"POST\">")
 	ins(res, GetHTMLInput("hidden", "groupname", {value = GroupNameHTML}))
@@ -1186,11 +1186,11 @@ local function ShowGroupDetails(a_Request)
 	ins(res, GetGroupMetaNamesHTMLDatalist())
 	ins(res, "</form></td></tr>")
 	ins(res, "</table>")
-	
+
 	-- Queue the group's areas for re-export:
 	local Areas = g_DB:GetApprovedAreasInGroup(GroupName)
 	RefreshPreviewForAreas(Areas)
-	
+
 	-- Output the group's areas:
 	SortAreas(Areas)
 	ins(res, "<br/><h3>Group's areas:</h3><table>")
@@ -1199,7 +1199,7 @@ local function ShowGroupDetails(a_Request)
 		ins(res, GetAreaHTMLRow(area))
 	end
 	ins(res, "</table>")
-	
+
 	return table.concat(res)
 end
 
@@ -1223,7 +1223,7 @@ local function ExecuteDelGroupMeta(a_Request)
 	if not(IsSuccess) then
 		return HTMLError("Failed to delete meta: " .. (Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Display a success page with a return link:
 	return "<p>Meta value deleted successfully.</p><p>Return to <a href=\"?action=groupdetails&groupname=" .. cWebAdmin:GetHTMLEscapedString(GroupName) .. "\">group details</a>.</p>"
 end
@@ -1246,13 +1246,13 @@ local function ExecuteSetGroupMeta(a_Request)
 	if not(MetaValue) then
 		return HTMLError("Invalid meta value")
 	end
-	
+
 	-- Update the meta:
 	local IsSuccess, Msg = g_DB:SetGroupMetadata(GroupName, MetaName, MetaValue)
 	if not(IsSuccess) then
 		return HTMLError("Failed to set meta: " .. (Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Display a success page with a return link:
 	return "<p>Meta value has been set successfully.</p><p>Return to <a href=\"?action=groupdetails&groupname=" .. cWebAdmin:GetHTMLEscapedString(GroupName) .. "\">group details</a>.</p>"
 end
@@ -1301,7 +1301,7 @@ local function ExecuteDelConn(a_Request)
 	if not(IsSuccess) then
 		return HTMLError("Cannot delete connector from the DB: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Return the HTML:
 	return [[
 		<p>Connector has been deleted. Return to the <a href="?action=">Connectors page</a></p>
@@ -1318,7 +1318,7 @@ local function ExecuteLockApprovedAreas(a_Request)
 	if not(IsSuccess) then
 		return HTMLError("Cannot lock approved areas: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
 	end
-	
+
 	return [[
 		<p>Approved areas have been locked.</p>
 		<p>Return to the <a href="?action=">Maintenance page</a></p>
@@ -1343,16 +1343,16 @@ local function SetSponge(a_Request, a_BlockType, a_BlockMeta)
 	if not(Area) then
 		return HTMLError("No such area.")
 	end
-	
+
 	-- Create the BlockArea to use as the sponging:
 	local img = cBlockArea()
 	img:Create(Area.MaxX - Area.MinX, 256, Area.MaxZ - Area.MinZ)
 	img:Fill(a_BlockType, a_BlockMeta)
-	
+
 	-- Update the DB:
 	g_DB:SetAreaSponging(AreaID, img)
 	img:Clear()
-	
+
 	return [[
 		<p>Area sponge has been set.</p>
 		<p>Return to the <a href="?action=">Sponging page</a></p>
@@ -1387,7 +1387,7 @@ local function ExecuteUnlockAllAreas(a_Request)
 	if not(IsSuccess) then
 		return HTMLError("Cannot unlock all areas: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
 	end
-	
+
 	return [[
 		<p>All areas have been unlocked.</p>
 		<p>Return to the <a href="?action=">Maintenance page</a></p>
@@ -1421,14 +1421,14 @@ local function ShowCheckSpongingPage(a_Request)
 	if not(SpongedAreaIDs) then
 		return HTMLError("Cannot query the DB for sponged areas: " .. (Msg or "<unknown DB error>"))
 	end
-	
+
 	-- Prepare the intended use for each export group:
 	local GroupIntendedUse = {}  -- Map of "GroupName" -> <IntendedUseLowerCase>
 	for _, grpName in ipairs(AllGroups) do
 		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
 		GroupIntendedUse[grpName] = string.lower(GroupMetas["IntendedUse"] or "")
 	end
-	
+
 	-- Check each area:
 	local Issues = {}
 	for _, area in ipairs(AllAreas) do
@@ -1439,14 +1439,14 @@ local function ShowCheckSpongingPage(a_Request)
 			ins(Issues, area)
 		end
 	end
-	
+
 	-- If all OK, return the special text for All OK:
 	if not(Issues[1]) then
 		return [[
 			All approved areas have met their sponging requirements. No action is necessary.
 		]]
 	end
-	
+
 	-- List the unsponged areas:
 	local res = {
 		[[
@@ -1460,7 +1460,7 @@ local function ShowCheckSpongingPage(a_Request)
 		ins(res, GetAreaHTMLRow(area, g_SpongingActions))
 	end  -- for id - IDs[]
 	RefreshPreviewForAreas(Issues)
-	
+
 	return table.concat(res)
 end
 
@@ -1481,7 +1481,7 @@ local function ShowCheckConnectorsPage(a_Request)
 		</p>
 		<table>
 	]]}
-	
+
 	-- Load all from DB, convert areas from array to map of AreaID -> {AreaDesc}
 	local Connectors = g_DB:GetAllConnectors()
 	local AreasArr = g_DB:GetAllApprovedAreas()
@@ -1489,7 +1489,7 @@ local function ShowCheckConnectorsPage(a_Request)
 	for _, area in ipairs(AreasArr) do
 		Areas[area.ID] = area
 	end
-	
+
 	-- Process each connector:
 	local Issues = {}
 	local ConnectorTypeCounts = {}
@@ -1524,7 +1524,7 @@ local function ShowCheckConnectorsPage(a_Request)
 			ctc[conn.TypeNum] = (ctc[conn.TypeNum] or 0) + 1
 		end
 	end
-	
+
 	-- Villages have extra roads not included in the export group, add their connectors to the counts
 	for grpName, counts in pairs(ConnectorTypeCounts) do
 		local GroupMetas = g_DB:GetMetadataForGroup(grpName) or {}
@@ -1552,7 +1552,7 @@ local function ShowCheckConnectorsPage(a_Request)
 			end
 		end
 	end
-	
+
 	-- Check that each area has at least one connector:
 	for _, conn in ipairs(Connectors) do
 		local area = Areas[conn.AreaID] or {}
@@ -1570,7 +1570,7 @@ local function ShowCheckConnectorsPage(a_Request)
 		end
 	end
 	ins(res, "</table>")
-	
+
 	return table.concat(res)
 end
 
@@ -1590,8 +1590,8 @@ local function GetExportBaseFolder(a_GroupName, a_ExporterName)
 	-- Check params:
 	assert(type(a_GroupName) == "string")
 	assert(type(a_ExporterName) == "string")
-	
-	
+
+
 	return
 		g_Config.WebPreview.ThumbnailFolder .. g_PathSep ..
 		"exports" .. g_PathSep ..
@@ -1608,7 +1608,7 @@ end
 local function GetFolderContentsRecursive(a_Folder)
 	-- Check params:
 	assert(type(a_Folder) == "string")
-	
+
 	local ImmediateContents = cFile:GetFolderContents(a_Folder)
 	local BaseFolder = a_Folder .. g_PathSep
 	local res = {}
@@ -1624,7 +1624,7 @@ local function GetFolderContentsRecursive(a_Folder)
 			end
 		end  -- if (not "." and not "..")
 	end  -- for item - ImmediateContents[]
-	
+
 	return res
 end
 
@@ -1637,7 +1637,7 @@ local function GetExportFileDownloadLink(a_ExporterName, a_GroupNameHtml, a_File
 	assert(type(a_ExporterName) == "string")
 	assert(type(a_GroupNameHtml) == "string")
 	assert(type(a_FileName) == "string")
-	
+
 	local res = {"<a href='/~webadmin/GalExport/", PAGE_NAME_EXPORTS, "?action=dl&exporter=" }
 	ins(res, a_ExporterName)
 	ins(res, "&groupname=")
@@ -1660,7 +1660,7 @@ local function GetGroupExporterCell(a_GroupName, a_ExporterDesc)
 	assert(type(a_GroupName) == "string")
 	assert(type(a_ExporterDesc) == "table")
 	assert(a_ExporterDesc.Name)
-	
+
 	local ExportButtonText = "Export"
 	local ExportIdentifier = a_ExporterDesc.Name .. "|" .. a_GroupName
 
@@ -1684,7 +1684,7 @@ local function GetGroupExporterCell(a_GroupName, a_ExporterDesc)
 		ins(res, GetHTMLInput("hidden", "exporter",  {value = a_ExporterDesc.Name}))
 		ins(res, GetHTMLInput("submit", "export",    {value = "Re-export"}))
 		ins(res, "</form>")
-	
+
 		-- If there's only a single file, give a link to it directly:
 		local files = GetFolderContentsRecursive(BaseFolder)
 		if (files[1] and not(files[2])) then
@@ -1724,7 +1724,7 @@ local function ShowExportsPage(a_Request)
 		ins(res, "</th>")
 	end
 	ins(res, "</tr><tr>")
-	
+
 	-- Output a row for each group:
 	local AllGroups = g_DB:GetAllGroupNames()
 	table.sort(AllGroups)
@@ -1740,7 +1740,7 @@ local function ShowExportsPage(a_Request)
 		ins(res, "</tr>")
 	end
 	ins(res, "</table>")
-	
+
 	return table.concat(res)
 end
 
@@ -1764,22 +1764,22 @@ local function ExecuteExportGroup(a_Request)
 	if not(GroupName) then
 		return HTMLError("Missing group name")
 	end
-	
+
 	-- Before export, clear the destination folder:
 	local BaseFolder = GetExportBaseFolder(GroupName, ExporterName)
 	cFile:CreateFolderRecursive(BaseFolder)
 	cFile:DeleteFolderContents(BaseFolder)
-	
+
 	-- Get the area ident for each area in the group:
 	local Areas, Msg = g_DB:GetApprovedAreasInGroup(GroupName)
 	if (not(Areas) or not(Areas[1])) then
 		return HTMLError("Cannot load areas in group: " .. (Msg or "[unknown DB error]"))
 	end
-	
+
 	-- Mark the export as pending:
 	local ExportIdentifier = ExporterName .. "|" .. GroupName
 	g_PendingExports[ExportIdentifier] = FormatDateTime(os.time())
-	
+
 	-- Queue the export:
 	Exporter.ExportGroup(BaseFolder, Areas,
 		function()  -- success callback
@@ -1792,7 +1792,7 @@ local function ExecuteExportGroup(a_Request)
 			DeleteFolderRecursive(BaseFolder)
 		end
 	)
-	
+
 	return
 	[[
 		<p>Export was queued. Return to the <a href="?action=">Exports page</a>.</p>
@@ -1817,14 +1817,14 @@ local function ExecuteListFiles(a_Request)
 	if not(GroupName) then
 		return HTMLError("Missing group name")
 	end
-	
+
 	-- Get the filelist:
 	local BaseFolder = GetExportBaseFolder(GroupName, ExporterName)
 	local Files = GetFolderContentsRecursive(BaseFolder)
 	if not(Files[1]) then
 		return "<p>No files produced by the export</p>"
 	end
-	
+
 	-- List all files with their download link:
 	local res = {"<table><tr><th>FileName</th><th>Size</th><th>Download</th></tr>"}
 	local GroupNameHtml = cWebAdmin:GetHTMLEscapedString(GroupName)
@@ -1838,7 +1838,7 @@ local function ExecuteListFiles(a_Request)
 		ins(res, "</td></tr>")
 	end
 	ins(res, "</table>")
-	
+
 	return table.concat(res)
 end
 
@@ -1865,7 +1865,7 @@ local function DownloadExportedFile(a_Request)
 	if not(FileName) then
 		return HTMLError("Missing file name")
 	end
-	
+
 	local BaseFolder = GetExportBaseFolder(GroupName, ExporterName)
 	return cFile:ReadWholeFile(BaseFolder .. g_PathSep .. FileName)
 end
@@ -1893,7 +1893,7 @@ local function ShowCheckMetaPage(a_Request)
 			ins(res, "</table>")
 		end
 	end
-	
+
 	-- Check the groups' meta:
 	issuesFound, msg = checkAllGroupsMetadata()
 	if not(issuesFound) then
@@ -1918,7 +1918,7 @@ local function ShowCheckMetaPage(a_Request)
 			ins(res, "</table>")
 		end
 	end
-	
+
 	return table.concat(res)
 end
 
@@ -2020,9 +2020,9 @@ local function CreateRequestHandler(a_ActionHandlers)
 		if (Handler == nil) then
 			return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
 		end
-		
+
 		local PageContent = Handler(a_Request)
-		
+
 		return PageContent
 	end
 end

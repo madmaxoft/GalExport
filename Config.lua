@@ -39,18 +39,18 @@ local function VerifyConfig(a_Config)
 			LOGINFO(PLUGIN_PREFIX .. "The config doesn't define WebPreview.MCSchematicToPngPort. Web preview is disabled.")
 			a_Config.WebPreview = nil
 		end
-		
+
 		if (a_Config.WebPreview) then
 			a_Config.WebPreview.MCSchematicToPng = SchematicToPng_new(a_Config.WebPreview.MCSchematicToPngPort)
 		end
 	end
-	
+
 	-- Apply the CommandPrefix - change the actual g_PluginInfo table:
 	if (a_Config.CommandPrefix ~= "/ge") then
 		g_PluginInfo.Commands[a_Config.CommandPrefix] = g_PluginInfo.Commands["/ge"]
 		g_PluginInfo.Commands["/ge"] = nil
 	end
-	
+
 	return a_Config
 end
 
@@ -73,7 +73,7 @@ function LoadConfig()
 		g_Config = VerifyConfig({})
 		return
 	end
-	
+
 	-- Load and compile the config file:
 	local cfg, err = loadfile(CONFIG_FILE)
 	if (cfg == nil) then
@@ -81,13 +81,13 @@ function LoadConfig()
 		g_Config = VerifyConfig({})
 		return
 	end
-	
+
 	-- Execute the loaded file in a sandbox:
 	-- This is Lua-5.1-specific and won't work in Lua 5.2!
 	local Sandbox = {}
 	setfenv(cfg, Sandbox)
 	cfg()
-	
+
 	-- Retrieve the values we want from the sandbox:
 	Config = Sandbox.Config
 	if not(g_Config) then

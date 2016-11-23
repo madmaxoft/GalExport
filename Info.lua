@@ -7,7 +7,7 @@
 
 
 
-g_PluginInfo = 
+g_PluginInfo =
 {
 	Name = "GalExport",
 	Date = "2015-06-19",
@@ -45,7 +45,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},
 				},  -- approve
-				
+
 				autoselect =
 				{
 					HelpString = "Turns AutoSelect on or off",
@@ -68,7 +68,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},
 				},  -- autoselect
-				
+
 				boundingbox =
 				{
 					HelpString = "Manipulates the bounding boxes for export",
@@ -82,7 +82,7 @@ and edited with the help of WorldEdit and its WECUI link.
 							Alias = {"c", "update", "u"},
 							Handler = HandleCmdBboxChange,
 						},  -- change
-						
+
 						show =
 						{
 							HelpString = "Sets your WE selection to the bounding box of the area you're standing in",
@@ -92,7 +92,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},  -- show
 					},  -- Subcommands
 				},  -- boundingbox
-				
+
 				connector =
 				{
 					HelpString = "Manipulates the connectors at individual areas",
@@ -204,7 +204,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},  -- Subcommands
 				},  -- connector
-				
+
 				disapprove =
 				{
 					HelpString = "Disapproves a previously approved area",
@@ -219,7 +219,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},
 				},  -- disapprove
-				
+
 				export =
 				{
 					HelpString = "Exports areas",
@@ -240,7 +240,7 @@ and edited with the help of WorldEdit and its WECUI link.
 								},
 							},
 						},  -- this
-						
+
 						all =
 						{
 							HelpString = "Exports all areas that have been approved",
@@ -255,7 +255,7 @@ and edited with the help of WorldEdit and its WECUI link.
 								},
 							},
 						},  -- all
-						
+
 						group =
 						{
 							HelpString = "Exports all areas in the specified group",
@@ -272,7 +272,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},  -- group
 					},  -- Subcommands
 				},  -- export
-				
+
 				group =
 				{
 					HelpString = "Manages groups of approved areas",
@@ -286,7 +286,7 @@ and edited with the help of WorldEdit and its WECUI link.
 							Handler = HandleCmdGroupList,
 							Alias = {"ls", "l"},
 						},  -- list
-						
+
 						rename =
 						{
 							HelpString = "Renames existing group",
@@ -300,7 +300,7 @@ and edited with the help of WorldEdit and its WECUI link.
 								},
 							},
 						},  -- rename
-						
+
 						set =
 						{
 							HelpString = "Sets the group for the current area",
@@ -314,7 +314,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},  -- set
 					},  -- Subcommands
 				},  -- group
-				
+
 				hitbox =
 				{
 					HelpString = "Manipulates the hit boxes for export",
@@ -328,7 +328,7 @@ and edited with the help of WorldEdit and its WECUI link.
 							Alias = {"c", "update", "u"},
 							Handler = HandleCmdHboxChange,
 						},  -- change
-						
+
 						show =
 						{
 							HelpString = "Sets your WE selection to the hit box of the area you're standing in",
@@ -338,7 +338,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},  -- show
 					},  -- Subcommands
 				},  -- hitbox
-				
+
 				info =
 				{
 					HelpString = "Shows export-related information for the current area",
@@ -346,7 +346,7 @@ and edited with the help of WorldEdit and its WECUI link.
 					Alias = "i",
 					Handler = HandleCmdInfo,
 				},  -- info
-				
+
 				listapproved =
 				{
 					HelpString = "Shows a list of all the approved areas.",
@@ -359,14 +359,14 @@ and edited with the help of WorldEdit and its WECUI link.
 							Params = "GroupName",
 							Help = "Shows only the approved areas from the given group",
 						},
-						
+
 						{
 							Params = "",
 							Help = "Shows all the approved areas from every group",
 						},
 					},
 				},  -- listapproved
-				
+
 				name =
 				{
 					HelpString = "Sets the export name for the approved area you're standing in",
@@ -381,7 +381,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},
 				},  -- name
-				
+
 				set =
 				{
 					HelpString = "Sets a metadata value for the current area",
@@ -399,7 +399,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},
 				},  -- set
-				
+
 				sponge =
 				{
 					HelpString = "Helps with \"sponging\" the areas for export",
@@ -428,7 +428,7 @@ and edited with the help of WorldEdit and its WECUI link.
 						},
 					},  -- Subcommands
 				},  -- sponge
-				
+
 				unset =
 				{
 					HelpString = "Removes metadata value for the current area",
@@ -444,7 +444,7 @@ and edited with the help of WorldEdit and its WECUI link.
 			},  -- Subcommands
 		},  -- ["/ge"]
 	},  -- Commands
-	
+
 	ConsoleCommands =
 	{
 		ge =
@@ -457,13 +457,13 @@ and edited with the help of WorldEdit and its WECUI link.
 					HelpString = "Exports all the approved areas",
 					Handler = HandleConExportAll,
 				},
-				
+
 				group =
 				{
 					HelpString = "Exports the approved areas in the specified group",
 					Handler = HandleConExportGroup,
 				},
-				
+
 				meta =
 				{
 					HelpString = "Manipulates group metadata",
@@ -499,7 +499,7 @@ and edited with the help of WorldEdit and its WECUI link.
 		}  -- ge
 	},  -- ConsoleCommands
 }  -- g_PluginInfo
-				
+
 
 
 

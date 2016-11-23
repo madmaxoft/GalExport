@@ -19,7 +19,7 @@ CONFIG_FILE = "GalExport.cfg"
 function Initialize(a_Plugin)
 	-- Load the InfoReg library file for registering the Info.lua command table:
 	dofile(cPluginManager:GetPluginsPath() .. "/InfoReg.lua")
-	
+
 	-- Load the config
 	LoadConfig()
 
@@ -29,10 +29,10 @@ function Initialize(a_Plugin)
 	-- Initialize commands:
 	RegisterPluginInfoCommands()
 	RegisterPluginInfoConsoleCommands()
-	
+
 	-- Initialize the webadmin page:
 	InitWeb()
-	
+
 	return true
 end
 
