@@ -132,7 +132,7 @@ local g_GroupMetaChecker =
 			ins(a_Out, { GroupName = a_GroupName, Issue = "Unknown IntendedUse value: \"" .. a_MetaValue .. "\""})
 		end
 	end,
-	
+
 	allowedbiomes = function (a_Out, a_GroupName, a_MetaValue)
 		local biomes = StringSplitAndTrim(a_MetaValue, ",")
 		for _, biomeStr in ipairs(biomes) do
@@ -293,7 +293,7 @@ function checkAllAreasMetadata()
 	if not(areas) then
 		return false, "Cannot load approved areas from the DB: " .. (msg or "[unknown error]")
 	end
-	
+
 	return checkAreasMetadata(areas)
 end
 
@@ -311,7 +311,7 @@ function checkAllGroupsMetadata()
 		return false, "Cannot load export groups from the DB: " .. (msg or "[unknown error]")
 	end
 	table.sort(groups)
-	
+
 	return checkGroupsMetadata(groups)
 end
 

@@ -22,14 +22,14 @@ local g_PlayerStates =
 	--- Function called whenever the player enters a new gallery area
 	-- Params: cPlayer, NewArea
 	-- AutoActionEnter
-	
+
 	--- Function called whenever the player leaves a gallery area
 	-- Params: cPlayer, OldArea
 	-- AutoActionLeave
-	
+
 	--- The last Area where the player has been (according to UpdatePos())
 	-- LastArea
-	
+
 	--- The last position of the player when the LastArea was evaluated (performance optimization in UpdatePos())
 	-- LastAreaCheckPos
 }
@@ -42,14 +42,14 @@ function cPlayerState:new(a_Player)
 	local res = {}
 	setmetatable(res, cPlayerState)
 	self.__index = self
-	
+
 	-- Initialize the object members to their defaults:
 	res.PlayerEntityID = a_Player:GetUniqueID()
 	-- Intentionally use a far-away position so that the UpdatePos() updates everything for us:
 	res.LastAreaCheckPos = a_Player:GetPosition() + Vector3d(10, 0, 0)
 	res:UpdatePos(a_Player)
-	
-	
+
+
 	return res
 end
 
@@ -64,7 +64,7 @@ function cPlayerState:UpdatePos(a_Player)
 	-- Check params:
 	assert(self ~= nil)
 	assert(tolua.type(a_Player) == "cPlayer")
-	
+
 	local Pos = a_Player:GetPosition()
 	if self.LastArea then
 		-- The player has been in a specific area, check if they are still within:
@@ -104,13 +104,13 @@ function GetPlayerState(a_Player)
 	assert(tolua.type(a_Player) == "cPlayer")
 
 	local res = g_PlayerStates[a_Player:GetUniqueID()]
-	
+
 	-- If there's no such state, create one:
 	if not(res) then
 		res = cPlayerState:new(a_Player)
 		g_PlayerStates[a_Player:GetUniqueID()] = res
 	end
-	
+
 	return res;
 end
 

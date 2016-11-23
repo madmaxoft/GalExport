@@ -45,7 +45,7 @@ function GetChunksForRect(a_MinX, a_MinZ, a_MaxX, a_MaxZ)
 	for x = MinChunkX, MaxChunkX do for z = MinChunkZ, MaxChunkZ do
 		table.insert(Chunks, {x, z})
 	end end
-	
+
 	return Chunks
 end
 
@@ -69,7 +69,7 @@ function GetDirectionFromPlayerRotation(a_PlayerPitch, a_PlayerYaw)
 	local PlayerYaw = tonumber(a_PlayerYaw)
 	assert(PlayerPitch ~= nil)
 	assert(PlayerYaw ~= nil)
-	
+
 	-- Decide on the direction:
 	if (PlayerPitch > 70) then
 		return BLOCK_FACE_YM
@@ -100,14 +100,14 @@ function SendAvailableFormats(a_Player)
 	-- Check params:
 	local IsIndirect = (a_Player == nil) or (type(a_Player) == "string")
 	assert(IsIndirect or (tolua.type(a_Player) == "cPlayer"))
-	
+
 	-- Get a sorted list of export formats:
 	local Formats = {}
 	for k, v in pairs(g_Exporters) do
 		table.insert(Formats, k)
 	end
 	table.sort(Formats)
-	
+
 	-- Send to the player:
 	local msg = cCompositeChat("Available formats: " .. table.concat(Formats, ", "), mtInfo)
 	if (IsIndirect) then
@@ -135,7 +135,7 @@ function SendPlayerMessage(a_PlayerName, a_Message)
 		LOG(a_Message)
 		return
 	end
-	
+
 	-- Send the message to a player
 	cRoot:Get():FindAndDoWithPlayer(a_PlayerName,
 		function (a_Player)
@@ -162,7 +162,7 @@ function ParseDistanceDirection(a_Player, a_Split, a_BeginParam)
 	assert(tolua.type(a_Player) == "cPlayer")
 	assert(type(a_Split) == "table")
 	assert(type(a_BeginParam) == "number")
-	
+
 	-- Decide which params are present:
 	local NumParamsUsed = 0
 	local Direction
@@ -184,7 +184,7 @@ function ParseDistanceDirection(a_Player, a_Split, a_BeginParam)
 		NumParamsUsed = NumParamsUsed + 1
 	end
 	Direction = string.lower(Direction)
-	
+
 	-- Get the player's look direction:
 	local PlayerDirection
 	local Pitch = a_Player:GetPitch()
@@ -208,12 +208,12 @@ function ParseDistanceDirection(a_Player, a_Split, a_BeginParam)
 			PlayerDirection = "xm"
 		end
 	end
-	
+
 	-- If the player specified "me" as the direction, use their look direction instead of the given direction:
 	if ((Direction == "me") or (Direction == "self") or (Direction == "look")) then
 		Direction = PlayerDirection
 	end
-	
+
 	-- If the player specified "left" or "right", translate to cardinal direction based on PlayerDirection:
 	if (Direction == "left") then
 		if (PlayerDirection == "xm") then
@@ -236,7 +236,7 @@ function ParseDistanceDirection(a_Player, a_Split, a_BeginParam)
 			Direction = "xm"
 		end
 	end
-	
+
 	-- Based on Direction, decide what to return:
 	if (Direction == "up") then
 		return 0, Distance, 0, NumParamsUsed
@@ -274,9 +274,9 @@ function QueueExportAreaGroup(a_GroupName, a_Format, a_PlayerName, a_SuccessCall
 	assert((a_PlayerName == nil) or (type(a_PlayerName) == "string"))
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
 	assert((a_FailureCallback == nil) or (type(a_FailureCallback) == "function"))
-	
+
 	SendPlayerMessage(a_PlayerName, cCompositeChat("Exporting group " .. a_GroupName, mtInfo))
-	
+
 	-- Check if the format is supported:
 	local Exporter = g_Exporters[a_Format]
 	if not(Exporter) then
@@ -284,14 +284,14 @@ function QueueExportAreaGroup(a_GroupName, a_Format, a_PlayerName, a_SuccessCall
 		SendAvailableFormats(a_PlayerName)
 		return false
 	end
-	
+
 	-- Get the area ident for each area in the group:
 	local Areas = g_DB:GetApprovedAreasInGroup(a_GroupName)
 	if (not(Areas) or (Areas[1] == nil)) then
 		SendPlayerMessage(a_PlayerName, cCompositeChat("Cannot export, there is no gallery area in the group.", mtFailure))
 		return false
 	end
-	
+
 	-- Export the areas:
 	local function ReportSuccess()
 		SendPlayerMessage(a_PlayerName, cCompositeChat("Group exported", mtInfo))
@@ -321,7 +321,7 @@ function QueueExportAreaGroups(a_GroupNames, a_Format, a_PlayerName, a_SuccessCa
 	assert((a_PlayerName == nil) or (type(a_PlayerName) == "string"))
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
 	assert((a_FailureCallback == nil) or (type(a_FailureCallback) == "function"))
-	
+
 	-- Provide a default success and failure callbacks:
 	a_SuccessCallback = a_SuccessCallback or function()
 		SendPlayerMessage(a_PlayerName, cCompositeChat("Groups exported", mtInfo))
@@ -335,7 +335,7 @@ function QueueExportAreaGroups(a_GroupNames, a_Format, a_PlayerName, a_SuccessCa
 		a_SuccessCallback()
 		return true
 	end
-	
+
 	-- Check if the format is supported:
 	local Exporter = g_Exporters[a_Format]
 	if not(Exporter) then
@@ -343,7 +343,7 @@ function QueueExportAreaGroups(a_GroupNames, a_Format, a_PlayerName, a_SuccessCa
 		SendAvailableFormats(a_PlayerName)
 		return false
 	end
-	
+
 	-- Create a callback that queues the next group successively:
 	local CurrGroup = 1
 	local function SuccessCallback()
@@ -360,12 +360,12 @@ function QueueExportAreaGroups(a_GroupNames, a_Format, a_PlayerName, a_SuccessCa
 					a_CBWorld:QueueUnloadUnusedChunks()
 				end
 			)
-			
+
 			-- Queue the next group:
 			QueueExportAreaGroup(a_GroupNames[CurrGroup], a_Format, a_PlayerName, SuccessCallback, a_FailureCallback)
 		end
 	end
-	
+
 	-- Queue the first group:
 	return QueueExportAreaGroup(a_GroupNames[1], a_Format, a_PlayerName, SuccessCallback, a_FailureCallback)
 end
@@ -387,8 +387,8 @@ function QueueExportAllGroups(a_Format, a_PlayerName, a_SuccessCallback, a_Failu
 	assert((a_PlayerName == nil) or (type(a_PlayerName) == "string"))
 	assert((a_SuccessCallback == nil) or (type(a_SuccessCallback) == "function"))
 	assert((a_FailureCallback == nil) or (type(a_FailureCallback) == "function"))
-	
-	
+
+
 	-- Provide a default failure callback:
 	-- We might use it before queueing the export
 	a_FailureCallback = a_FailureCallback or function(a_Message)
@@ -401,7 +401,7 @@ function QueueExportAllGroups(a_Format, a_PlayerName, a_SuccessCallback, a_Failu
 		a_FailureCallback("There is no export group defined.")
 		return false
 	end
-	
+
 	-- Queue the export:
 	return QueueExportAreaGroups(GroupNames, a_Format, a_PlayerName, a_SuccessCallback, a_FailureCallback)
 end

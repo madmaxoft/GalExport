@@ -20,28 +20,28 @@ local g_MetadataDefaults =
 {
 	-- Whether the area is the starting area for the generator (1) or not (0):
 	["IsStarting"] = 0,
-	
+
 	-- Number of allowed CCW rotations, expressed as a bitmask-ed number
 	-- E. g. 0 = no rotations allowed, 1 = 1 CCW rotation allowed, 5 = 1 or 3 CCW rotations allowed
 	["AllowedRotations"] = 7,
-	
+
 	-- The name of the merge strategy to use for the blockarea
 	-- Must be a valid MergeStrategy name in the cBlockArea class
 	["MergeStrategy"] = "msSpongePrint",
-	
+
 	-- Whether the area should expand its lowest level towards the nearest non-air block; 0 or 1
 	["ShouldExpandFloor"] = 1,
-	
+
 	-- The weight to use for this prefab, unless there's any other modifier active
 	["DefaultWeight"] = 100,
-	
+
 	-- String specifying the weighted chance for this area's occurrence per tree-depth, such as "1:100|2:50|3:40|4:1|5:0"
 	-- Depth that isn't specified will get the DefaultWeight weight
 	["DepthWeight"] = "",
 
 	-- The weight to add to this piece's base per-depth chance if the previous piece is the same. Can be positive or negative.
 	["AddWeightIfSame"] = 0,
-	
+
 	-- The prefab should move Y-wise so that its first connector is on the ground level (TerrainHeightGen); 0 or 1
 	-- Used for the houses in the village generator
 	["MoveToGround"] = 0,
@@ -54,7 +54,7 @@ local g_MetadataDefaults =
 --- Formats the datetime (as returned by os.time() ) into textual representation used in the DB
 function FormatDateTime(a_DateTime)
 	assert(type(a_DateTime) == "number")
-	
+
 	return os.date("%Y-%m-%dT%H:%M:%S", a_DateTime)
 end
 
@@ -74,7 +74,7 @@ function SQLite:AddConnector(a_AreaID, a_BlockX, a_BlockY, a_BlockZ, a_Direction
 	assert(type(a_BlockZ) == "number")
 	assert(type(a_Direction) == "number")
 	assert(type(a_Type) == "number")
-	
+
 	-- Save connector to DB:
 	local RowID
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -116,7 +116,7 @@ function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid,
 	assert(type(a_GroupName) == "string")
 	assert(tolua.type(a_ExportCuboid) == "cCuboid")
 	assert((a_AreaName == nil) or (type(a_AreaName) == "string"))
-	
+
 	-- Check if the area is already approved:
 	local Info = nil
 	local IsSuccess = self:ExecuteStatement(
@@ -134,7 +134,7 @@ function SQLite:ApproveArea(a_AreaID, a_PlayerName, a_GroupName, a_ExportCuboid,
 	if (Info) then
 		return false, Info.ApprovedBy, Info.DateApproved, Info.ExportGroupName
 	end
-	
+
 	-- Set as approved:
 	IsSuccess = self:ExecuteStatement(
 		"UPDATE Areas SET IsApproved = 1, ApprovedBy = ?, DateApproved = ?, ExportGroupName = ?, ExportName = ?, \
@@ -173,7 +173,7 @@ function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ, a_NewDir)
 	assert(NewX)
 	assert(NewY)
 	assert(NewZ)
-	
+
 	local IsSuccess, Msg
 	if (a_NewDir) then
 		local NewDir = tonumber(a_NewDir)
@@ -216,7 +216,7 @@ function SQLite:ChangeConnectorType(a_ConnID, a_NewType)
 	assert(ConnID)
 	local NewType = tonumber(a_NewType)
 	assert(NewType)
-	
+
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Connectors SET TypeNum = ? WHERE ID = ?",
 		{
@@ -242,7 +242,7 @@ function SQLite:CreateDBTable(a_TableName, a_Columns)
 	assert(self)
 	assert(a_TableName)
 	assert(a_Columns)
-	
+
 	-- Try to create the table first
 	local sql = "CREATE TABLE IF NOT EXISTS '" .. a_TableName .. "' ("
 	sql = sql .. table.concat(a_Columns, ", ") .. ")"
@@ -253,7 +253,7 @@ function SQLite:CreateDBTable(a_TableName, a_Columns)
 		return false
 	end
 	-- SQLite doesn't inform us if it created the table or not, so we have to continue anyway
-	
+
 	-- Check each column whether it exists
 	-- Remove all the existing columns from a_Columns:
 	local RemoveExistingColumn = function(a_Values)
@@ -279,7 +279,7 @@ function SQLite:CreateDBTable(a_TableName, a_Columns)
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot query DB table structure")
 		return false
 	end
-	
+
 	-- Create the missing columns
 	-- a_Columns now contains only those columns that are missing in the DB
 	if (#a_Columns > 0) then
@@ -292,7 +292,7 @@ function SQLite:CreateDBTable(a_TableName, a_Columns)
 		end
 		LOGINFO(PLUGIN_PREFIX .. "Database table \"" .. a_TableName .. "\" columns fixed.")
 	end
-	
+
 	return true
 end
 
@@ -307,7 +307,7 @@ function SQLite:DeleteConnector(a_ConnID)
 	assert(self)
 	local ConnID = tonumber(a_ConnID)
 	assert(ConnID)
-	
+
 	-- Get the connector's AreaID (for marking the area as changed):
 	local AreaID
 	self:ExecuteStatement(
@@ -347,7 +347,7 @@ function SQLite:DisapproveArea(a_AreaID)
 	assert(self)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
-	
+
 	-- Update the DB:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET IsApproved = 0 WHERE ID = ?",
@@ -381,7 +381,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 	assert(self.DB)
 	assert((a_Callback == nil) or (type(a_Callback) == "function"))
 	assert((a_RowIDCallback == nil) or (type(a_RowIDCallback) == "function"))
-	
+
 	-- Prepare the statement (SQL-compile):
 	local Stmt, ErrCode, ErrMsg = self.DB:prepare(a_SQL)
 	if (Stmt == nil) then
@@ -390,7 +390,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 		LOGWARNING(PLUGIN_PREFIX .. "  Params = {" .. table.concat(a_Params or {}, ", ") .. "}")
 		return nil, ErrMsg
 	end
-	
+
 	-- Bind the values into the statement:
 	if (a_Params) then
 		ErrCode = Stmt:bind_values(unpack(a_Params))
@@ -401,7 +401,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 			return nil, ErrMsg
 		end
 	end
-	
+
 	-- Step the statement:
 	if (a_Callback == nil) then
 		ErrCode = Stmt:step()
@@ -419,7 +419,7 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 		for v in Stmt:nrows() do
 			a_Callback(v)
 		end
-		
+
 		if (a_RowIDCallback) then
 			a_RowIDCallback(self.DB:last_insert_rowid())
 		end
@@ -455,7 +455,7 @@ function SQLite:GetAllApprovedAreas()
 		-- DB error or no data (?)
 		return nil
 	end
-	
+
 	return res
 end
 
@@ -468,7 +468,7 @@ end
 function SQLite:GetAllConnectors()
 	-- Check params:
 	assert(self)
-	
+
 	-- Load from the DB:
 	local res = {}
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -480,7 +480,7 @@ function SQLite:GetAllConnectors()
 	if not(IsSuccess) then
 		return false, Msg
 	end
-	
+
 	return res
 end
 
@@ -493,7 +493,7 @@ end
 function SQLite:GetAllGroupNames()
 	-- Check params:
 	assert(self)
-	
+
 	-- Get the groups:
 	local res = {}
 	if not(self:ExecuteStatement(
@@ -507,7 +507,7 @@ function SQLite:GetAllGroupNames()
 	)) then
 		return nil
 	end
-	
+
 	return res
 end
 
@@ -524,7 +524,7 @@ function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
 	assert(type(a_WorldName) == "string")
 	assert(type(a_BlockX) == "number")
 	assert(type(a_BlockZ) == "number")
-	
+
 	-- Load from the DB:
 	local res
 	if not(self:ExecuteStatement(
@@ -540,12 +540,12 @@ function SQLite:GetAreaByCoords(a_WorldName, a_BlockX, a_BlockZ)
 		-- DB error or no data (?)
 		return nil
 	end
-	
+
 	if (not(res) or not(res.ID)) then
 		-- No valid data has been returned by the DB call
 		return nil
 	end
-	
+
 	return res
 end
 
@@ -561,7 +561,7 @@ function SQLite:GetAreaByID(a_AreaID)
 	assert(self)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
-	
+
 	-- Load from the DB:
 	local res
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -577,7 +577,7 @@ function SQLite:GetAreaByID(a_AreaID)
 		-- DB error or no valid data:
 		return nil, Msg
 	end
-	
+
 	return res
 end
 
@@ -592,7 +592,7 @@ function SQLite:GetAreaConnectorCount(a_AreaID)
 	assert(self)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
-	
+
 	-- Query the DB:
 	local res
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -605,7 +605,7 @@ function SQLite:GetAreaConnectorCount(a_AreaID)
 	if not(IsSuccess) then
 		return nil, Msg
 	end
-	
+
 	return res
 end
 
@@ -621,7 +621,7 @@ function SQLite:GetAreaConnectors(a_AreaID)
 	assert(self)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
-	
+
 	-- Load from the DB:
 	local res = {}
 	local ins = table.insert
@@ -635,7 +635,7 @@ function SQLite:GetAreaConnectors(a_AreaID)
 	if not(IsSuccess) then
 		return nil, Msg
 	end
-	
+
 	return res
 end
 
@@ -651,7 +651,7 @@ function SQLite:GetApprovedAreasInGroup(a_GroupName)
 	-- Check params:
 	assert(self)
 	assert(type(a_GroupName) == "string")
-	
+
 	-- Load from the DB:
 	local res = {}
 	if not(self:ExecuteStatement(
@@ -669,7 +669,7 @@ function SQLite:GetApprovedAreasInGroup(a_GroupName)
 		-- DB error or no data (?)
 		return nil
 	end
-	
+
 	return res
 end
 
@@ -684,7 +684,7 @@ function SQLite:GetConnectorByID(a_ConnectorID)
 	assert(self)
 	local ConnectorID = tonumber(a_ConnectorID)
 	assert(ConnectorID)
-	
+
 	-- Load from DB:
 	local res
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -697,7 +697,7 @@ function SQLite:GetConnectorByID(a_ConnectorID)
 	if not(IsSuccess) then
 		return nil, Msg
 	end
-	
+
 	return res
 end
 
@@ -712,7 +712,7 @@ function SQLite:GetGroupAreaCount(a_GroupName)
 	-- Check params:
 	assert(self)
 	assert(type(a_GroupName) == "string")
-	
+
 	-- Get the count from the DB:
 	local res
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -741,7 +741,7 @@ function SQLite:GetGroupStartingAreaCount(a_GroupName)
 	-- Check params:
 	assert(self)
 	assert(type(a_GroupName) == "string")
-	
+
 	-- Get the count from the DB:
 	local res
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -770,7 +770,7 @@ function SQLite:GetMaintenanceCheckStatus(a_CheckName)
 	-- Check params:
 	assert(self)
 	assert(type(a_CheckName) == "string")
-	
+
 	-- Load from DB:
 	local res
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -785,7 +785,7 @@ function SQLite:GetMaintenanceCheckStatus(a_CheckName)
 	if not(IsSuccess) or not(res) then
 		return false, Msg
 	end
-	
+
 	return res
 end
 
@@ -810,14 +810,14 @@ function SQLite:GetMetadataForArea(a_AreaID, a_IncludeDefaults)
 			res[a_Values.Name] = a_Values.Value
 		end
 	)
-	
+
 	-- Add the defaults:
 	if (a_IncludeDefaults) then
 		for k, v in pairs(g_MetadataDefaults) do
 			res[k] = res[k] or v
 		end
 	end
-	
+
 	return res
 end
 
@@ -878,7 +878,7 @@ end
 function SQLite:GetSpongedAreaIDsMap()
 	-- Check params:
 	assert(self)
-	
+
 	-- Load data from the DB:
 	local res = {}
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -891,7 +891,7 @@ function SQLite:GetSpongedAreaIDsMap()
 	if not(IsSuccess) then
 		return false, Msg
 	end
-	
+
 	return res
 end
 
@@ -922,12 +922,12 @@ function SQLite:GetSpongesForArea(a_AreaID)
 	if not(IsSuccess) then
 		return nil, Msg
 	end
-	
+
 	-- If the sponge hasn't been saved in the DB, bail out:
 	if ((SpongeSchematic == nil) or (SpongeSchematic == "")) then
 		return nil, "there are no sponges saved for this area"
 	end
-	
+
 	-- Create the block area from the data:
 	local Sponges = cBlockArea()
 	if not(Sponges:LoadFromSchematicString(Base64Decode(SpongeSchematic))) then
@@ -947,7 +947,7 @@ function SQLite:HasSponge(a_AreaID)
 	assert(self)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
-	
+
 	-- Query the DB:
 	local res
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -960,7 +960,7 @@ function SQLite:HasSponge(a_AreaID)
 	if not(IsSuccess) then
 		return nil, Msg
 	end
-	
+
 	return res
 end
 
@@ -975,7 +975,7 @@ function SQLite:LoadApprovedAreasRange(a_StartIdx, a_EndIdx)
 	assert(self)
 	assert(tonumber(a_StartIdx))
 	assert(tonumber(a_EndIdx))
-	
+
 	-- Load from the DB:
 	local res = {}
 	local IsSuccess, Msg = self:ExecuteStatement(
@@ -995,7 +995,7 @@ function SQLite:LoadApprovedAreasRange(a_StartIdx, a_EndIdx)
 		-- DB error or no data (?)
 		return false, Msg
 	end
-	
+
 	return res
 end
 
@@ -1075,7 +1075,7 @@ function SQLite:RenameGroup(a_FromName, a_ToName)
 	assert(self)
 	assert(type(a_FromName) == "string")
 	assert(type(a_ToName) == "string")
-	
+
 	-- Rename:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportGroupName = ? WHERE ExportGroupName = ?",
@@ -1105,7 +1105,7 @@ function SQLite:SetAreaExportGroup(a_AreaID, a_GroupName)
 	assert(self)
 	assert(tonumber(a_AreaID))
 	assert(type(a_GroupName) == "string")
-	
+
 	-- Update in DB:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportGroupName = ? WHERE ID = ?",
@@ -1134,7 +1134,7 @@ function SQLite:SetAreaExportName(a_AreaID, a_AreaName)
 	assert(self)
 	assert(tonumber(a_AreaID))
 	assert(type(a_AreaName) == "string")
-	
+
 	-- Rename in DB:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportName = ? WHERE ID = ?",
@@ -1164,7 +1164,7 @@ function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
 	assert(type(a_Name) == "string")
-	
+
 	-- Remove any previous value:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"DELETE FROM Metadata WHERE AreaID = ? AND Name = ?",
@@ -1175,7 +1175,7 @@ function SQLite:SetAreaMetadata(a_AreaID, a_Name, a_Value)
 	if not(IsSuccess) then
 		return false, "Failed to remove old value: " .. (Msg or "<no details>")
 	end
-	
+
 	-- Add the new value:
 	if (a_Value and (a_Value ~= "")) then
 		IsSuccess, Msg = self:ExecuteStatement(
@@ -1208,7 +1208,7 @@ function SQLite:SetAreaSponging(a_AreaID, a_Sponging)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
 	assert(tolua.type(a_Sponging) == "cBlockArea")
-	
+
 	-- Remove all existing sponges for the specified area:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"DELETE FROM ExportSponges WHERE AreaID = ?",
@@ -1223,7 +1223,7 @@ function SQLite:SetAreaSponging(a_AreaID, a_Sponging)
 	-- Convert the sponging into DB-friendly representation:
 	local SchematicData = a_Sponging:SaveToSchematicString()
 	local AreaRep = Base64Encode(SchematicData)
-	
+
 	-- Save the sponge area into the DB:
 	IsSuccess, Msg = self:ExecuteStatement(
 		"INSERT INTO ExportSponges (AreaID, Sponges) VALUES (?, ?)",
@@ -1238,7 +1238,7 @@ function SQLite:SetAreaSponging(a_AreaID, a_Sponging)
 
 	-- Mark the area as changed:
 	self:MarkAreaChangedNow(AreaID)
-	
+
 	return true
 end
 
@@ -1253,7 +1253,7 @@ function SQLite:SetGroupMetadata(a_GroupName, a_Name, a_Value)
 	assert(self)
 	assert(type(a_GroupName) == "string")
 	assert(type(a_Name) == "string")
-	
+
 	-- Remove any previous value:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"DELETE FROM GroupMetadata WHERE GroupName = ? AND Name = ?",
@@ -1264,7 +1264,7 @@ function SQLite:SetGroupMetadata(a_GroupName, a_Name, a_Value)
 	if not(IsSuccess) then
 		return false, "Failed to remove old value: " .. (Msg or "<no details>")
 	end
-	
+
 	-- Add the new value:
 	if (a_Value and (a_Value ~= "")) then
 		IsSuccess, Msg = self:ExecuteStatement(
@@ -1277,7 +1277,7 @@ function SQLite:SetGroupMetadata(a_GroupName, a_Name, a_Value)
 			return false, "Failed to set new value: " .. (Msg or "<no details>")
 		end
 	end
-	
+
 	return true
 end
 
@@ -1292,7 +1292,7 @@ function SQLite:SetMaintenanceCheckStatus(a_CheckName, a_Result)
 	assert(self)
 	assert(type(a_CheckName) == "string")
 	assert(a_Result)
-	
+
 	-- Delete the previous result:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"DELETE FROM LastMaintenanceCheckStatus WHERE CheckName = ?",
@@ -1303,7 +1303,7 @@ function SQLite:SetMaintenanceCheckStatus(a_CheckName, a_Result)
 	if not(IsSuccess) then
 		return false, Msg
 	end
-	
+
 	-- Store the new result:
 	IsSuccess, Msg = self:ExecuteStatement(
 		"INSERT INTO LastMaintenanceCheckStatus (CheckName, DateTime, Result) VALUES (?, ?, ?)",
@@ -1314,7 +1314,7 @@ function SQLite:SetMaintenanceCheckStatus(a_CheckName, a_Result)
 	if not(IsSuccess) then
 		return false, Msg
 	end
-	
+
 	return true
 end
 
@@ -1333,7 +1333,7 @@ function SQLite:SetConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ)
 	assert(NewX)
 	assert(NewY)
 	assert(NewZ)
-	
+
 	-- Update in the DB:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Connectors SET X = ?, Y = ?, Z = ? WHERE ID = ?",
@@ -1358,7 +1358,7 @@ function SQLite:TableExists(a_TableName)
 	-- Check params:
 	assert(self)
 	assert(type(a_TableName) == "string")
-	
+
 	-- Check existence:
 	local res = false
 	self:ExecuteStatement(
@@ -1380,7 +1380,7 @@ end
 function SQLite:UnlockAllAreas()
 	-- Check params:
 	assert(self)
-	
+
 	return self:ExecuteStatement(
 		"UPDATE Areas SET IsLocked = 0, DateLastChanged = ? WHERE CAST(IsLocked AS NUMBER) = 1"
 	)
@@ -1398,7 +1398,7 @@ function SQLite:UnsetAreaMetadata(a_AreaID, a_Name)
 	local AreaID = tonumber(a_AreaID)
 	assert(AreaID)
 	assert(type(a_Name) == "string")
-	
+
 	-- Remove the value:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"DELETE FROM Metadata WHERE AreaID = ? AND Name = ?",
@@ -1412,7 +1412,7 @@ function SQLite:UnsetAreaMetadata(a_AreaID, a_Name)
 
 	-- Mark the area as changed:
 	self:MarkAreaChangedNow(AreaID)
-	
+
 	return true
 end
 
@@ -1427,7 +1427,7 @@ function SQLite:UnsetGroupMetadata(a_GroupName, a_Name)
 	assert(self)
 	assert(type(a_GroupName) == "string")
 	assert(type(a_Name) == "string")
-	
+
 	-- Remove the value:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"DELETE FROM GroupMetadata WHERE GroupName = ? AND Name = ?",
@@ -1457,7 +1457,7 @@ function SQLite:UpdateAreaBBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY,
 	assert(tonumber(a_MaxX))
 	assert(tonumber(a_MaxY))
 	assert(tonumber(a_MaxZ))
-	
+
 	-- Write into DB:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET ExportMinX = ?, ExportMinY = ?, ExportMinZ = ?, ExportMaxX = ?, ExportMaxY = ?, ExportMaxZ = ? WHERE ID = ?",
@@ -1472,7 +1472,7 @@ function SQLite:UpdateAreaBBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY,
 
 	-- Mark the area as changed:
 	self:MarkAreaChangedNow(a_AreaID)
-	
+
 	return true
 end
 
@@ -1492,7 +1492,7 @@ function SQLite:UpdateAreaHBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY,
 	assert(tonumber(a_MaxX))
 	assert(tonumber(a_MaxY))
 	assert(tonumber(a_MaxZ))
-	
+
 	-- Write into DB:
 	local IsSuccess, Msg = self:ExecuteStatement(
 		"UPDATE Areas SET HitboxMinX = ?, HitboxMinY = ?, HitboxMinZ = ?, HitboxMaxX = ?, HitboxMaxY = ?, HitboxMaxZ = ? WHERE ID = ?",
@@ -1507,7 +1507,7 @@ function SQLite:UpdateAreaHBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY,
 
 	-- Mark the area as changed:
 	self:MarkAreaChangedNow(a_AreaID)
-	
+
 	return true
 end
 
@@ -1538,7 +1538,7 @@ function SQLite:UpdateAreaSponges(a_AreaID, a_SpongedBlockArea)
 
 	-- Mark the area as changed:
 	self:MarkAreaChangedNow(a_AreaID)
-	
+
 	return true
 end
 
@@ -1549,7 +1549,7 @@ end
 function SQLite_CreateStorage(a_Params)
 	DB = SQLite
 	local DBFile = a_Params.File or "Galleries.sqlite"
-	
+
 	-- Open the DB:
 	local ErrCode, ErrMsg
 	DB.DB, ErrCode, ErrMsg = sqlite3.open(DBFile)
@@ -1557,7 +1557,7 @@ function SQLite_CreateStorage(a_Params)
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot open database \"" .. DBFile .. "\": " .. ErrMsg)
 		error(ErrMsg)  -- Abort the plugin
 	end
-	
+
 	-- Create the tables, if they don't exist yet:
 	local AreasColumns =
 	{
@@ -1614,7 +1614,7 @@ function SQLite_CreateStorage(a_Params)
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot create DB tables!")
 		error("Cannot create DB tables!")
 	end
-	
+
 	-- Returns the initialized database access object
 	return DB
 end
