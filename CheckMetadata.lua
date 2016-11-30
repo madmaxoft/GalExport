@@ -95,8 +95,8 @@ local g_VerticalLimitParams =
 local g_ValidExpandFloorStrategyValues =
 {
 	["none"] = true,
-	["repeattillnonair"] = true,
-	["repeattillsolid"] = true,
+	["repeatbottomtillnonair"] = true,
+	["repeatbottomtillsolid"] = true,
 }
 
 
