@@ -18,7 +18,7 @@ function HandleConEvolve()
 	if not(isSuccess) then
 		return true, "Failed to evolve ShouldExpandFloor(0), DB failure: " .. (msg or "<no message>")
 	end
-	isSuccess, msg = g_DB:ExecuteStatement("UPDATE Metadata SET Name = 'ExpandFloorStrategy', Value = 'RepeatTillNonAir' WHERE Name = 'ShouldExpandFloor' AND Value = '1'")
+	isSuccess, msg = g_DB:ExecuteStatement("UPDATE Metadata SET Name = 'ExpandFloorStrategy', Value = 'RepeatBottomTillNonAir' WHERE Name = 'ShouldExpandFloor' AND Value = '1'")
 	if not(isSuccess) then
 		return true, "Failed to evolve ShouldExpandFloor(1), DB failure: " .. (msg or "<no message>")
 	end
