@@ -23,6 +23,20 @@ local g_PlayerStatusMsgs = {}
 
 
 
+local function FormatAreaName(a_Area)
+	if (a_Area.ExportName and (a_Area.ExportName ~= "")) then
+		return a_Area.ExportName
+	elseif (a_Area.Name and (a_Area.Name ~= "")) then
+		return a_Area.Name
+	else
+		return string.format("%s %d", a_Area.GalleryName, a_Area.GalleryIndex)
+	end
+end
+
+
+
+
+
 local function OnPlayerMoving(a_Player, a_OldPosition, a_NewPosition)
 	local area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), a_NewPosition.x, a_NewPosition.z)
 	local msg
@@ -30,16 +44,14 @@ local function OnPlayerMoving(a_Player, a_OldPosition, a_NewPosition)
 		msg = ""
 	else
 		if (area.IsApproved) then
-			msg = string.format("%s %s by %s, approved, group %s",
-				area.GalleryName,
-				area.GalleryIndex,
+			msg = string.format("%s by %s, approved, group %s",
+				FormatAreaName(area),
 				area.PlayerName,
 				area.ExportGroupName
 			)
 		else
-			msg = string.format("%s %s by %s",
-				area.GalleryName,
-				area.GalleryIndex,
+			msg = string.format("%s by %s",
+				FormatAreaName(area),
 				area.PlayerName
 			)
 		end
