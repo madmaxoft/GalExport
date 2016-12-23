@@ -92,9 +92,26 @@ local g_PendingExports = {}
 
 
 
+--- Shortcut name for HTML escaping text
+local function Escape(a_Text)
+	return cWebAdmin:GetHTMLEscapedString(a_Text)
+end
+
+
+
+
+
+local function UrlEscape(a_Text)
+	return cUrlParser:UrlEncode(a_Text)
+end
+
+
+
+
+
 --- Returns the HTML-formatted error message with the specified reason
 local function HTMLError(a_Reason)
-	return "<b style='color: #a00'>" .. cWebAdmin:GetHTMLEscapedString(a_Reason) .. "</b>"
+	return "<b style='color: #a00'>" .. Escape(a_Reason) .. "</b>"
 end
 
 
@@ -271,12 +288,12 @@ end
 --- Translates Connector.Direction to the shape name to use for PNG export
 local g_ShapeName =
 {
-	[BLOCK_FACE_XM] = "BottomArrowXM",
-	[BLOCK_FACE_XP] = "BottomArrowXP",
-	[BLOCK_FACE_YP] = "ArrowYP",
-	[BLOCK_FACE_YM] = "ArrowYM",
-	[BLOCK_FACE_ZM] = "BottomArrowZM",
-	[BLOCK_FACE_ZP] = "BottomArrowZP",
+	["x-"] = "BottomArrowXM",
+	["x+"] = "BottomArrowXP",
+	["y-"] = "ArrowYP",
+	["y+"] = "ArrowYM",
+	["z-"] = "BottomArrowZM",
+	["z+"] = "BottomArrowZP",
 }
 
 --- Translates Connector.Direction via NumRotations into the new rotated Direction
@@ -284,42 +301,42 @@ local g_RotatedDirection =
 {
 	[0] =  -- No rotation
 	{
-		[BLOCK_FACE_XM] = BLOCK_FACE_XM,
-		[BLOCK_FACE_XP] = BLOCK_FACE_XP,
-		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
-		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
-		[BLOCK_FACE_ZM] = BLOCK_FACE_ZM,
-		[BLOCK_FACE_ZP] = BLOCK_FACE_ZP,
+		["x-"] = "x-",
+		["x+"] = "x+",
+		["y-"] = "y-",
+		["y+"] = "y+",
+		["z-"] = "z-",
+		["z+"] = "z+",
 	},
 
 	[1] =  -- 1 CW rotation
 	{
-		[BLOCK_FACE_XM] = BLOCK_FACE_ZM,
-		[BLOCK_FACE_XP] = BLOCK_FACE_ZP,
-		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
-		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
-		[BLOCK_FACE_ZM] = BLOCK_FACE_XP,
-		[BLOCK_FACE_ZP] = BLOCK_FACE_XM,
+		["x-"] = "z-",
+		["x+"] = "z+",
+		["y-"] = "y-",
+		["y+"] = "y+",
+		["z-"] = "x+",
+		["z+"] = "x-",
 	},
 
 	[2] =  -- 2 CW rotations
 	{
-		[BLOCK_FACE_XM] = BLOCK_FACE_XP,
-		[BLOCK_FACE_XP] = BLOCK_FACE_XM,
-		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
-		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
-		[BLOCK_FACE_ZM] = BLOCK_FACE_ZP,
-		[BLOCK_FACE_ZP] = BLOCK_FACE_ZM,
+		["x-"] = "x+",
+		["x+"] = "x-",
+		["y-"] = "y-",
+		["y+"] = "y+",
+		["z-"] = "z+",
+		["z+"] = "z-",
 	},
 
 	[3] =  -- 3 CW rotations
 	{
-		[BLOCK_FACE_XM] = BLOCK_FACE_ZP,
-		[BLOCK_FACE_XP] = BLOCK_FACE_ZM,
-		[BLOCK_FACE_YM] = BLOCK_FACE_YM,
-		[BLOCK_FACE_YP] = BLOCK_FACE_YP,
-		[BLOCK_FACE_ZM] = BLOCK_FACE_XM,
-		[BLOCK_FACE_ZP] = BLOCK_FACE_XP,
+		["x-"] = "z+",
+		["x+"] = "z-",
+		["y-"] = "y-",
+		["y+"] = "y+",
+		["z-"] = "x-",
+		["z+"] = "x+",
 	},
 }
 
@@ -358,7 +375,7 @@ local function RotateConnector(a_Connector, a_Area, a_NumRotations)
 
 	-- Rotate and textualize the marker shape:
 	local RotatedDir = g_RotatedDirection[a_NumRotations] or {}
-	res.shape = g_ShapeName[RotatedDir[a_Connector.Direction]] or "Cube"
+	res.shape = g_ShapeName[RotatedDir[ParseDirection(a_Connector.Direction)]] or "Cube"
 
 	return res
 end
@@ -543,11 +560,11 @@ local function GetAreaDescription(a_Area)
 	-- Return the area's name and position, unless they're equal:
 	local Position = a_Area.GalleryName .. " " .. a_Area.GalleryIndex
 	if not(a_Area.ExportName) then
-		return cWebAdmin:GetHTMLEscapedString(Position)
+		return Escape(Position)
 	elseif (Position == a_Area.ExportName) then
-		return cWebAdmin:GetHTMLEscapedString(a_Area.ExportName)
+		return Escape(a_Area.ExportName)
 	else
-		return cWebAdmin:GetHTMLEscapedString(a_Area.ExportName) .. "<br/>(" .. cWebAdmin:GetHTMLEscapedString(Position .. ")")
+		return Escape(a_Area.ExportName) .. "<br/>(" .. Escape(Position .. ")")
 	end
 end
 
@@ -667,7 +684,7 @@ local function GetAreaHTMLRow(a_Area, a_ExtraActions, a_ExtraText)
 	end
 	ins(res, GetAreaDescription(a_Area))
 	ins(res, "</td><td valign='top'>")
-	ins(res, cWebAdmin:GetHTMLEscapedString(a_Area.ExportGroupName or ""))
+	ins(res, Escape(a_Area.ExportGroupName or ""))
 	local Metadata = g_DB:GetMetadataForArea(a_Area.ID, false)
 	if (tonumber(Metadata["IsStarting"] or 0) ~= 0) then
 		ins(res, "<br/><i>Starting area</i>")
@@ -682,7 +699,7 @@ local function GetAreaHTMLRow(a_Area, a_ExtraActions, a_ExtraText)
 		ins(res, "</font></b>")
 	end
 	ins(res, "</center></td><td valign='top'>")
-	ins(res, cWebAdmin:GetHTMLEscapedString(a_Area.PlayerName) or "&nbsp;")
+	ins(res, Escape(a_Area.PlayerName) or "&nbsp;")
 	ins(res, "</td><td valign='top'>")
 	ins(res, (a_Area.DateApproved or "&nbsp;"):gsub("T", " ") .. "<br/>by " .. (a_Area.ApprovedBy or "&lt;unknown&gt;"))
 	ins(res, "</td><td valign='top'>")
@@ -858,9 +875,22 @@ local function ShowAreaDetails(a_Request)
 		return HTMLError("Area " .. AreaID .. " has not been approved") .. ShowAreasPage(a_Request)
 	end
 	RefreshPreviewForAreas({Area})
+	local res = {}
+
+	-- Output the breadcrumbs:
+	ins(res, "<p><a href='Groups'>Groups</a> &gt;&gt; <a href='Groups?action=groupdetails&groupname=")
+	ins(res, UrlEscape(Area.ExportGroupName))
+	ins(res, "'>Group ")
+	ins(res, Escape(Area.ExportGroupName))
+	ins(res, "</a></p>")
+	--[[
+	ins(res, CreateBreadcrumbs({
+		{ "Group " .. Escape(Area.ExportGroupName), {}},
+	}))
+	--]]
 
 	-- Output the preview:
-	local res = {"<table><tr>"}
+	ins(res, "<table><tr>")
 	for rot = 0, 3 do
 		ins(res, "<td valign='top'><img src=\"/~")
 		ins(res, a_Request.Path)
@@ -876,7 +906,7 @@ local function ShowAreaDetails(a_Request)
 	ins(res, "<table><tr><th>Export name: </th><td><form method=\"POST\">")
 	ins(res, GetHTMLInput("hidden", "areaid",   {value = Area.ID}))
 	ins(res, GetHTMLInput("hidden", "action",   {value = "renamearea"}))
-	ins(res, GetHTMLInput("text",   "areaname", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Area.ExportName or "")}))
+	ins(res, GetHTMLInput("text",   "areaname", {size = 100, value = Escape(Area.ExportName or "")}))
 	ins(res, GetHTMLInput("submit", "rename",   {value = "Rename"}))
 	ins(res, "</form></td></tr>")
 
@@ -884,18 +914,16 @@ local function ShowAreaDetails(a_Request)
 	ins(res, "<tr><th>Export group</th><td><form method=\"POST\">")
 	ins(res, GetHTMLInput("hidden", "areaid",    {value = Area.ID}))
 	ins(res, GetHTMLInput("hidden", "action",    {value = "regrouparea"}))
-	ins(res, GetHTMLInput("text",   "groupname", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Area.ExportGroupName)}))
+	ins(res, GetHTMLInput("text",   "groupname", {size = 100, value = Escape(Area.ExportGroupName)}))
 	ins(res, GetHTMLInput("submit", "regroup",   {value = "Set"}))
-	ins(res, "</form><a href=\"Groups?action=groupdetails&groupname=")
-	ins(res, cWebAdmin:GetHTMLEscapedString(Area.ExportGroupName))
-	ins(res, "\">View group</a></td></tr>")
+	ins(res, "</form></td></tr>")
 
 	-- Define a helper function for adding a property to the view
 	local function AddProp(a_Title, a_Value)
 		ins(res, "<tr><th>")
-		ins(res, cWebAdmin:GetHTMLEscapedString(a_Title))
+		ins(res, Escape(a_Title))
 		ins(res, "</th><td>")
-		ins(res, cWebAdmin:GetHTMLEscapedString(a_Value))
+		ins(res, Escape(a_Value))
 		ins(res, "</td></tr>")
 	end
 
@@ -924,19 +952,19 @@ local function ShowAreaDetails(a_Request)
 	table.sort(MetaArr)
 	for _, md in ipairs(MetaArr) do
 		ins(res, "<tr><td>")
-		ins(res, cWebAdmin:GetHTMLEscapedString(md))
+		ins(res, Escape(md))
 		ins(res, "</td><td><form method=\"POST\">")
 		ins(res, GetHTMLInput("hidden", "areaid",    {value = Area.ID}))
 		ins(res, GetHTMLInput("hidden", "action",    {value = "updatemeta"}))
-		ins(res, GetHTMLInput("hidden", "metaname",  {value = cWebAdmin:GetHTMLEscapedString(md)}))
-		ins(res, GetHTMLInput("text",   "metavalue", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Metadata[md])}))
+		ins(res, GetHTMLInput("hidden", "metaname",  {value = Escape(md)}))
+		ins(res, GetHTMLInput("text",   "metavalue", {size = 100, value = Escape(Metadata[md])}))
 		ins(res, GetHTMLInput("submit", "update",    {value = "Update"}))
 		ins(res, "</form>")
 
 		ins(res, "<form method=\"POST\">")
 		ins(res, GetHTMLInput("hidden", "areaid",    {value = Area.ID}))
 		ins(res, GetHTMLInput("hidden", "action",    {value = "delmeta"}))
-		ins(res, GetHTMLInput("hidden", "metaname",  {value = cWebAdmin:GetHTMLEscapedString(md)}))
+		ins(res, GetHTMLInput("hidden", "metaname",  {value = Escape(md)}))
 		ins(res, GetHTMLInput("submit", "delmeta",   {value = "Del"}))
 		ins(res, "</form></td></tr>")
 	end
@@ -1029,7 +1057,7 @@ local function ExecuteRegroupArea(a_Request)
 	end
 
 	-- Display a success page with a return link:
-	return "<p>Area moved to group " .. cWebAdmin:GetHTMLEscapedString(NewGroup) .. " successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
+	return "<p>Area moved to group " .. Escape(NewGroup) .. " successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
 end
 
 
@@ -1102,7 +1130,7 @@ local function ShowGroupsPage(a_Request)
 	-- Output the list of groups, with basic info and operations:
 	local res = {"<table><tr><th>Group</th><th>Areas</th><th>Starting areas</th><th>Action</th></tr>"}
 	for _, grp in ipairs(Groups) do
-		local GroupName = cWebAdmin:GetHTMLEscapedString(grp)
+		local GroupName = Escape(grp)
 		ins(res, "<tr><td>")
 		ins(res, GroupName)
 		ins(res, "</td><td>")
@@ -1141,7 +1169,7 @@ local function ShowGroupDetails(a_Request)
 	local res = {"<table><tr><th>Group name</th><td>"}
 	ins(res, "<form method=\"POST\">")
 	ins(res, GetHTMLInput("hidden", "action", {value = "renamegroup"}))
-	ins(res, GetHTMLInput("text",   "name",   {value = cWebAdmin:GetHTMLEscapedString(GroupName)}))
+	ins(res, GetHTMLInput("text",   "name",   {value = Escape(GroupName)}))
 	ins(res, GetHTMLInput("submit", "rename", {value = "Rename"}))
 	ins(res, "</form></td></tr><tr><th>Number of areas</th><td>")
 	ins(res, g_DB:GetGroupAreaCount(GroupName) or "[unknown]")
@@ -1155,20 +1183,20 @@ local function ShowGroupDetails(a_Request)
 		ins(MetaNames, k)
 	end
 	table.sort(MetaNames)
-	local GroupNameHTML = cWebAdmin:GetHTMLEscapedString(GroupName)
+	local GroupNameHTML = Escape(GroupName)
 	for _, mn in ipairs(MetaNames) do
 		ins(res, "<tr><td>")
-		ins(res, cWebAdmin:GetHTMLEscapedString(mn))
+		ins(res, Escape(mn))
 		ins(res, "</td><td><form method=\"POST\">")
 		ins(res, GetHTMLInput("hidden", "groupname", {value = GroupNameHTML}))
 		ins(res, GetHTMLInput("hidden", "action",    {value = "setmeta"}))
-		ins(res, GetHTMLInput("hidden", "metaname",  {value = cWebAdmin:GetHTMLEscapedString(mn)}))
-		ins(res, GetHTMLInput("text",   "metavalue", {size = 100, value = cWebAdmin:GetHTMLEscapedString(Metas[mn])}))
+		ins(res, GetHTMLInput("hidden", "metaname",  {value = Escape(mn)}))
+		ins(res, GetHTMLInput("text",   "metavalue", {size = 100, value = Escape(Metas[mn])}))
 		ins(res, GetHTMLInput("submit", "update",    {value = "Update"}))
 		ins(res, "</form></td>")
 		ins(res, "<td><form method=\"POST\">")
 		ins(res, GetHTMLInput("hidden", "groupname", {value = GroupNameHTML}))
-		ins(res, GetHTMLInput("hidden", "metaname",  {value = cWebAdmin:GetHTMLEscapedString(mn)}))
+		ins(res, GetHTMLInput("hidden", "metaname",  {value = Escape(mn)}))
 		ins(res, GetHTMLInput("hidden", "action",    {value = "delmeta"}))
 		ins(res, GetHTMLInput("submit", "del",       {value = "Del"}))
 		ins(res, "</form></td>")
@@ -1225,7 +1253,7 @@ local function ExecuteDelGroupMeta(a_Request)
 	end
 
 	-- Display a success page with a return link:
-	return "<p>Meta value deleted successfully.</p><p>Return to <a href=\"?action=groupdetails&groupname=" .. cWebAdmin:GetHTMLEscapedString(GroupName) .. "\">group details</a>.</p>"
+	return "<p>Meta value deleted successfully.</p><p>Return to <a href=\"?action=groupdetails&groupname=" .. Escape(GroupName) .. "\">group details</a>.</p>"
 end
 
 
@@ -1254,7 +1282,7 @@ local function ExecuteSetGroupMeta(a_Request)
 	end
 
 	-- Display a success page with a return link:
-	return "<p>Meta value has been set successfully.</p><p>Return to <a href=\"?action=groupdetails&groupname=" .. cWebAdmin:GetHTMLEscapedString(GroupName) .. "\">group details</a>.</p>"
+	return "<p>Meta value has been set successfully.</p><p>Return to <a href=\"?action=groupdetails&groupname=" .. Escape(GroupName) .. "\">group details</a>.</p>"
 end
 
 
@@ -1299,7 +1327,7 @@ local function ExecuteDelConn(a_Request)
 	-- Delete  the connector:
 	local IsSuccess, Msg = g_DB:DeleteConnector(ConnID)
 	if not(IsSuccess) then
-		return HTMLError("Cannot delete connector from the DB: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
+		return HTMLError("Cannot delete connector from the DB: " .. Escape(Msg or "<unknown DB error>"))
 	end
 
 	-- Return the HTML:
@@ -1316,7 +1344,7 @@ end
 local function ExecuteLockApprovedAreas(a_Request)
 	local IsSuccess, Msg = g_DB:LockApprovedAreas()
 	if not(IsSuccess) then
-		return HTMLError("Cannot lock approved areas: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
+		return HTMLError("Cannot lock approved areas: " .. Escape(Msg or "<unknown DB error>"))
 	end
 
 	return [[
@@ -1385,7 +1413,7 @@ end
 local function ExecuteUnlockAllAreas(a_Request)
 	local IsSuccess, Msg = g_DB:UnlockAllAreas()
 	if not(IsSuccess) then
-		return HTMLError("Cannot unlock all areas: " .. cWebAdmin:GetHTMLEscapedString(Msg or "<unknown DB error>"))
+		return HTMLError("Cannot unlock all areas: " .. Escape(Msg or "<unknown DB error>"))
 	end
 
 	return [[
@@ -1539,7 +1567,7 @@ local function ShowCheckConnectorsPage(a_Request)
 	for grpName, counts in pairs(ConnectorTypeCounts) do
 		for connType, connCount in pairs(counts) do
 			if ((counts[-connType] or 0) == 0) then
-				local HtmlName = cWebAdmin:GetHTMLEscapedString(grpName)
+				local HtmlName = Escape(grpName)
 				ins(res, "<tr><td><a href=\"")
 				ins(res, PAGE_NAME_GROUPS)
 				ins(res, "?action=groupdetails&groupname=")
@@ -1643,7 +1671,7 @@ local function GetExportFileDownloadLink(a_ExporterName, a_GroupNameHtml, a_File
 	ins(res, "&groupname=")
 	ins(res, a_GroupNameHtml)
 	ins(res, "&fnam=")
-	ins(res, cWebAdmin:GetHTMLEscapedString(a_FileName))
+	ins(res, Escape(a_FileName))
 	ins(res, "' download='")
 	ins(res, a_FileName)
 	ins(res, "'>Download</a>")
@@ -1827,10 +1855,10 @@ local function ExecuteListFiles(a_Request)
 
 	-- List all files with their download link:
 	local res = {"<table><tr><th>FileName</th><th>Size</th><th>Download</th></tr>"}
-	local GroupNameHtml = cWebAdmin:GetHTMLEscapedString(GroupName)
+	local GroupNameHtml = Escape(GroupName)
 	for _, fnam in ipairs(Files) do
 		ins(res, "<tr><td>")
-		ins(res, cWebAdmin:GetHTMLEscapedString(fnam))
+		ins(res, Escape(fnam))
 		ins(res, "</td><td>")
 		ins(res, (cFile:GetSize(BaseFolder .. g_PathSep .. fnam)))
 		ins(res, "</td><td>")
@@ -1912,7 +1940,7 @@ local function ShowCheckMetaPage(a_Request)
 				ins(res, "'>")
 				ins(res, issue.GroupName)
 				ins(res, "</a></td><td>")
-				ins(res, cWebAdmin:GetHTMLEscapedString(issue.Issue))
+				ins(res, Escape(issue.Issue))
 				ins(res, "</td></tr>")
 			end
 			ins(res, "</table>")

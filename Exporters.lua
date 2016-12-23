@@ -424,7 +424,6 @@ local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
 
 	-- Write out each connector's definition:
 	local Connectors = g_DB:GetAreaConnectors(a_AreaDef.ID)
-	local ConnDefs = {}
 	for _, conn in ipairs(Connectors) do
 		ins(res, con(
 		{
@@ -911,7 +910,7 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 	cFile:CreateFolderRecursive(a_BaseFolder)
 	local f, msg = io.open(FileName, "wb")
 	if not(f) then
-		a_FailureCallback("Cannot open file " .. FileName .. " for output")
+		a_FailureCallback("Cannot open file " .. FileName .. " for output: " .. (msg or "<unknown error>"))
 		return
 	end
 
