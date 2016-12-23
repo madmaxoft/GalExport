@@ -9,17 +9,22 @@
 
 local s_DirectionToString =
 {
-	[BLOCK_FACE_XM] = "X-",
-	[BLOCK_FACE_XP] = "X+",
-	[BLOCK_FACE_YM] = "Y-",
-	[BLOCK_FACE_YP] = "Y+",
-	[BLOCK_FACE_ZM] = "Z-",
-	[BLOCK_FACE_ZP] = "Z+",
+	[BLOCK_FACE_XM] = "x-",
+	[BLOCK_FACE_XP] = "x+",
+	[BLOCK_FACE_YM] = "y-",
+	[BLOCK_FACE_YP] = "y+",
+	[BLOCK_FACE_ZM] = "z-",
+	[BLOCK_FACE_ZP] = "z+",
 }
 
 --- Returns a string representation of the direction
+-- Converts from numbers to strings, keeps strings as-is
 function DirectionToString(a_Direction)
-	return s_DirectionToString[tonumber(a_Direction)]
+	if (tonumber(a_Direction)) then
+		return s_DirectionToString[a_Direction]
+	else
+		return a_Direction
+	end
 end
 
 
@@ -62,7 +67,67 @@ end
 
 
 
---- Returns the direction, represented as BLOCK_FACE_? constant, based on the player's pitch and yaw
+--- Map of lowercased string to direction values, used when translating user input of connector direction
+local s_DirectionStr =
+{
+	[tostring(BLOCK_FACE_XM)] = "x-",
+	[tostring(BLOCK_FACE_XP)] = "x+",
+	[tostring(BLOCK_FACE_YM)] = "y-",
+	[tostring(BLOCK_FACE_YP)] = "y+",
+	[tostring(BLOCK_FACE_ZM)] = "z-",
+	[tostring(BLOCK_FACE_ZP)] = "z+",
+	["x-"] = "x-",
+	["x+"] = "x+",
+	["y-"] = "y-",
+	["y+"] = "y+",
+	["z-"] = "z-",
+	["z+"] = "z+",
+
+	-- Rotational vertical connectors:
+	["y-x-z-"] = "y-x-z-",
+	["y-x-z+"] = "y-x-z+",
+	["y-x+z-"] = "y-x+z-",
+	["y-x+z+"] = "y-x+z+",
+	["y+x-z-"] = "y+x-z-",
+	["y+x-z+"] = "y+x-z+",
+	["y+x+z-"] = "y+x+z-",
+	["y+x+z+"] = "y+x+z+",
+
+	-- Rotational vertical connectors, non-canon forms:
+	["y-z-x-"] = "y-x-z-",
+	["y-z+x-"] = "y-x-z+",
+	["y-z-x+"] = "y-x+z-",
+	["y-z+x+"] = "y-x+z+",
+	["y+z-x-"] = "y+x-z-",
+	["y+z+x-"] = "y+x-z+",
+	["y+z-x+"] = "y+x+z-",
+	["y+z+x+"] = "y+x+z+",
+	["x-y-z-"] = "y-x-z-",
+	["x-y-z+"] = "y-x-z+",
+	["x+y-z-"] = "y-x+z-",
+	["x+y-z+"] = "y-x+z+",
+	["x-y+z-"] = "y+x-z-",
+	["x-y+z+"] = "y+x-z+",
+	["x+y+z-"] = "y+x+z-",
+	["x+y+z+"] = "y+x+z+",
+}
+
+
+
+
+--- Returns the canon direction based on the user input
+-- Returns nil if no match
+function ParseDirection(a_DirectionStr)
+	local key = string.lower(tostring(a_DirectionStr)):gsub("m", "-"):gsub("p", "+")  -- Lowercase, replace m/p with -/+
+	return s_DirectionStr[key]
+end
+
+
+
+
+
+--- Returns the direction, represented as a string, based on the player's pitch and yaw
+-- Uses only "y+" and "y-" for vertical directions, doesn't use the rotational "y+x+z+"
 function GetDirectionFromPlayerRotation(a_PlayerPitch, a_PlayerYaw)
 	-- Check params:
 	local PlayerPitch = tonumber(a_PlayerPitch)
@@ -72,18 +137,18 @@ function GetDirectionFromPlayerRotation(a_PlayerPitch, a_PlayerYaw)
 
 	-- Decide on the direction:
 	if (PlayerPitch > 70) then
-		return BLOCK_FACE_YM
+		return "y-"
 	elseif (PlayerPitch < -70) then
-		return BLOCK_FACE_YP
+		return "y+"
 	else
 		if ((PlayerYaw < -135) or (PlayerYaw >= 135)) then
-			return BLOCK_FACE_ZM
+			return "z-"
 		elseif (PlayerYaw < -45) then
-			return BLOCK_FACE_XP
+			return "x+"
 		elseif (PlayerYaw < 45) then
-			return BLOCK_FACE_ZP
+			return "z+"
 		else
-			return BLOCK_FACE_XM
+			return "x-"
 		end
 	end
 end

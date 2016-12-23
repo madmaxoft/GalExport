@@ -62,38 +62,6 @@ end
 
 
 
---- Returns the conn ident for the connector of the specified local index in the area
--- Returns nil and optional msg if no such connector exists or another (DB) error occurs
-local function GetConnFromLocalIndex(a_AreaID, a_LocalIndex)
-	-- Check the params:
-	local AreaID = tonumber(a_AreaID)
-	local LocalIndex = tonumber(a_LocalIndex)
-	assert(AreaID ~= nil)
-	assert(LocalIndex ~= nil)
-
-	-- Retrieve all the connectors from the DB:
-	local Connectors, Msg = g_DB:GetAreaConnectors(a_AreaID)
-	if (Connectors == nil) then
-		return nil, Msg
-	end
-	table.sort(Connectors,
-		function (a_Conn1, a_Conn2)
-			return (a_Conn1.ID < a_Conn2.ID)
-		end
-	)
-
-	-- Return the connector by index:
-	local res = Connectors[LocalIndex]
-	if (res == nil) then
-		return nil, "No such connector"
-	end
-	return res
-end
-
-
-
-
-
 --- Sends a list of the available metadata names to the player
 local function ListUnderstoodMetadata(a_Player)
 	-- Sort the metadata names:
@@ -438,7 +406,7 @@ end
 
 
 function HandleCmdConnAdd(a_Split, a_Player)
-	-- /ge conn add <type>
+	-- /ge conn add <type> [<direction>]
 
 	-- Check the params:
 	local Type = tonumber(a_Split[4])
@@ -459,7 +427,16 @@ function HandleCmdConnAdd(a_Split, a_Player)
 	end
 
 	-- Calc the connector's direction:
-	local Direction = GetDirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
+	local Direction
+	if (a_Split[5]) then
+		Direction = ParseDirection(a_Split[5])
+		if not(Direction) then
+			a_Player:SendMessage(cCompositeChat(string.format("Invalid direction specification: %s", a_Split[5]), mtFailure))
+			return true
+		end
+	else
+		Direction = GetDirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
+	end
 
 	-- Add the connector:
 	local Conn, Msg = g_DB:AddConnector(Area.ID, BlockX, BlockY, BlockZ, Direction, Type)
@@ -655,7 +632,16 @@ function HandleCmdConnReposition(a_Split, a_Player)
 	end
 
 	-- Change the connector position in the DB:
-	local Direction = GetDirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
+	local Direction
+	if (a_Split[5]) then
+		Direction = ParseDirection(a_Split[5])
+		if not(Direction) then
+			a_Player:SendMessage(cCompositeChat(string.format("Invalid direction specification: %s", a_Split[5]), mtFailure))
+			return true
+		end
+	else
+		Direction = GetDirectionFromPlayerRotation(a_Player:GetPitch(), a_Player:GetYaw())
+	end
 	local IsSuccess, Msg = g_DB:ChangeConnectorPos(ConnID, BlockX, BlockY, BlockZ, Direction)
 	if not(IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Cannot change connector " .. ConnID .. "'s position: " .. (Msg or "<no details>"), mtFailure))

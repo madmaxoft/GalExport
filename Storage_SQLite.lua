@@ -73,7 +73,7 @@ function SQLite:AddConnector(a_AreaID, a_BlockX, a_BlockY, a_BlockZ, a_Direction
 	assert(type(a_BlockX) == "number")
 	assert(type(a_BlockY) == "number")
 	assert(type(a_BlockZ) == "number")
-	assert(type(a_Direction) == "number")
+	assert(a_Direction)
 	assert(type(a_Type) == "number")
 
 	-- Save connector to DB:
@@ -177,13 +177,10 @@ function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ, a_NewDir)
 
 	local IsSuccess, Msg
 	if (a_NewDir) then
-		local NewDir = tonumber(a_NewDir)
-		assert(NewDir)
-
 		IsSuccess, Msg = self:ExecuteStatement(
 			"UPDATE Connectors SET X = ?, Y = ?, Z = ?, Direction = ? WHERE ID = ?",
 			{
-				NewX, NewY, NewZ, NewDir, ConnID
+				NewX, NewY, NewZ, a_NewDir, ConnID
 			}
 		)
 	else
@@ -1048,7 +1045,7 @@ function SQLite:MarkConnectorsAreaChangedNow(a_ConnID)
 
 	-- Get the AreaID of the connector:
 	local AreaID
-	local IsSuccess, Msg = self:ExecuteStatement("SELECT AreaID FROM Connectors WHERE ID = ?", {ConnID},
+	local IsSuccess, Msg = self:ExecuteStatement("SELECT AreaID FROM Connectors WHERE ID = ?", {a_ConnID},
 		function (a_Values)
 			AreaID = a_Values["AreaID"]
 		end
@@ -1582,7 +1579,7 @@ function SQLite_CreateStorage(a_Params)
 		"ID INTEGER PRIMARY KEY",  -- ID of the connector
 		"AreaID",                  -- ID of the area to which the connector belongs. Note that the area needn't be approved
 		"X", "Y", "Z",             -- (World) Coords of the connector
-		"Direction",               -- Direction (eBlockFace) of the connector
+		"Direction",               -- Direction of the connector
 		"TypeNum",                 -- Type of the connector (only same-type connectors will be connected in the generator)
 	}
 	local MetadataColumns =
