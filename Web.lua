@@ -70,20 +70,6 @@ local g_ExporterDescs =
 
 
 
-local DirectionToString =
-{
-	[BLOCK_FACE_XM] = "X-",
-	[BLOCK_FACE_XP] = "X+",
-	[BLOCK_FACE_YM] = "Y-",
-	[BLOCK_FACE_YP] = "Y+",
-	[BLOCK_FACE_ZM] = "Z-",
-	[BLOCK_FACE_ZP] = "Z+",
-}
-
-
-
-
-
 --- Dictionary of exports that have started and not yet completed
 -- Maps "<exporterCode>|<groupName>" -> "<startTime>" for such exports.
 local g_PendingExports = {}
@@ -202,18 +188,19 @@ local function IsConnectorReachableThroughHitbox(a_Connector, a_AreaDef)
 	-- Check params:
 	assert(type(a_Connector) == "table")
 	assert(type(a_AreaDef) == "table")
+	local dir = NormalizeDirection(a_Connector.Direction)
 
-	if (a_Connector.Direction == BLOCK_FACE_XM) then
+	if (dir == "x-") then
 		return (a_Connector.X <= (a_AreaDef.HitboxMinX or a_AreaDef.ExportMinX))
-	elseif (a_Connector.Direction == BLOCK_FACE_XP) then
+	elseif (dir == "x+") then
 		return (a_Connector.X >= (a_AreaDef.HitboxMaxX or a_AreaDef.ExportMaxX))
-	elseif (a_Connector.Direction == BLOCK_FACE_YM) then
+	elseif (string.sub(dir, 1, 2) == "y-") then
 		return (a_Connector.Y <= (a_AreaDef.HitboxMinY or a_AreaDef.ExportMinY))
-	elseif (a_Connector.Direction == BLOCK_FACE_YP) then
+	elseif (string.sub(dir, 1, 2) == "y+") then
 		return (a_Connector.Y >= (a_AreaDef.HitboxMaxY or a_AreaDef.ExportMaxY))
-	elseif (a_Connector.Direction == BLOCK_FACE_ZM) then
+	elseif (dir == "z-") then
 		return (a_Connector.Z <= (a_AreaDef.HitboxMinZ or a_AreaDef.ExportMinZ))
-	elseif (a_Connector.Direction == BLOCK_FACE_ZP) then
+	elseif (dir == "z+") then
 		return (a_Connector.Z >= (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ))
 	end
 
@@ -273,12 +260,18 @@ end
 
 
 --- Returns the .png filename to use for the specified area and number of rotations
-local function GetAreaPreviewFileName(a_AreaID, a_NumRotations)
+-- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
+local function GetAreaPreviewFileName(a_AreaID, a_NumRotations, a_ShouldNameConnectors)
 	-- Check params:
 	assert(tonumber(a_AreaID))
 	assert(tonumber(a_NumRotations))
+	assert(type(a_ShouldNameConnectors) == "boolean")
 
-	return GetAreaSchematicFolderName(a_AreaID) .. "/" .. a_AreaID .. "." .. a_NumRotations .. ".png"
+	local name = GetAreaSchematicFolderName(a_AreaID) .. "/" .. a_AreaID .. "." .. a_NumRotations
+	if (a_ShouldNameConnectors) then
+		name = name .. ".conn"
+	end
+	return name .. ".png"
 end
 
 
@@ -288,12 +281,20 @@ end
 --- Translates Connector.Direction to the shape name to use for PNG export
 local g_ShapeName =
 {
-	["x-"] = "BottomArrowXM",
-	["x+"] = "BottomArrowXP",
-	["y-"] = "ArrowYP",
-	["y+"] = "ArrowYM",
-	["z-"] = "BottomArrowZM",
-	["z+"] = "BottomArrowZP",
+	["x-"]     = "BottomArrowXM",
+	["x+"]     = "BottomArrowXP",
+	["y-"]     = "ArrowYP",
+	["y-x-z-"] = "ArrowYMCornerXMZM",
+	["y-x-z+"] = "ArrowYMCornerXMZP",
+	["y-x+z-"] = "ArrowYMCornerXPZM",
+	["y-x+z+"] = "ArrowYMCornerXPZP",
+	["y+"]     = "ArrowYM",
+	["y+x-z-"] = "ArrowYPCornerXMZM",
+	["y+x-z+"] = "ArrowYPCornerXMZP",
+	["y+x+z-"] = "ArrowYPCornerXPZM",
+	["y+x+z+"] = "ArrowYPCornerXPZP",
+	["z-"]     = "BottomArrowZM",
+	["z+"]     = "BottomArrowZP",
 }
 
 --- Translates Connector.Direction via NumRotations into the new rotated Direction
@@ -301,12 +302,20 @@ local g_RotatedDirection =
 {
 	[0] =  -- No rotation
 	{
-		["x-"] = "x-",
-		["x+"] = "x+",
-		["y-"] = "y-",
-		["y+"] = "y+",
-		["z-"] = "z-",
-		["z+"] = "z+",
+		["x-"]     = "x-",
+		["x+"]     = "x+",
+		["y-"]     = "y-",
+		["y-x-z-"] = "y-x-z-",
+		["y-x-z+"] = "y-x-z+",
+		["y-x+z-"] = "y-x+z-",
+		["y-x+z+"] = "y-x+z+",
+		["y+"]     = "y+",
+		["y+x-z-"] = "y+x-z-",
+		["y+x-z+"] = "y+x-z+",
+		["y+x+z-"] = "y+x+z-",
+		["y+x+z+"] = "y+x+z+",
+		["z-"]     = "z-",
+		["z+"]     = "z+",
 	},
 
 	[1] =  -- 1 CW rotation
@@ -314,7 +323,15 @@ local g_RotatedDirection =
 		["x-"] = "z-",
 		["x+"] = "z+",
 		["y-"] = "y-",
+		["y-x-z-"] = "y-x+z-",
+		["y-x-z+"] = "y-x-z-",
+		["y-x+z-"] = "y-x+z+",
+		["y-x+z+"] = "y-x-z+",
 		["y+"] = "y+",
+		["y+x-z-"] = "y+x+z-",
+		["y+x-z+"] = "y+x-z-",
+		["y+x+z-"] = "y+x+z+",
+		["y+x+z+"] = "y+x-z+",
 		["z-"] = "x+",
 		["z+"] = "x-",
 	},
@@ -324,7 +341,15 @@ local g_RotatedDirection =
 		["x-"] = "x+",
 		["x+"] = "x-",
 		["y-"] = "y-",
+		["y-x-z-"] = "y-x+z+",
+		["y-x-z+"] = "y-x+z-",
+		["y-x+z-"] = "y-x-z+",
+		["y-x+z+"] = "y-x-z-",
 		["y+"] = "y+",
+		["y+x-z-"] = "y+x+z+",
+		["y+x-z+"] = "y+x+z-",
+		["y+x+z-"] = "y+x-z+",
+		["y+x+z+"] = "y+x-z-",
 		["z-"] = "z+",
 		["z+"] = "z-",
 	},
@@ -334,7 +359,15 @@ local g_RotatedDirection =
 		["x-"] = "z+",
 		["x+"] = "z-",
 		["y-"] = "y-",
+		["y-x-z-"] = "y-x-z+",
+		["y-x-z+"] = "y-x+z+",
+		["y-x+z-"] = "y-x-z-",
+		["y-x+z+"] = "y-x+z-",
 		["y+"] = "y+",
+		["y+x-z-"] = "y+x-z+",
+		["y+x-z+"] = "y+x+z+",
+		["y+x+z-"] = "y+x-z-",
+		["y+x+z+"] = "y+x+z-",
 		["z-"] = "x-",
 		["z+"] = "x+",
 	},
@@ -375,7 +408,7 @@ local function RotateConnector(a_Connector, a_Area, a_NumRotations)
 
 	-- Rotate and textualize the marker shape:
 	local RotatedDir = g_RotatedDirection[a_NumRotations] or {}
-	res.shape = g_ShapeName[RotatedDir[ParseDirection(a_Connector.Direction)]] or "Cube"
+	res.shape = g_ShapeName[RotatedDir[NormalizeDirection(a_Connector.Direction)]] or "Cube"
 
 	return res
 end
@@ -386,8 +419,12 @@ end
 
 --- Uses MCSchematicToPng to convert .schematic files into PNG previews for the specified areas
 -- a_Areas is an array of { Area = <db-Area>, NumRotations = <number> }
+-- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
 local ExportCounter = 0
-local function ExportPreviewForAreas(a_Areas)
+local function ExportPreviewForAreas(a_Areas, a_ShouldNameConnectors)
+	assert(type(a_Areas) == "table")
+	assert(type(a_ShouldNameConnectors) == "boolean")
+
 	local stp = g_Config.WebPreview.MCSchematicToPng
 	if not(stp) then
 		-- MCSchematicToPng is not available, bail out
@@ -398,14 +435,20 @@ local function ExportPreviewForAreas(a_Areas)
 	-- Write the list to MCSchematicToPng's TCP link:
 	for _, area in ipairs(a_Areas) do
 		stp:Write(GetAreaSchematicFileName(area.Area.ID) .. "\n")
-		stp:Write(" outfile: " .. GetAreaPreviewFileName(area.Area.ID, area.NumRotations) .. "\n")
+		stp:Write(" outfile: " .. GetAreaPreviewFileName(area.Area.ID, area.NumRotations, a_ShouldNameConnectors) .. "\n")
 		stp:Write(" numcwrotations: " .. area.NumRotations .. "\n")
 		stp:Write(" horzsize: 6\n vertsize: 8\n")
 
 		local Connectors = g_DB:GetAreaConnectors(area.Area.ID) or {}
-		for _, conn in ipairs(Connectors) do
+		for idx, conn in ipairs(Connectors) do
 			local rotconn = RotateConnector(conn, area.Area, area.NumRotations)
-			stp:Write(" marker: " .. rotconn.x .. ", " .. rotconn.y .. ", " .. rotconn.z .. ", " .. rotconn.shape .. ", ff0000\n")
+			stp:Write(" marker: " .. rotconn.x .. ", " .. rotconn.y .. ", " .. rotconn.z .. ", ")
+			if (a_ShouldNameConnectors) then
+				stp:Write("Letter" .. string.char(64 + idx))
+			else
+				stp:Write(rotconn.shape)
+			end
+			stp:Write(", ff0000\n")
 		end
 	end
 	stp:Write("\4\n")  -- End of text - process the last area
@@ -415,9 +458,51 @@ end
 
 
 
+--- Array of all known connector directions
+local g_AllDirections =
+{
+	"x-",
+	"x+",
+	"y-",
+	"y+",
+	"z-",
+	"z+",
+	"y-x-z-",
+	"y-x-z+",
+	"y-x+z-",
+	"y-x+z+",
+	"y+x-z-",
+	"y+x-z+",
+	"y+x+z-",
+	"y+x+z+",
+}
+
+--- Generated the HTML code for a drop-down control containing all directions
+-- a_FieldName is the field name for the generated control
+-- a_SelectedDirection is the direction that should be pre-selected in the drop-down control
+local function GenerateDirectionDropDown(a_FieldName, a_SelectedDirection)
+	local res = { "<select name='", a_FieldName, "'>"}
+	for _, dir in ipairs(g_AllDirections) do
+		if (a_SelectedDirection == dir) then
+			ins(res, "<option selected>")
+		else
+			ins(res, "<option>")
+		end
+		ins(res, dir)
+		ins(res, "</option>")
+	end
+	ins(res, "</select>")
+	return table.concat(res)
+end
+
+
+
+
+
 --- Generates the preview files for the specified areas
 -- a_Areas is an array of { Area = <db-area>, NumRotations = <number> }
-local function GeneratePreviewForAreas(a_Areas)
+-- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
+local function GeneratePreviewForAreas(a_Areas, a_ShouldNameConnectors)
 	if not(a_Areas[1]) then
 		return
 	end
@@ -472,7 +557,7 @@ local function GeneratePreviewForAreas(a_Areas)
 			end
 		else
 			-- All .schematic files have been exported, generate the preview PNGs:
-			ExportPreviewForAreas(a_Areas)
+			ExportPreviewForAreas(a_Areas, false)
 		end
 	end
 	if (ToExport[1]) then
@@ -486,7 +571,7 @@ local function GeneratePreviewForAreas(a_Areas)
 		)
 	else
 		-- All .schematic files have been exported, generate the preview PNGs:
-		ExportPreviewForAreas(a_Areas)
+		ExportPreviewForAreas(a_Areas, a_ShouldNameConnectors)
 	end
 end
 
@@ -496,16 +581,18 @@ end
 
 --- Checks the preview files for the specified areas and regenerates the ones that are outdated
 -- a_Areas is an array of areas as loaded from the DB
-local function RefreshPreviewForAreas(a_Areas)
+-- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
+local function RefreshPreviewForAreas(a_Areas, a_ShouldNameConnectors)
 	-- Check params and preconditions:
 	assert(type(a_Areas) == "table")
+	assert(type(a_ShouldNameConnectors) == "boolean")
 	assert(g_Config.WebPreview)
 
 	-- Check each area and each rotation:
 	local ToExport = {}  -- array of {Area = <db-area>, NumRotations = <number>}
 	for _, area in ipairs(a_Areas) do
 		for rot = 0, 3 do
-			local fnam = GetAreaPreviewFileName(area.ID, rot)
+			local fnam = GetAreaPreviewFileName(area.ID, rot, a_ShouldNameConnectors)
 			if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam))) then
 				table.insert(ToExport, { Area = area, NumRotations = rot})
 			end
@@ -528,7 +615,7 @@ local function RefreshPreviewForAreas(a_Areas)
 	)
 
 	-- Export each area:
-	GeneratePreviewForAreas(ToExport)
+	GeneratePreviewForAreas(ToExport, a_ShouldNameConnectors)
 end
 
 
@@ -798,7 +885,7 @@ local function GetAreaList(a_Request)
 	for idx, area in pairs(Areas) do
 		table.insert(AreaArray, area)
 	end
-	RefreshPreviewForAreas(AreaArray)
+	RefreshPreviewForAreas(AreaArray, false)
 
 	-- Build the page:
 	local FormDest = "/" .. a_Request.Path .. "?startidx=" .. StartIdx
@@ -844,8 +931,9 @@ local function ExecuteGetPreview(a_Request)
 	if not(areaID) or not(rot) then
 		return "Invalid identification"
 	end
+	local shouldnameconns = (a_Request.Params["shouldnameconns"] == "true")
 
-	local fnam = GetAreaPreviewFileName(areaID, rot)
+	local fnam = GetAreaPreviewFileName(areaID, rot, shouldnameconns)
 	local f, msg = io.open(fnam, "rb")
 	if not(f) then
 		return g_PreviewNotAvailableYetPng
@@ -853,6 +941,136 @@ local function ExecuteGetPreview(a_Request)
 	local res = f:read("*all")
 	f:close()
 	return res, "image/png"
+end
+
+
+
+
+
+--- Returns the contents of the requested preview PNG
+-- Returns g_PreviewNotAvailableYetPng if the specified preview is not yet available
+-- Returns an error if the request is for an invalid preview
+local function ExecuteGetStatic(a_Request)
+	-- Get the params:
+	local name = a_Request.Params["name"]
+	if not(name) then
+		return "Invalid identification"
+	end
+	if not(string.match(name, "%.png")) then
+		return "Invalid request"
+	end
+
+	return cFile:ReadWholeFile(cPluginManager:GetCurrentPlugin():GetLocalFolder() .. "/" .. name), "image/png"
+end
+
+
+
+
+
+local function ShowAreaConnectors(a_Request)
+	-- Check params:
+	local AreaID = tonumber(a_Request.Params["areaid"])
+	if not(AreaID) then
+		return HTMLError("No Area ID selected") .. ShowAreasPage(a_Request)
+	end
+
+	-- Load the area:
+	local Area = g_DB:GetAreaByID(AreaID)
+	if not(Area) then
+		return HTMLError("Area " .. AreaID .. " not found") .. ShowAreasPage(a_Request)
+	end
+	if (not(Area.IsApproved) or not(tonumber(Area.IsApproved) ~= 0)) then
+		return HTMLError("Area " .. AreaID .. " has not been approved") .. ShowAreasPage(a_Request)
+	end
+	RefreshPreviewForAreas({Area}, true)
+	local res = {}
+
+	-- Output the breadcrumbs:
+	ins(res, "<p><a href='Groups'>Groups</a> &gt;&gt; <a href='Groups?action=groupdetails&groupname=")
+	ins(res, UrlEscape(Area.ExportGroupName))
+	ins(res, "'>Group ")
+	ins(res, Escape(Area.ExportGroupName))
+	ins(res, "</a> &gt;&gt; <a href='Areas?action=areadetails&areaid=")
+	ins(res, AreaID)
+	ins(res, "'>Area ")
+	ins(res, Area.ExportName or Area.Name or (Area.GalleryName .. " " .. Area.GalleryIndex))
+	ins(res, "</a></p>")
+
+	-- Output the display:
+	ins(res, "<h2>Connectors</h2>")
+	ins(res, "<table><tr>")
+	for rot = 0, 3 do
+		ins(res, "<td valign='top'><img src=\"/~")
+		ins(res, a_Request.Path)
+		ins(res, "?action=getpreview&areaid=")
+		ins(res, Area.ID)
+		ins(res, "&rot=")
+		ins(res, rot)
+		ins(res, "&shouldnameconns=true\"/><br/><img src='/~")
+		ins(res,a_Request.Path)
+		ins(res, "?action=getstatic&name=rot")
+		ins(res, rot)
+		ins(res, ".png'/></td>")
+	end
+	ins(res, "</tr></table>")
+
+	-- Output the connectors:
+	ins(res, "<form action='Areas' method='POST'><input type='hidden' name='action' value='setallconns'/>")
+	ins(res, "<input type='hidden' name='areaid' value='")
+	ins(res, Area.ID)
+	ins(res, "'/><table><tr><th>Sign</th><th>Index</th><th>ID</th><th>X</th><th>Y</th><th>Z</th><th>Type</th><th>Direction</th></tr>")
+	local Connectors = g_DB:GetAreaConnectors(Area.ID)
+	for idx, conn in ipairs(Connectors) do
+		ins(res, "<tr><td>")
+		ins(res, string.char(64 + idx))
+		ins(res, "</td><td>")
+		ins(res, idx)
+		ins(res, "</td><td>")
+		ins(res, conn.ID)
+		ins(res, "</td><td><input type='edit' size=3 name='connx")
+		ins(res, conn.ID)
+		ins(res, "' value='")
+		ins(res, conn.X - Area.ExportMinX)
+		ins(res, "'/></td><td><input type='edit' size=3 name='conny")
+		ins(res, conn.ID)
+		ins(res, "' value='")
+		ins(res, conn.Y - Area.ExportMinY)
+		ins(res, "'/></td><td><input type='edit' size=3 name='connz")
+		ins(res, conn.ID)
+		ins(res, "' value='")
+		ins(res, conn.Z - Area.ExportMinZ)
+		ins(res, "'/></td><td><input type='edit' size=4 name='connt")
+		ins(res, conn.ID)
+		ins(res, "' value='")
+		ins(res, conn.TypeNum)
+		ins(res, "'/></td><td>\n")
+		ins(res, GenerateDirectionDropDown("connd" .. conn.ID, NormalizeDirection(conn.Direction)))
+		ins(res, "</td><td>\n")
+		if not(IsConnectorReachableThroughHitbox(conn, Area)) then
+			ins(res, "<b>Not reachable through hitbox!</b>")
+		else
+			ins(res, "&nbsp;")
+		end
+		ins(res, "</td></tr>")
+	end
+	ins(res, "</table><p><input type='submit' value='Apply all changes'/></p></form>")
+
+	-- Output the coord ranges:
+	ins(res, "<hr/><br/><h2>Coord ranges</h2><table><tr><th>X&nbsp;range</th><td>")
+	ins(res, (Area.HitboxMinX or Area.ExportMinX) - Area.ExportMinX)
+	ins(res, "&nbsp;..&nbsp;")
+	ins(res, (Area.HitboxMaxX or Area.ExportMaxX) - Area.ExportMinX)
+	ins(res, "</td><td width='100%'/></tr><tr><th>Y range</th><td>")
+	ins(res, (Area.HitboxMinY or Area.ExportMinY) - Area.ExportMinY)
+	ins(res, "&nbsp;..&nbsp;")
+	ins(res, (Area.HitboxMaxY or Area.ExportMaxY) - Area.ExportMinY)
+	ins(res, "</td><td width='100%'/></tr><tr><th>Z range</th><td>")
+	ins(res, (Area.HitboxMinZ or Area.ExportMinZ) - Area.ExportMinZ)
+	ins(res, "&nbsp;..&nbsp;")
+	ins(res, (Area.HitboxMaxZ or Area.ExportMaxZ) - Area.ExportMinZ)
+	ins(res, "</td><td width='100%'/></tr></table>")
+
+	return table.concat(res)
 end
 
 
@@ -874,7 +1092,8 @@ local function ShowAreaDetails(a_Request)
 	if (not(Area.IsApproved) or not(tonumber(Area.IsApproved) ~= 0)) then
 		return HTMLError("Area " .. AreaID .. " has not been approved") .. ShowAreasPage(a_Request)
 	end
-	RefreshPreviewForAreas({Area})
+	RefreshPreviewForAreas({Area}, false)
+	RefreshPreviewForAreas({Area}, true)  -- Refresh connector-view as well, in advance
 	local res = {}
 
 	-- Output the breadcrumbs:
@@ -883,11 +1102,6 @@ local function ShowAreaDetails(a_Request)
 	ins(res, "'>Group ")
 	ins(res, Escape(Area.ExportGroupName))
 	ins(res, "</a></p>")
-	--[[
-	ins(res, CreateBreadcrumbs({
-		{ "Group " .. Escape(Area.ExportGroupName), {}},
-	}))
-	--]]
 
 	-- Output the preview:
 	ins(res, "<table><tr>")
@@ -953,7 +1167,7 @@ local function ShowAreaDetails(a_Request)
 	for _, md in ipairs(MetaArr) do
 		ins(res, "<tr><td>")
 		ins(res, Escape(md))
-		ins(res, "</td><td><form method=\"POST\">")
+		ins(res, "</td><td><form method=\"POST\" style='display: inline'>")
 		ins(res, GetHTMLInput("hidden", "areaid",    {value = Area.ID}))
 		ins(res, GetHTMLInput("hidden", "action",    {value = "updatemeta"}))
 		ins(res, GetHTMLInput("hidden", "metaname",  {value = Escape(md)}))
@@ -961,7 +1175,7 @@ local function ShowAreaDetails(a_Request)
 		ins(res, GetHTMLInput("submit", "update",    {value = "Update"}))
 		ins(res, "</form>")
 
-		ins(res, "<form method=\"POST\">")
+		ins(res, "<form method=\"POST\" style='display: inline'>")
 		ins(res, GetHTMLInput("hidden", "areaid",    {value = Area.ID}))
 		ins(res, GetHTMLInput("hidden", "action",    {value = "delmeta"}))
 		ins(res, GetHTMLInput("hidden", "metaname",  {value = Escape(md)}))
@@ -980,7 +1194,9 @@ local function ShowAreaDetails(a_Request)
 	ins(res, "</table>")
 
 	-- Output the connectors:
-	ins(res, "<br/><h3>Connectors:</h3><table><tr><th>Index</th><th>X</th><th>Y</th><th>Z</th><th>Type</th><th>Direction</th></tr>")
+	ins(res, "<br/><h3>Connectors:</h3><a href='Areas?action=areaconns&areaid=")
+	ins(res, Area.ID)
+	ins(res, "'>Editor</a><br/><table><tr><th>Index</th><th>X</th><th>Y</th><th>Z</th><th>Type</th><th>Direction</th></tr>")
 	local Connectors = g_DB:GetAreaConnectors(Area.ID)
 	for idx, conn in ipairs(Connectors) do
 		ins(res, "<tr><td>")
@@ -994,7 +1210,7 @@ local function ShowAreaDetails(a_Request)
 		ins(res, "</td><td>")
 		ins(res, conn.TypeNum)
 		ins(res, "</td><td>")
-		ins(res, DirectionToString[conn.Direction] or "unknown")
+		ins(res, DirectionToString(conn.Direction) or "unknown")
 		ins(res, "</td><td>")
 		if not(IsConnectorReachableThroughHitbox(conn, Area)) then
 			ins(res, "<b>Not reachable through hitbox!</b>")
@@ -1217,7 +1433,7 @@ local function ShowGroupDetails(a_Request)
 
 	-- Queue the group's areas for re-export:
 	local Areas = g_DB:GetApprovedAreasInGroup(GroupName)
-	RefreshPreviewForAreas(Areas)
+	RefreshPreviewForAreas(Areas, false)
 
 	-- Output the group's areas:
 	SortAreas(Areas)
@@ -1254,6 +1470,63 @@ local function ExecuteDelGroupMeta(a_Request)
 
 	-- Display a success page with a return link:
 	return "<p>Meta value deleted successfully.</p><p>Return to <a href=\"?action=groupdetails&groupname=" .. Escape(GroupName) .. "\">group details</a>.</p>"
+end
+
+
+
+
+
+local function ExecuteSetAllConns(a_Request)
+	-- Check params:
+	local areaID = tonumber(a_Request.PostParams["areaid"])
+	if not(areaID) then
+		return HTMLError("Invalid area identification")
+	end
+	local area = g_DB:GetAreaByID(areaID)
+	if not(area) then
+		return HTMLError("Invalid area ID")
+	end
+	local conns = g_DB:GetAreaConnectors(areaID)
+	if not(conns) then
+		return HTMLError("Invalid area connectors")
+	end
+
+	-- Apply changes to each fully specified connector of the area:
+	local err = {}
+	for _, conn in ipairs(conns) do
+		local x = tonumber(a_Request.PostParams["connx" .. conn.ID])
+		local y = tonumber(a_Request.PostParams["conny" .. conn.ID])
+		local z = tonumber(a_Request.PostParams["connz" .. conn.ID])
+		local t = tonumber(a_Request.PostParams["connt" .. conn.ID])
+		local d = NormalizeDirection(a_Request.PostParams["connd" .. conn.ID])
+		if (x and y and z and t and d) then
+			local isSuccess, msg = g_DB:ChangeConnector(conn.ID, area.ExportMinX + x, area.ExportMinY + y, area.ExportMinZ + z, t, d)
+			if not(isSuccess) then
+				ins(err, string.format("Error while setting connector ID %d: %s", conn.ID, msg or "[unknown error]"))
+			end
+		end
+	end
+
+	-- Schedule an update for the previews:
+	RefreshPreviewForAreas({area}, true)
+
+	-- Respond with a "Changes applied" page:
+	local groupName = area.ExportGroupName
+	local areaName = area.ExportName or area.Name or (area.GalleryName .. " " .. area.GalleryIdx)
+	local errorMessages = ""
+	if (err[1]) then
+		errorMessages = "<p><b>The following errors occurred:<ul><li>" .. table.concat(err, "</li><li>") .. "</li></ul></b></p>"
+	end
+	return [[
+		<p>Changes have been applied.</p>]] .. errorMessages .. [[
+		<p>Return to:
+		<ul>
+			<li><a href="Groups">Groups list</a></li>
+			<li><a href="Groups?action=groupdetails&groupname=]] .. groupName .. [[">Group ]] .. groupName .. [[</a></li>
+			<li><a href="Areas?action=areadetails&areaid=]] .. areaID .. [[">Area ]] .. areaName .. [[</a></li>
+			<li><a href="Areas?action=areaconns&areaid=]] .. areaID .. [[">Connector editor</a></li>
+		</ul></p>
+	]]
 end
 
 
@@ -1487,7 +1760,7 @@ local function ShowCheckSpongingPage(a_Request)
 	for _, area in ipairs(Issues) do
 		ins(res, GetAreaHTMLRow(area, g_SpongingActions))
 	end  -- for id - IDs[]
-	RefreshPreviewForAreas(Issues)
+	RefreshPreviewForAreas(Issues, false)
 
 	return table.concat(res)
 end
@@ -1959,11 +2232,14 @@ local g_AreasActionHandlers =
 {
 	[""]            = ShowAreasPage,
 	["addmeta"]     = ExecuteUpdateMeta,  -- "Add" has the same handling as "Update" - translates to "DB set"
+	["areaconns"]   = ShowAreaConnectors,
 	["areadetails"] = ShowAreaDetails,
 	["delmeta"]     = ExecuteDelMeta,
 	["getpreview"]  = ExecuteGetPreview,
+	["getstatic"]   = ExecuteGetStatic,
 	["regrouparea"] = ExecuteRegroupArea,
 	["renamearea"]  = ExecuteRenameArea,
+	["setallconns"] = ExecuteSetAllConns,
 	["updatemeta"]  = ExecuteUpdateMeta,
 }
 

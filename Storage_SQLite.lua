@@ -163,6 +163,40 @@ end
 
 
 
+--- Changes the complete information on the specified connector in the DB
+-- Returns true on success, false and potentially a message on failure
+function SQLite:ChangeConnector(a_ConnID, a_NewX, a_NewY, a_NewZ, a_NewType, a_NewDir)
+	-- Check params:
+	assert(self)
+	local ConnID = tonumber(a_ConnID)
+	assert(ConnID)
+	local NewX, NewY, NewZ, NewType = tonumber(a_NewX), tonumber(a_NewY), tonumber(a_NewZ), tonumber(a_NewType)
+	assert(NewX)
+	assert(NewY)
+	assert(NewZ)
+	assert(NewType)
+	assert(a_NewDir)
+
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"UPDATE Connectors SET X = ?, Y = ?, Z = ?, TypeNum = ?, Direction = ? WHERE ID = ?",
+		{
+			NewX, NewY, NewZ, NewType, a_NewDir, ConnID
+		}
+	)
+	if not(IsSuccess) then
+		return false, Msg
+	end
+
+	-- Mark the connector's area as changed:
+	self:MarkConnectorsAreaChangedNow(ConnID)
+
+	return true
+end
+
+
+
+
+
 --- Changes the position and, optionally, direction of the specified connector in the DB
 -- Returns true on success, false and potentially a message on failure
 function SQLite:ChangeConnectorPos(a_ConnID, a_NewX, a_NewY, a_NewZ, a_NewDir)
@@ -383,6 +417,8 @@ function SQLite:ExecuteStatement(a_SQL, a_Params, a_Callback, a_RowIDCallback)
 	-- Prepare the statement (SQL-compile):
 	local Stmt, ErrCode, ErrMsg = self.DB:prepare(a_SQL)
 	if (Stmt == nil) then
+		ErrCode = ErrCode or self.DB:errcode()
+		ErrMsg = ErrMsg or self.DB:errmsg()
 		ErrMsg = (ErrCode or "<unknown>") .. " (" .. (ErrMsg or "<no message>") .. ")"
 		LOGWARNING(PLUGIN_PREFIX .. "Cannot prepare SQL \"" .. a_SQL .. "\": " .. ErrMsg)
 		LOGWARNING(PLUGIN_PREFIX .. "  Params = {" .. table.concat(a_Params or {}, ", ") .. "}")

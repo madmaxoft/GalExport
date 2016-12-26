@@ -117,7 +117,7 @@ local s_DirectionStr =
 
 --- Returns the canon direction based on the user input
 -- Returns nil if no match
-function ParseDirection(a_DirectionStr)
+function NormalizeDirection(a_DirectionStr)
 	local key = string.lower(tostring(a_DirectionStr)):gsub("m", "-"):gsub("p", "+")  -- Lowercase, replace m/p with -/+
 	return s_DirectionStr[key]
 end

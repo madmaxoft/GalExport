@@ -429,7 +429,7 @@ function HandleCmdConnAdd(a_Split, a_Player)
 	-- Calc the connector's direction:
 	local Direction
 	if (a_Split[5]) then
-		Direction = ParseDirection(a_Split[5])
+		Direction = NormalizeDirection(a_Split[5])
 		if not(Direction) then
 			a_Player:SendMessage(cCompositeChat(string.format("Invalid direction specification: %s", a_Split[5]), mtFailure))
 			return true
@@ -634,7 +634,7 @@ function HandleCmdConnReposition(a_Split, a_Player)
 	-- Change the connector position in the DB:
 	local Direction
 	if (a_Split[5]) then
-		Direction = ParseDirection(a_Split[5])
+		Direction = NormalizeDirection(a_Split[5])
 		if not(Direction) then
 			a_Player:SendMessage(cCompositeChat(string.format("Invalid direction specification: %s", a_Split[5]), mtFailure))
 			return true
