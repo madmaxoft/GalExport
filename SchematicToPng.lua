@@ -40,7 +40,7 @@ function cSchematicToPng:Connect()
 	cNetwork:Connect(self.HostName, self.Port,
 	{
 		OnError = function (a_Link, a_ErrorCode, a_ErrorMsg)
-			LOGWARNING(PLUGIN_PREFIX .. "Error in connection to MCSchematicToPng: " .. (a_ErrorMsg or "<unknown error>"))
+			LOGWARNING(PLUGIN_PREFIX .. "Error in connection to MCSchematicToPng (" .. self.HostName .. ":" .. self.Port .. "): " .. (a_ErrorMsg or "<unknown error>"))
 			self:Disconnected()
 		end,
 		OnRemoteClosed = function (a_Link)
