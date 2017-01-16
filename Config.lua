@@ -40,8 +40,8 @@ local function VerifyConfig(a_Config)
 			a_Config.WebPreview = nil
 		end
 
-		if (a_Config.WebPreview) then
-			a_Config.WebPreview.MCSchematicToPng = SchematicToPng_new(a_Config.WebPreview.MCSchematicToPngPort)
+		if (a_Config.WebPreview and a_Config.WebPreview.MCSchematicToPng) then
+			a_Config.WebPreview.MCSchematicToPng = SchematicToPng_new(a_Config.WebPreview.MCSchematicToPng)
 		end
 	end
 

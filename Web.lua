@@ -283,12 +283,12 @@ local g_ShapeName =
 {
 	["x-"]     = "BottomArrowXM",
 	["x+"]     = "BottomArrowXP",
-	["y-"]     = "ArrowYP",
+	["y-"]     = "ArrowYM",
 	["y-x-z-"] = "ArrowYMCornerXMZM",
 	["y-x-z+"] = "ArrowYMCornerXMZP",
 	["y-x+z-"] = "ArrowYMCornerXPZM",
 	["y-x+z+"] = "ArrowYMCornerXPZP",
-	["y+"]     = "ArrowYM",
+	["y+"]     = "ArrowYP",
 	["y+x-z-"] = "ArrowYPCornerXMZM",
 	["y+x-z+"] = "ArrowYPCornerXMZP",
 	["y+x+z-"] = "ArrowYPCornerXPZM",
@@ -418,11 +418,14 @@ end
 
 
 --- Uses MCSchematicToPng to convert .schematic files into PNG previews for the specified areas
--- a_Areas is an array of { Area = <db-Area>, NumRotations = <number> }
+-- a_BlockArea is the cBlockArea filled with the area's data
+-- a_AreaDesc is the description of the area to export: { Area = <db-Area>, NumRotations = <number> }
 -- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
-local ExportCounter = 0
-local function ExportPreviewForAreas(a_Areas, a_ShouldNameConnectors)
-	assert(type(a_Areas) == "table")
+local function ExportPreviewForArea(a_BlockArea, a_AreaDesc, a_ShouldNameConnectors)
+	-- Check params:
+	assert(tolua.type(a_BlockArea) == "cBlockArea")
+	assert(type(a_AreaDesc) == "table")
+	assert(type(a_AreaDesc.Area) == "table")
 	assert(type(a_ShouldNameConnectors) == "boolean")
 
 	local stp = g_Config.WebPreview.MCSchematicToPng
@@ -430,28 +433,33 @@ local function ExportPreviewForAreas(a_Areas, a_ShouldNameConnectors)
 		-- MCSchematicToPng is not available, bail out
 		return
 	end
-	stp:ReconnectIfNeeded()
 
-	-- Write the list to MCSchematicToPng's TCP link:
-	for _, area in ipairs(a_Areas) do
-		stp:Write(GetAreaSchematicFileName(area.Area.ID) .. "\n")
-		stp:Write(" outfile: " .. GetAreaPreviewFileName(area.Area.ID, area.NumRotations, a_ShouldNameConnectors) .. "\n")
-		stp:Write(" numcwrotations: " .. area.NumRotations .. "\n")
-		stp:Write(" horzsize: 6\n vertsize: 8\n")
-
-		local Connectors = g_DB:GetAreaConnectors(area.Area.ID) or {}
-		for idx, conn in ipairs(Connectors) do
-			local rotconn = RotateConnector(conn, area.Area, area.NumRotations)
-			stp:Write(" marker: " .. rotconn.x .. ", " .. rotconn.y .. ", " .. rotconn.z .. ", ")
-			if (a_ShouldNameConnectors) then
-				stp:Write("Letter" .. string.char(64 + idx))
-			else
-				stp:Write(rotconn.shape)
-			end
-			stp:Write(", ff0000\n")
+	-- Make a request to MCSchematicToPng:
+	local options =
+	{
+		NumCWRotations = a_AreaDesc.NumRotations,
+		HorzSize = 6,
+		VertSize = 8,
+		Markers = {},
+	}
+	local Connectors = g_DB:GetAreaConnectors(a_AreaDesc.Area.ID) or {}
+	for idx, conn in ipairs(Connectors) do
+		local rotconn = RotateConnector(conn, a_AreaDesc.Area, a_AreaDesc.NumRotations)
+		local marker =
+		{
+			X = rotconn.x,
+			Y = rotconn.y,
+			Z = rotconn.z,
+		}
+		if (a_ShouldNameConnectors) then
+			marker.Shape = "Letter" .. string.char(64 + idx)
+		else
+			marker.Shape = rotconn.shape
 		end
+		marker.Color = "ff0000"
+		ins(options.Markers, marker)
 	end
-	stp:Write("\4\n")  -- End of text - process the last area
+	stp:Export(a_BlockArea, options, GetAreaPreviewFileName(a_AreaDesc.Area.ID, a_AreaDesc.NumRotations, a_ShouldNameConnectors))
 end
 
 
@@ -503,25 +511,16 @@ end
 -- a_Areas is an array of { Area = <db-area>, NumRotations = <number> }
 -- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
 local function GeneratePreviewForAreas(a_Areas, a_ShouldNameConnectors)
+	-- Check params:
+	assert(type(a_Areas) == "table")
+	assert(type(a_ShouldNameConnectors) == "boolean")
+
 	if not(a_Areas[1]) then
 		return
 	end
 
-	-- Get a list of .schematic files that need updating
-	local ToExport = {}
-	for _, area in ipairs(a_Areas) do
-		if not(ToExport[area]) then
-			local fnam = GetAreaSchematicFileName(area.Area.ID)
-			local ftim = FormatDateTime(cFile:GetLastModificationTime(fnam))
-			if (area.Area.DateLastChanged > ftim) then
-				table.insert(ToExport, area.Area)
-			end
-			ToExport[area] = true
-		end
-	end
-
-	-- Export the .schematic files for each area, process one are after another, using ChunkStays:
-	-- (after one area is written to a file, schedule another ChunkStay for the next area)
+	-- Export each area through MCSchematicToPng, process one are after another, using ChunkStays:
+	-- (after one area is queued for export, schedule another ChunkStay for the next area)
 	-- Note that due to multithreading, the export needs to be scheduled onto the World Tick thread, otherwise a deadlock may occur
 	local ba = cBlockArea()
 	local idx = 1
@@ -529,50 +528,43 @@ local function GeneratePreviewForAreas(a_Areas, a_ShouldNameConnectors)
 	local LastGalleryName
 	local LastWorld
 	ProcessArea = function()
-		local area = ToExport[idx]
+		local area = a_Areas[idx].Area
 		ba:Read(LastWorld, area.ExportMinX, area.ExportMaxX, area.ExportMinY, area.ExportMaxY, area.ExportMinZ, area.ExportMaxZ)
 		cFile:CreateFolder(g_Config.WebPreview.ThumbnailFolder)
 		cFile:CreateFolder(GetAreaSchematicFolderName(area.ID))
-		ba:SaveToSchematicFile(GetAreaSchematicFileName(area.ID))
+		ExportPreviewForArea(ba, a_Areas[idx], a_ShouldNameConnectors)
 		idx = idx + 1
-		if (ToExport[idx]) then
+		if (a_Areas[idx]) then
 			-- When moving to the next gallery or after 10 areas, unload chunks that are no longer needed and queue the task on the new world:
 			-- When all chunks are loaded, the ChunkStay produces one deep nested call, going over LUAI_MAXCCALLS
 			if (
-				(ToExport[idx].GalleryName ~= LastGalleryName) or
-				(ToExport[idx].WorldName ~= LastWorld:GetName()) or
+				(a_Areas[idx].Area.GalleryName ~= LastGalleryName) or
+				(a_Areas[idx].Area.WorldName ~= LastWorld:GetName()) or
 				(idx % 10 == 0)
 			) then
 				LastWorld:QueueUnloadUnusedChunks()
-				LastGalleryName = ToExport[idx].GalleryName
-				LastWorld = cRoot:Get():GetWorld(ToExport[idx].WorldName)
+				LastGalleryName = a_Areas[idx].Area.GalleryName
+				LastWorld = cRoot:Get():GetWorld(a_Areas[idx].Area.WorldName)
 				LastWorld:QueueTask(
 					function()
-						LastWorld:ChunkStay(GetAreaChunkCoords(ToExport[idx]), nil, ProcessArea)
+						LastWorld:ChunkStay(GetAreaChunkCoords(a_Areas[idx].Area), nil, ProcessArea)
 					end
 				)
 			else
 				-- Queue the next area on the same world:
-				LastWorld:ChunkStay(GetAreaChunkCoords(ToExport[idx]), nil, ProcessArea)
+				LastWorld:ChunkStay(GetAreaChunkCoords(a_Areas[idx].Area), nil, ProcessArea)
 			end
-		else
-			-- All .schematic files have been exported, generate the preview PNGs:
-			ExportPreviewForAreas(a_Areas, false)
 		end
 	end
-	if (ToExport[1]) then
-		-- Queue the export task on the cWorld instance, so that it is executed in the world's Tick thread:
-		LastGalleryName = ToExport[1].GalleryName
-		LastWorld = cRoot:Get():GetWorld(ToExport[1].WorldName)
-		LastWorld:QueueTask(
-			function()
-				LastWorld:ChunkStay(GetAreaChunkCoords(ToExport[1]), nil, ProcessArea)
-			end
-		)
-	else
-		-- All .schematic files have been exported, generate the preview PNGs:
-		ExportPreviewForAreas(a_Areas, a_ShouldNameConnectors)
-	end
+
+	-- Queue the export task on the cWorld instance, so that it is executed in the world's Tick thread:
+	LastGalleryName = a_Areas[1].Area.GalleryName
+	LastWorld = cRoot:Get():GetWorld(a_Areas[1].Area.WorldName)
+	LastWorld:QueueTask(
+		function()
+			LastWorld:ChunkStay(GetAreaChunkCoords(a_Areas[1].Area), nil, ProcessArea)
+		end
+	)
 end
 
 
@@ -936,7 +928,7 @@ local function ExecuteGetPreview(a_Request)
 	local fnam = GetAreaPreviewFileName(areaID, rot, shouldnameconns)
 	local f, msg = io.open(fnam, "rb")
 	if not(f) then
-		return g_PreviewNotAvailableYetPng
+		return g_PreviewNotAvailableYetPng, "image/png"
 	end
 	local res = f:read("*all")
 	f:close()
@@ -2325,9 +2317,7 @@ local function CreateRequestHandler(a_ActionHandlers)
 			return HTMLError("An internal error has occurred, no handler for action " .. Action .. ".")
 		end
 
-		local PageContent = Handler(a_Request)
-
-		return PageContent
+		return Handler(a_Request)
 	end
 end
 
