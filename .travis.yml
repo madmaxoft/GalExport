@@ -1,0 +1,27 @@
+sudo: false
+
+addons:
+  apt:
+    packages:
+    - lua5.1
+    - luarocks
+    - libsqlite3-dev
+
+install:
+  - luarocks --local install luafilesystem
+  - luarocks --local install luacheck
+  - luarocks --local install lsqlite3 0.9.3-0
+  - luarocks --local install luasocket
+  - git clone --depth=1 --branch=luasec-0.6 git://github.com/brunoos/luasec.git ~/luasec
+  - cd ~/luasec && luarocks --local make OPENSSL_LIBDIR=/usr/lib/x86_64-linux-gnu/
+  - wget -O $TRAVIS_BUILD_DIR/../InfoReg.lua https://raw.githubusercontent.com/cuberite/cuberite/master/Server/Plugins/InfoReg.lua
+  - mkdir ~/AutoAPI
+  - wget -O ~/AutoAPI.zip --no-check-certificate https://builds.cuberite.org/job/Cuberite%20Windows%20x64%20Master/lastSuccessfulBuild/artifact/AutoAPI.zip
+  - unzip ~/AutoAPI.zip -d ~/AutoAPI
+  - wget -O ~/ManualAPI.zip --no-check-certificate https://builds.cuberite.org/job/Cuberite%20Windows%20x64%20Master/lastSuccessfulBuild/artifact/ManualAPI.zip
+  - unzip ~/ManualAPI.zip -d ~
+  - git clone https://github.com/cuberite/CuberitePluginChecker ~/Checker
+  - wget -O $TRAVIS_BUILD_DIR/.luacheckrc --no-check-certificate https://builds.cuberite.org/job/Cuberite%20Windows%20x64%20Master/lastSuccessfulBuild/artifact/Server/.luacheckrc
+
+script:
+  - cd $TRAVIS_BUILD_DIR && ~/.luarocks/bin/luacheck . --codes
