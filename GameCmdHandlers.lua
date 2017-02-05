@@ -186,7 +186,8 @@ function HandleCmdApprove(a_Split, a_Player)
 
 	-- If configured to, lock the area after approval:
 	if (g_Config.LockApproved) then
-		local IsSuccess, ErrorCode, Msg = cPluginManager:CallPlugin("Gallery", "LockAreaByID", Area.ID, a_Player:GetName())
+		local ErrorCode, Msg
+		IsSuccess, ErrorCode, Msg = cPluginManager:CallPlugin("Gallery", "LockAreaByID", Area.ID, a_Player:GetName())
 		if (not(IsSuccess) and (ErrorCode ~= "AlreadyLocked")) then
 			-- Notify the player but keep going:
 			a_Player:SendMessage(cCompositeChat("Cannot lock approved area: " .. (Msg or "<Unknown error (" .. (ErrorCode or "<unknown code>") .. ")>"), mtFailure))
@@ -801,7 +802,8 @@ function HandleCmdDisapprove(a_Split, a_Player)
 
 	-- If configured to lock areas upon approval, unlock the area:
 	if (g_Config.LockApproved) then
-		local IsSuccess, ErrorCode, Msg = cPluginManager:CallPlugin("Gallery", "UnlockAreaByID", Area.ID, a_Player:GetName())
+		local ErrorCode
+		IsSuccess, ErrorCode, Msg = cPluginManager:CallPlugin("Gallery", "UnlockAreaByID", Area.ID, a_Player:GetName())
 		if (not(IsSuccess) and (ErrorCode ~= "NotLocked")) then
 			a_Player:SendMessage(cCompositeChat("Cannot unlock area: " .. (Msg or "<Unknown error (" .. (ErrorCode or "<unknown code>") .. ")>"), mtFailure))
 		end
@@ -900,11 +902,11 @@ function HandleCmdExportThis(a_Split, a_Player)
 	local PlayerName = a_Player:GetName()
 	local Notifier = function (a_IsSuccess)
 		cRoot:Get():FindAndDoWithPlayer(PlayerName,
-			function (a_Player)
+			function (a_CBPlayer)
 				if (a_IsSuccess) then
-					a_Player:SendMessage(cCompositeChat("Area export finished successfully.", mtInformation))
+					a_CBPlayer:SendMessage(cCompositeChat("Area export finished successfully.", mtInformation))
 				else
-					a_Player:SendMessage(cCompositeChat("Area export failed.", mtFailure))
+					a_CBPlayer:SendMessage(cCompositeChat("Area export failed.", mtFailure))
 				end
 			end
 		)
@@ -1278,11 +1280,11 @@ function HandleCmdSpongeHide(a_Split, a_Player)
 			-- We don't have a valid cPlayer object anymore, need to search for it:
 			local ShouldAbort = false
 			World:DoWithPlayer(PlayerName,
-				function (a_Player)
+				function (a_CBPlayer)
 					local IsSuccess, Msg = cPluginManager:CallPlugin("WorldEdit", "WEPushUndo", a_Player, World, Bounds, "GalExport: Sponge hide")
 					if (IsSuccess == false) then
 						-- Pushing the undo failed, let the player know and don't hide the sponge:
-						a_Player:SendMessage(cCompositeChat("Cannot store an undo point in WorldEdit, aborting the sponge hide (" .. (Msg or "<no details>") .. ")", mtFailure))
+						a_CBPlayer:SendMessage(cCompositeChat("Cannot store an undo point in WorldEdit, aborting the sponge hide (" .. (Msg or "<no details>") .. ")", mtFailure))
 						ShouldAbort = true
 					end
 				end
@@ -1412,11 +1414,11 @@ function HandleCmdSpongeShow(a_Split, a_Player)
 			-- We don't have a valid cPlayer object anymore, need to search for it:
 			local ShouldAbort = false
 			World:DoWithPlayer(PlayerName,
-				function (a_Player)
-					local IsSuccess, Msg = cPluginManager:CallPlugin("WorldEdit", "WEPushUndo", a_Player, World, Bounds, "GalExport: Sponge show")
-					if (IsSuccess == false) then
+				function (a_CBPlayer)
+					local IsSuccess, ErrMsg = cPluginManager:CallPlugin("WorldEdit", "WEPushUndo", a_Player, World, Bounds, "GalExport: Sponge show")
+					if not(IsSuccess) then
 						-- Pushing the undo failed, let the player know and don't show the sponge:
-						a_Player:SendMessage(cCompositeChat("Cannot store an undo point in WorldEdit, aborting the sponge show (" .. (Msg or "<no details>") .. ")", mtFailure))
+						a_CBPlayer:SendMessage(cCompositeChat("Cannot store an undo point in WorldEdit, aborting the sponge show (" .. (ErrMsg or "<no details>") .. ")", mtFailure))
 						ShouldAbort = true
 					end
 				end

@@ -18,6 +18,7 @@ that lists the formats' names and the functions to call for the actual export.
 
 
 local ins = table.insert
+local con = table.concat
 
 
 
@@ -96,10 +97,6 @@ end
 local function MakeCppConnectorsSource(a_AreaDef, a_Indent)
 	-- No need to check params, they were checked by MakeCppSource, which is the only allowed caller
 
-	-- Use simple local values for these functions instead of table lookups in each loop:
-	local ins = table.insert
-	local con = table.concat
-
 	-- Write the header:
 	local res = {"\n", a_Indent, "\t// Connectors:\n", a_Indent}
 
@@ -164,7 +161,6 @@ end
 --- Returns a string containing the metadata definitions for the area
 -- a_Indent is inserted at each line's beginning, including the first line
 local function MakeCppMetadataSource(a_AreaDef, a_Indent)
-	local ins = table.insert
 	local res = {}
 
 	-- Allowed rotations:
@@ -246,7 +242,6 @@ local function MakeCppHitboxSource(a_AreaDef, a_Indent)
 	local MaxZ = (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ
 
 	-- Write the coords:
-	local ins = table.insert
 	local res = {}
 	ins(res, a_Indent)
 	ins(res, "\t// Hitbox (relative to bounding box):\n")
@@ -279,10 +274,6 @@ local function MakeCppSource(a_BlockArea, a_AreaDef, a_Indent)
 		a_AreaDef.GalleryIndex, ", ID ", a_AreaDef.ID, ", created by ", a_AreaDef.PlayerName, "\n",
 		a_Indent, "{\n"
 	}
-
-	-- Use simple local values for these functions instead of table lookups in each loop:
-	local ins = table.insert
-	local con = table.concat
 
 	--[[
 	NOTE: This function uses "BlockDef" extensively. It is a number that represents a combination of
@@ -412,10 +403,6 @@ end
 --- Returns the string containing cubeset source for the connectors in the specified area
 -- a_Indent is inserted at each line's start
 local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
-	-- Use simple local values for these functions instead of table lookups in each loop:
-	local ins = table.insert
-	local con = table.concat
-
 	-- Write the header:
 	local res = {
 		a_Indent, "Connectors =\n",
@@ -489,7 +476,6 @@ local function MakeCubesetMetadataSource(a_AreaDef, a_Indent)
 	}
 
 	-- List all the metadata values:
-	local ins = table.insert
 	local md = {}
 	for k, v in pairs(a_AreaDef.Metadata) do
 		ins(md, string.format("%s\t[%q] = %q,\n", a_Indent, k, tostring(v)))
@@ -518,8 +504,6 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 	local SizeX, SizeY, SizeZ = a_BlockArea:GetSize()
 
 	-- Use simple local values for these functions instead of table lookups / string joins in each loop:
-	local ins = table.insert
-	local con = table.concat
 	local Indent = a_Indent .. "\t"
 	local ExportName = GetAreaExportName(a_AreaDef)
 
@@ -946,8 +930,8 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 	local function ProcessOneArea(a_BlockArea)
 		-- Write source for the area into the file:
 		local Area = a_Areas[CurrArea]
-		local Src, Msg = MakeCubesetSource(a_BaseFolder, a_BlockArea, Area, "\t\t", a_ExternalSchematic)
-		Src = Src or ("-- Error: Area " .. Area.GalleryName .. "_" .. Area.ID .. " failed to export source: " .. (Msg or "<Unknown error>"))
+		local Src, ErrMsg = MakeCubesetSource(a_BaseFolder, a_BlockArea, Area, "\t\t", a_ExternalSchematic)
+		Src = Src or ("-- Error: Area " .. Area.GalleryName .. "_" .. Area.ID .. " failed to export source: " .. (ErrMsg or "<Unknown error>"))
 		ins(out, Src)
 
 		-- Advance to next area:

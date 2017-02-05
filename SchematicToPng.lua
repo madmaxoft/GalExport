@@ -24,7 +24,7 @@ Members:
 local cSchematicToPng = {}
 
 --- If not nil, this is a file into which all communication gets logged
-local g_LogFile -- = io.open("MCSchematicToPng-GalExport.log", "w")
+local g_LogFile = nil  -- io.open("MCSchematicToPng-GalExport.log", "w")
 
 
 
