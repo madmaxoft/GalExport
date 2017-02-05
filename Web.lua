@@ -13,6 +13,9 @@ local g_NumAreasPerPage = 50
 -- Contains the PNG file for "Preview not available yet" image
 local g_PreviewNotAvailableYetPng
 
+-- The object that handles area previews
+local g_AreaPreview
+
 --- URL name of the Areas page:
 local PAGE_NAME_AREAS = "Areas"
 
@@ -212,260 +215,6 @@ end
 
 
 
---- Returns the chunk coords of chunks that intersect the given area's export cuboid
--- The returned value has the form of { {Chunk1x, Chunk1z}, {Chunk2x, Chunk2z}, ...}
-local function GetAreaChunkCoords(a_Area)
-	assert(type(a_Area) == "table")
-	local MinChunkX = math.floor(a_Area.ExportMinX / 16)
-	local MinChunkZ = math.floor(a_Area.ExportMinZ / 16)
-	local MaxChunkX = math.floor((a_Area.ExportMaxX + 15) / 16)
-	local MaxChunkZ = math.floor((a_Area.ExportMaxZ + 15) / 16)
-	local res = {}
-	for z = MinChunkZ, MaxChunkZ do
-		for x = MinChunkX, MaxChunkX do
-			table.insert(res, {x, z})
-		end
-	end
-	assert(res[1])  -- Check that at least one chunk coord pair is being returned
-	return res
-end
-
-
-
-
-
---- Returns the name of the folder in which the .schematic file for the specified area is to be stored
-local function GetAreaSchematicFolderName(a_AreaID)
-	-- Check params
-	assert(tonumber(a_AreaID))
-
-	return g_Config.WebPreview.ThumbnailFolder .. "/" .. tostring(math.floor(a_AreaID / 100))
-end
-
-
-
-
-
---- Returns the .schematic filename to use for the specified area
-local function GetAreaSchematicFileName(a_AreaID)
-	-- Check params:
-	assert(tonumber(a_AreaID))
-	assert(g_Config.WebPreview)
-
-	return GetAreaSchematicFolderName(a_AreaID) .. "/" .. a_AreaID .. ".schematic"
-end
-
-
-
-
-
---- Returns the .png filename to use for the specified area and number of rotations
--- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
-local function GetAreaPreviewFileName(a_AreaID, a_NumRotations, a_ShouldNameConnectors)
-	-- Check params:
-	assert(tonumber(a_AreaID))
-	assert(tonumber(a_NumRotations))
-	assert(type(a_ShouldNameConnectors) == "boolean")
-
-	local name = GetAreaSchematicFolderName(a_AreaID) .. "/" .. a_AreaID .. "." .. a_NumRotations
-	if (a_ShouldNameConnectors) then
-		name = name .. ".conn"
-	end
-	return name .. ".png"
-end
-
-
-
-
-
---- Translates Connector.Direction to the shape name to use for PNG export
-local g_ShapeName =
-{
-	["x-"]     = "BottomArrowXM",
-	["x+"]     = "BottomArrowXP",
-	["y-"]     = "ArrowYM",
-	["y-x-z-"] = "ArrowYMCornerXMZM",
-	["y-x-z+"] = "ArrowYMCornerXMZP",
-	["y-x+z-"] = "ArrowYMCornerXPZM",
-	["y-x+z+"] = "ArrowYMCornerXPZP",
-	["y+"]     = "ArrowYP",
-	["y+x-z-"] = "ArrowYPCornerXMZM",
-	["y+x-z+"] = "ArrowYPCornerXMZP",
-	["y+x+z-"] = "ArrowYPCornerXPZM",
-	["y+x+z+"] = "ArrowYPCornerXPZP",
-	["z-"]     = "BottomArrowZM",
-	["z+"]     = "BottomArrowZP",
-}
-
---- Translates Connector.Direction via NumRotations into the new rotated Direction
-local g_RotatedDirection =
-{
-	[0] =  -- No rotation
-	{
-		["x-"]     = "x-",
-		["x+"]     = "x+",
-		["y-"]     = "y-",
-		["y-x-z-"] = "y-x-z-",
-		["y-x-z+"] = "y-x-z+",
-		["y-x+z-"] = "y-x+z-",
-		["y-x+z+"] = "y-x+z+",
-		["y+"]     = "y+",
-		["y+x-z-"] = "y+x-z-",
-		["y+x-z+"] = "y+x-z+",
-		["y+x+z-"] = "y+x+z-",
-		["y+x+z+"] = "y+x+z+",
-		["z-"]     = "z-",
-		["z+"]     = "z+",
-	},
-
-	[1] =  -- 1 CW rotation
-	{
-		["x-"] = "z-",
-		["x+"] = "z+",
-		["y-"] = "y-",
-		["y-x-z-"] = "y-x+z-",
-		["y-x-z+"] = "y-x-z-",
-		["y-x+z-"] = "y-x+z+",
-		["y-x+z+"] = "y-x-z+",
-		["y+"] = "y+",
-		["y+x-z-"] = "y+x+z-",
-		["y+x-z+"] = "y+x-z-",
-		["y+x+z-"] = "y+x+z+",
-		["y+x+z+"] = "y+x-z+",
-		["z-"] = "x+",
-		["z+"] = "x-",
-	},
-
-	[2] =  -- 2 CW rotations
-	{
-		["x-"] = "x+",
-		["x+"] = "x-",
-		["y-"] = "y-",
-		["y-x-z-"] = "y-x+z+",
-		["y-x-z+"] = "y-x+z-",
-		["y-x+z-"] = "y-x-z+",
-		["y-x+z+"] = "y-x-z-",
-		["y+"] = "y+",
-		["y+x-z-"] = "y+x+z+",
-		["y+x-z+"] = "y+x+z-",
-		["y+x+z-"] = "y+x-z+",
-		["y+x+z+"] = "y+x-z-",
-		["z-"] = "z+",
-		["z+"] = "z-",
-	},
-
-	[3] =  -- 3 CW rotations
-	{
-		["x-"] = "z+",
-		["x+"] = "z-",
-		["y-"] = "y-",
-		["y-x-z-"] = "y-x-z+",
-		["y-x-z+"] = "y-x+z+",
-		["y-x+z-"] = "y-x-z-",
-		["y-x+z+"] = "y-x+z-",
-		["y+"] = "y+",
-		["y+x-z-"] = "y+x-z+",
-		["y+x-z+"] = "y+x+z+",
-		["y+x+z-"] = "y+x-z-",
-		["y+x+z+"] = "y+x+z-",
-		["z-"] = "x-",
-		["z+"] = "x+",
-	},
-}
-
-
-
-
-
---- Returns a table describing the specified connector, rotated and relativized against a_Area
--- The result also contains the shape name to use for PNG export
-local function RotateConnector(a_Connector, a_Area, a_NumRotations)
-	-- Check params:
-	assert(type(a_Connector) == "table")
-	assert(type(a_Area) == "table")
-	assert(type(a_NumRotations) == "number")
-
-	local res = {y = a_Connector.Y - a_Area.ExportMinY}
-	local RelX = a_Connector.X - a_Area.ExportMinX
-	local RelZ = a_Connector.Z - a_Area.ExportMinZ
-	local SizeX = a_Area.ExportMaxX - a_Area.ExportMinX
-	local SizeZ = a_Area.ExportMaxZ - a_Area.ExportMinZ
-
-	-- Rotate the XZ coords:
-	if (a_NumRotations == 0) then
-		res.x = RelX
-		res.z = RelZ
-	elseif (a_NumRotations == 1) then
-		res.x = SizeZ - RelZ
-		res.z = RelX
-	elseif (a_NumRotations == 2) then
-		res.x = SizeX - RelX
-		res.z = SizeZ - RelZ
-	elseif (a_NumRotations == 3) then
-		res.x = RelZ
-		res.z = SizeX - RelX
-	end
-
-	-- Rotate and textualize the marker shape:
-	local RotatedDir = g_RotatedDirection[a_NumRotations] or {}
-	res.shape = g_ShapeName[RotatedDir[NormalizeDirection(a_Connector.Direction)]] or "Cube"
-
-	return res
-end
-
-
-
-
-
---- Uses MCSchematicToPng to convert .schematic files into PNG previews for the specified areas
--- a_BlockArea is the cBlockArea filled with the area's data
--- a_AreaDesc is the description of the area to export: { Area = <db-Area>, NumRotations = <number> }
--- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
-local function ExportPreviewForArea(a_BlockArea, a_AreaDesc, a_ShouldNameConnectors)
-	-- Check params:
-	assert(tolua.type(a_BlockArea) == "cBlockArea")
-	assert(type(a_AreaDesc) == "table")
-	assert(type(a_AreaDesc.Area) == "table")
-	assert(type(a_ShouldNameConnectors) == "boolean")
-
-	local stp = g_Config.WebPreview.MCSchematicToPng
-	if not(stp) then
-		-- MCSchematicToPng is not available, bail out
-		return
-	end
-
-	-- Make a request to MCSchematicToPng:
-	local options =
-	{
-		NumCWRotations = a_AreaDesc.NumRotations,
-		HorzSize = 6,
-		VertSize = 8,
-		Markers = {},
-	}
-	local Connectors = g_DB:GetAreaConnectors(a_AreaDesc.Area.ID) or {}
-	for idx, conn in ipairs(Connectors) do
-		local rotconn = RotateConnector(conn, a_AreaDesc.Area, a_AreaDesc.NumRotations)
-		local marker =
-		{
-			X = rotconn.x,
-			Y = rotconn.y,
-			Z = rotconn.z,
-		}
-		if (a_ShouldNameConnectors) then
-			marker.Shape = "Letter" .. string.char(64 + idx)
-		else
-			marker.Shape = rotconn.shape
-		end
-		marker.Color = "ff0000"
-		ins(options.Markers, marker)
-	end
-	stp:Export(a_BlockArea, options, GetAreaPreviewFileName(a_AreaDesc.Area.ID, a_AreaDesc.NumRotations, a_ShouldNameConnectors))
-end
-
-
-
-
-
 --- Array of all known connector directions
 local g_AllDirections =
 {
@@ -507,70 +256,6 @@ end
 
 
 
---- Generates the preview files for the specified areas
--- a_Areas is an array of { Area = <db-area>, NumRotations = <number> }
--- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
-local function GeneratePreviewForAreas(a_Areas, a_ShouldNameConnectors)
-	-- Check params:
-	assert(type(a_Areas) == "table")
-	assert(type(a_ShouldNameConnectors) == "boolean")
-
-	if not(a_Areas[1]) then
-		return
-	end
-
-	-- Export each area through MCSchematicToPng, process one are after another, using ChunkStays:
-	-- (after one area is queued for export, schedule another ChunkStay for the next area)
-	-- Note that due to multithreading, the export needs to be scheduled onto the World Tick thread, otherwise a deadlock may occur
-	local ba = cBlockArea()
-	local idx = 1
-	local ProcessArea
-	local LastGalleryName
-	local LastWorld
-	ProcessArea = function()
-		local area = a_Areas[idx].Area
-		ba:Read(LastWorld, area.ExportMinX, area.ExportMaxX, area.ExportMinY, area.ExportMaxY, area.ExportMinZ, area.ExportMaxZ)
-		cFile:CreateFolder(g_Config.WebPreview.ThumbnailFolder)
-		cFile:CreateFolder(GetAreaSchematicFolderName(area.ID))
-		ExportPreviewForArea(ba, a_Areas[idx], a_ShouldNameConnectors)
-		idx = idx + 1
-		if (a_Areas[idx]) then
-			-- When moving to the next gallery or after 10 areas, unload chunks that are no longer needed and queue the task on the new world:
-			-- When all chunks are loaded, the ChunkStay produces one deep nested call, going over LUAI_MAXCCALLS
-			if (
-				(a_Areas[idx].Area.GalleryName ~= LastGalleryName) or
-				(a_Areas[idx].Area.WorldName ~= LastWorld:GetName()) or
-				(idx % 10 == 0)
-			) then
-				LastWorld:QueueUnloadUnusedChunks()
-				LastGalleryName = a_Areas[idx].Area.GalleryName
-				LastWorld = cRoot:Get():GetWorld(a_Areas[idx].Area.WorldName)
-				LastWorld:QueueTask(
-					function()
-						LastWorld:ChunkStay(GetAreaChunkCoords(a_Areas[idx].Area), nil, ProcessArea)
-					end
-				)
-			else
-				-- Queue the next area on the same world:
-				LastWorld:ChunkStay(GetAreaChunkCoords(a_Areas[idx].Area), nil, ProcessArea)
-			end
-		end
-	end
-
-	-- Queue the export task on the cWorld instance, so that it is executed in the world's Tick thread:
-	LastGalleryName = a_Areas[1].Area.GalleryName
-	LastWorld = cRoot:Get():GetWorld(a_Areas[1].Area.WorldName)
-	LastWorld:QueueTask(
-		function()
-			LastWorld:ChunkStay(GetAreaChunkCoords(a_Areas[1].Area), nil, ProcessArea)
-		end
-	)
-end
-
-
-
-
-
 --- Checks the preview files for the specified areas and regenerates the ones that are outdated
 -- a_Areas is an array of areas as loaded from the DB
 -- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
@@ -581,33 +266,40 @@ local function RefreshPreviewForAreas(a_Areas, a_ShouldNameConnectors)
 	assert(g_Config.WebPreview)
 
 	-- Check each area and each rotation:
-	local ToExport = {}  -- array of {Area = <db-area>, NumRotations = <number>}
+	local toExport = {}  -- array of {Area = <db-area>, NumRotations = <number>}
+	local idx = 1
 	for _, area in ipairs(a_Areas) do
-		for rot = 0, 3 do
-			local fnam = GetAreaPreviewFileName(area.ID, rot, a_ShouldNameConnectors)
-			if (area.DateLastChanged > FormatDateTime(cFile:GetLastModificationTime(fnam))) then
-				table.insert(ToExport, { Area = area, NumRotations = rot})
-			end
-		end
+		toExport[idx] = area
+		idx = idx + 1
 	end
 
 	-- Sort the ToExport array by coords (to help reuse the chunks):
-	table.sort(ToExport,
+	table.sort(toExport,
 		function (a_Item1, a_Item2)
 			-- Compare the X coord first:
-			if (a_Item1.Area.MinX < a_Item2.Area.MinX) then
+			if (a_Item1.MinX < a_Item2.MinX) then
 				return true
 			end
-			if (a_Item1.Area.MinX > a_Item2.Area.MinX) then
+			if (a_Item1.MinX > a_Item2.MinX) then
 				return false
 			end
 			-- The X coord is the same, compare the Z coord:
-			return (a_Item1.Area.MinZ < a_Item2.Area.MinZ)
+			return (a_Item1.MinZ < a_Item2.MinZ)
 		end
 	)
 
 	-- Export each area:
-	GeneratePreviewForAreas(ToExport, a_ShouldNameConnectors)
+	local connVisStyle
+	if (a_ShouldNameConnectors) then
+		connVisStyle = "Letters"
+	else
+		connVisStyle = "Arrows"
+	end
+	for _, area in ipairs(toExport) do
+		for rot = 0, 3 do
+			g_AreaPreview:RefreshPreview(area, rot, connVisStyle)
+		end
+	end
 end
 
 
@@ -874,7 +566,7 @@ local function GetAreaList(a_Request)
 
 	-- Queue the areas for re-export:
 	local AreaArray = {}
-	for idx, area in pairs(Areas) do
+	for _, area in pairs(Areas) do
 		table.insert(AreaArray, area)
 	end
 	RefreshPreviewForAreas(AreaArray, false)
@@ -924,15 +616,18 @@ local function ExecuteGetPreview(a_Request)
 		return "Invalid identification"
 	end
 	local shouldnameconns = (a_Request.Params["shouldnameconns"] == "true")
+	local connVisStyle
+	if (shouldnameconns) then
+		connVisStyle = "Letters"
+	else
+		connVisStyle = "Arrows"
+	end
 
-	local fnam = GetAreaPreviewFileName(areaID, rot, shouldnameconns)
-	local f, msg = io.open(fnam, "rb")
-	if not(f) then
+	local pngData = g_AreaPreview:GetPreview(areaID, rot, connVisStyle)
+	if not(pngData) then
 		return g_PreviewNotAvailableYetPng, "image/png"
 	end
-	local res = f:read("*all")
-	f:close()
-	return res, "image/png"
+	return pngData, "image/png"
 end
 
 
@@ -2345,6 +2040,9 @@ function InitWeb()
 
 	-- Read the "preview not available yet" image:
 	g_PreviewNotAvailableYetPng = cFile:ReadWholeFile(cPluginManager:GetCurrentPlugin():GetLocalFolder() .. "/PreviewNotAvailableYet.png")
+
+	-- Initialize the preview storage and creation object:
+	g_AreaPreview = InitAreaPreview(g_Config.WebPreview.MCSchematicToPng)
 end
 
 
