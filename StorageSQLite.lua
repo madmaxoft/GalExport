@@ -942,11 +942,30 @@ function StorageSQLite:MarkAreaChangedNow(a_AreaID)
 	assert(self)
 	assert(type(a_AreaID) == "number")
 
+	-- Retrieve the world name from the DB:
+	local worldName
+	local isSuccess, msg = self:ExecuteStatement(
+		"SELECT WorldName FROM Areas WHERE ID = ?",
+		{ a_AreaID },
+		function(a_Values)
+			worldName = a_Values.WorldName
+		end
+	)
+	if not(worldName) then
+		return false, "Cannot query worldname for area: " .. (msg or "<no message>")
+	end
+
+	local world = cRoot:Get():GetWorld(worldName)
+	if not(world) then
+		return false, "Invalid world for the area"
+	end
+	local tick = world:GetWorldAge()
+
 	-- Update the DB:
 	return self:ExecuteStatement(
-		"UPDATE Areas SET DateLastChanged = ? WHERE ID = ?",
+		"UPDATE Areas SET DateLastChanged = ?, TickLastChanged = ? WHERE ID = ?",
 		{
-			FormatDateTime(os.time()), a_AreaID
+			FormatDateTime(os.time()), tick, a_AreaID
 		}
 	)
 end

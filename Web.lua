@@ -256,7 +256,7 @@ end
 
 
 
---- Checks the preview files for the specified areas and regenerates the ones that are outdated
+--- Checks the previews for the specified areas and regenerates the ones that are outdated
 -- a_Areas is an array of areas as loaded from the DB
 -- a_ShouldNameConnectors specifies whether the connectors should be described with letters (true) or their directions (false)
 local function RefreshPreviewForAreas(a_Areas, a_ShouldNameConnectors)
@@ -801,7 +801,14 @@ local function ShowAreaDetails(a_Request)
 		ins(res, rot)
 		ins(res, "\"/></td>")
 	end
-	ins(res, "</tr></table>")
+	ins(res, "</tr>")
+
+	-- Output the Refresh preview button:
+	ins(res, "<tr><td><form method=\"POST\">")
+	ins(res, GetHTMLInput("hidden", "areaid",         {value = Area.ID}))
+	ins(res, GetHTMLInput("hidden", "action",         {value = "refreshareapreview"}))
+	ins(res, GetHTMLInput("submit", "refreshpreview", {value = "Refresh preview"}))
+	ins(res, "</form></td></tr></table>")
 
 	-- Output the name editor:
 	ins(res, "<table><tr><th>Export name: </th><td><form method=\"POST\">")
@@ -986,6 +993,27 @@ local function ExecuteRenameArea(a_Request)
 
 	-- Display a success page with a return link:
 	return "<p>Area renamed successfully.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. AreaID .. "\">area details</a>.</p>"
+end
+
+
+
+
+
+local function ExecuteRefreshAreaPreview(a_Request)
+	-- Check params:
+	local areaID = tonumber(a_Request.PostParams["areaid"])
+	if not(areaID) then
+		return HTMLError("Invalid Area ID")
+	end
+
+	-- Regenerate all the previews for the area:
+	for rot = 0, 3 do
+		g_AreaPreview:RegeneratePreview(areaID, rot, "Arrows")
+		g_AreaPreview:RegeneratePreview(areaID, rot, "Letters")
+	end
+
+	-- Display a success page with a return link:
+	return "<p>Area previews scheduled for a refresh.</p><p>Return to <a href=\"?action=areadetails&areaid=" .. areaID .. "\">area details</a>.</p>"
 end
 
 
@@ -1194,8 +1222,11 @@ local function ExecuteSetAllConns(a_Request)
 		end
 	end
 
-	-- Schedule an update for the previews:
-	RefreshPreviewForAreas({area}, true)
+	-- Regenerate all the previews for the area:
+	for rot = 0, 3 do
+		g_AreaPreview:RegeneratePreview(areaID, rot, "Arrows")
+		g_AreaPreview:RegeneratePreview(areaID, rot, "Letters")
+	end
 
 	-- Respond with a "Changes applied" page:
 	local groupName = area.ExportGroupName
@@ -1917,17 +1948,18 @@ end
 -- Action handlers for the Areas page:
 local g_AreasActionHandlers =
 {
-	[""]            = ShowAreasPage,
-	["addmeta"]     = ExecuteUpdateMeta,  -- "Add" has the same handling as "Update" - translates to "DB set"
-	["areaconns"]   = ShowAreaConnectors,
-	["areadetails"] = ShowAreaDetails,
-	["delmeta"]     = ExecuteDelMeta,
-	["getpreview"]  = ExecuteGetPreview,
-	["getstatic"]   = ExecuteGetStatic,
-	["regrouparea"] = ExecuteRegroupArea,
-	["renamearea"]  = ExecuteRenameArea,
-	["setallconns"] = ExecuteSetAllConns,
-	["updatemeta"]  = ExecuteUpdateMeta,
+	[""]                   = ShowAreasPage,
+	["addmeta"]            = ExecuteUpdateMeta,  -- "Add" has the same handling as "Update" - translates to "DB set"
+	["areaconns"]          = ShowAreaConnectors,
+	["areadetails"]        = ShowAreaDetails,
+	["delmeta"]            = ExecuteDelMeta,
+	["getpreview"]         = ExecuteGetPreview,
+	["getstatic"]          = ExecuteGetStatic,
+	["regrouparea"]        = ExecuteRegroupArea,
+	["renamearea"]         = ExecuteRenameArea,
+	["refreshareapreview"] = ExecuteRefreshAreaPreview,
+	["setallconns"]        = ExecuteSetAllConns,
+	["updatemeta"]         = ExecuteUpdateMeta,
 }
 
 
