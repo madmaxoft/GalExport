@@ -419,7 +419,7 @@ local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
 			a_Indent, "\t\tRelX = ", conn.X - a_AreaDef.ExportMinX, ",\n",
 			a_Indent, "\t\tRelY = ", conn.Y - a_AreaDef.ExportMinY, ",\n",
 			a_Indent, "\t\tRelZ = ", conn.Z - a_AreaDef.ExportMinZ, ",\n",
-			a_Indent, "\t\tDirection = ", conn.Direction, ",  -- ", DirectionToString(conn.Direction), "\n",
+			a_Indent, "\t\tDirection = \"", conn.Direction, "\",\n",
 			a_Indent, "\t},\n"
 		}))
 	end
