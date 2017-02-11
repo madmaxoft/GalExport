@@ -571,6 +571,9 @@ function AreaPreview:ProcessIncomingMessage(a_Message)
 		self:Disconnected()
 	end
 	self.m_IsFullyConnected = true
+	LOG(string.format("%sMCSchematicToPng connected successfully to %s:%s",
+		PLUGIN_PREFIX, self.m_HostName, self.m_Port
+	))
 	self:SendJson({Cmd = "SetName", Name = "GalExport", CmdID = "SetNameCmdID"})
 
 	-- Send the export requests that have been queued:
