@@ -61,6 +61,20 @@ local AreaPreviewDB = {}
 
 
 
+--- Array of colors that can be used for connector colors.
+-- Each non-negative connector type gets a "[type mod #]" color
+-- Each negative connector type gets a "0xffffff - [-type mod #]" color
+local g_ConnColors =
+{
+	0xff0000,
+	0x00cf00,
+	0x007fff,
+}
+local g_NumConnColors = #g_ConnColors
+
+
+
+
 
 -- If assigned to an open file, the comm to MCSchematicToPng will be written to it
 local g_LogFile = nil  -- io.open("MCSchematicToPng-comm.log", "wb")
@@ -228,7 +242,7 @@ local function ConnVisArrows(a_DBArea, a_NumRotations, a_DBConnectors, a_Request
 			Z = rotconn.z,
 			Shape = rotconn.shape,
 		}
-		marker.Color = "ff0000"
+		marker.Color = AreaPreview:GetConnColorStringByType(conn.TypeNum)
 		reqMarkers[idx] = marker
 	end
 end
@@ -257,7 +271,7 @@ local function ConnVisLetters(a_DBArea, a_NumRotations, a_DBConnectors, a_Reques
 			Z = rotconn.z,
 			Shape = "Letter" .. string.char(64 + idx),
 		}
-		marker.Color = "ff0000"
+		marker.Color = AreaPreview:GetConnColorStringByType(conn.TypeNum)
 		reqMarkers[idx] = marker
 	end
 end
@@ -366,6 +380,25 @@ function AreaPreview:Disconnected()
 		table.insert(self.m_RenderQueue, cmd)
 	end
 	self.m_PendingRenderCommands = {}
+end
+
+
+
+
+
+--- Returns the string representing hex color code for the specified connector type
+function AreaPreview:GetConnColorStringByType(a_ConnType)
+	-- Check params:
+	local connType = tonumber(a_ConnType)
+	assert(connType)
+
+	-- Return the color code from the g_ConnColors array:
+	local colorIdx = (math.abs(connType) % g_NumConnColors) + 1
+	if (connType < 0) then
+		return string.format("%06x", 0xffffff - g_ConnColors[colorIdx])
+	else
+		return string.format("%06x", g_ConnColors[colorIdx])
+	end
 end
 
 
