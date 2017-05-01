@@ -400,6 +400,48 @@ end
 
 
 
+--- Returns a string containing the HitBox and StructureBox definitions for the area
+-- a_Indent is inserted at each line's beginning, including the first line
+local function MakeCubesetBoxesSource(a_AreaDef, a_Indent)
+	local res =
+	{
+		-- Note that the Hitbox variables needn't be set in the AreaDef, use Export coords in such a case
+		a_Indent, "Hitbox =\n",
+		a_Indent, "{\n",
+		a_Indent, "\tMinX = ", (a_AreaDef.HitboxMinX or a_AreaDef.ExportMinX) - a_AreaDef.ExportMinX, ",\n",
+		a_Indent, "\tMinY = ", (a_AreaDef.HitboxMinY or a_AreaDef.ExportMinY) - a_AreaDef.ExportMinY, ",\n",
+		a_Indent, "\tMinZ = ", (a_AreaDef.HitboxMinZ or a_AreaDef.ExportMinZ) - a_AreaDef.ExportMinZ, ",\n",
+		a_Indent, "\tMaxX = ", (a_AreaDef.HitboxMaxX or a_AreaDef.ExportMaxX) - a_AreaDef.ExportMinX, ",\n",
+		a_Indent, "\tMaxY = ", (a_AreaDef.HitboxMaxY or a_AreaDef.ExportMaxY) - a_AreaDef.ExportMinY, ",\n",
+		a_Indent, "\tMaxZ = ", (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ, ",\n",
+		a_Indent, "},\n",
+	}
+	if not(a_AreaDef.IsStarting) then
+		return table.concat(res)
+	end
+
+	-- Add the StructureBox coords for starting areas:
+	-- Note that the StructureBox variables needn't be set in the AreaDef, use Export coords in such a case:
+	res =
+	{
+		table.concat(res),
+		a_Indent, "StructureBox =\n",
+		a_Indent, "{\n",
+		a_Indent, "\tMinX = ", (a_AreaDef.StructureBoxMinX or a_AreaDef.ExportMinX) - a_AreaDef.ExportMinX, ",\n",
+		a_Indent, "\tMinY = ", (a_AreaDef.StructureBoxMinY or a_AreaDef.ExportMinY) - a_AreaDef.ExportMinY, ",\n",
+		a_Indent, "\tMinZ = ", (a_AreaDef.StructureBoxMinZ or a_AreaDef.ExportMinZ) - a_AreaDef.ExportMinZ, ",\n",
+		a_Indent, "\tMaxX = ", (a_AreaDef.StructureBoxMaxX or a_AreaDef.ExportMaxX) - a_AreaDef.ExportMinX, ",\n",
+		a_Indent, "\tMaxY = ", (a_AreaDef.StructureBoxMaxY or a_AreaDef.ExportMaxY) - a_AreaDef.ExportMinY, ",\n",
+		a_Indent, "\tMaxZ = ", (a_AreaDef.StructureBoxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ, ",\n",
+		a_Indent, "},\n",
+	}
+	return table.concat(res)
+end
+
+
+
+
+
 --- Returns the string containing cubeset source for the connectors in the specified area
 -- a_Indent is inserted at each line's start
 local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
@@ -419,7 +461,7 @@ local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
 			a_Indent, "\t\tRelX = ", conn.X - a_AreaDef.ExportMinX, ",\n",
 			a_Indent, "\t\tRelY = ", conn.Y - a_AreaDef.ExportMinY, ",\n",
 			a_Indent, "\t\tRelZ = ", conn.Z - a_AreaDef.ExportMinZ, ",\n",
-			a_Indent, "\t\tDirection = \"", conn.Direction, "\",\n",
+			a_Indent, "\t\tDirection = \"", NormalizeDirection(conn.Direction), "\",\n",
 			a_Indent, "\t},\n"
 		}))
 	end
@@ -428,39 +470,6 @@ local function MakeCubesetConnectorsSource(a_AreaDef, a_Indent)
 
 	-- Join the output into a single string:
 	return con(res)
-end
-
-
-
-
-
---- Returns a string containing the hitbox definitions for the area
--- a_Indent is inserted at each line's beginning, including the first line
-local function MakeCubesetHitboxSource(a_AreaDef, a_Indent)
-	-- Calculate the hitbox coords, relative to the area's bounding-box:
-	-- Note that the Hitbox variables needn't be set in the AreaDef, use the Export coords in such case
-	local MinX = (a_AreaDef.HitboxMinX or a_AreaDef.ExportMinX) - a_AreaDef.ExportMinX
-	local MinY = (a_AreaDef.HitboxMinY or a_AreaDef.ExportMinY) - a_AreaDef.ExportMinY
-	local MinZ = (a_AreaDef.HitboxMinZ or a_AreaDef.ExportMinZ) - a_AreaDef.ExportMinZ
-	local MaxX = (a_AreaDef.HitboxMaxX or a_AreaDef.ExportMaxX) - a_AreaDef.ExportMinX
-	local MaxY = (a_AreaDef.HitboxMaxY or a_AreaDef.ExportMaxY) - a_AreaDef.ExportMinY
-	local MaxZ = (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ
-
-	-- Write the coords:
-	local res =
-	{
-		a_Indent, "Hitbox =\n",
-		a_Indent, "{\n",
-		a_Indent, "\tMinX = ", MinX, ",\n",
-		a_Indent, "\tMinY = ", MinY, ",\n",
-		a_Indent, "\tMinZ = ", MinZ, ",\n",
-		a_Indent, "\tMaxX = ", MaxX, ",\n",
-		a_Indent, "\tMaxY = ", MaxY, ",\n",
-		a_Indent, "\tMaxZ = ", MaxZ, ",\n",
-		a_Indent, "},\n",
-	}
-
-	return table.concat(res)
 end
 
 
@@ -530,7 +539,7 @@ local function MakeCubesetSource(a_BaseFolder, a_BlockArea, a_AreaDef, a_Indent,
 		Indent, "\ty = ", SizeY, ",\n",
 		Indent, "\tz = ", SizeZ, ",\n",
 		Indent, "},\n",
-		MakeCubesetHitboxSource(a_AreaDef, Indent),
+		MakeCubesetBoxesSource(a_AreaDef, Indent),
 		MakeCubesetConnectorsSource(a_AreaDef, Indent),
 		MakeCubesetMetadataSource(a_AreaDef, Indent)
 	}
