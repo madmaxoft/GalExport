@@ -12,4 +12,5 @@ ignore =
 	"231",  -- Local variable is set but never accessed.
 	"311",  -- Value assigned to a local variable is unused.
 	"542",  -- An empty if branch.
+	"631",  -- Line too long
 }
