@@ -400,7 +400,7 @@ end
 
 
 
---- Returns a string containing the HitBox and StructureBox definitions for the area
+--- Returns a string containing the HitBox and (possibly) StructureBox definitions for the area
 -- a_Indent is inserted at each line's beginning, including the first line
 local function MakeCubesetBoxesSource(a_AreaDef, a_Indent)
 	local res =
@@ -416,7 +416,7 @@ local function MakeCubesetBoxesSource(a_AreaDef, a_Indent)
 		a_Indent, "\tMaxZ = ", (a_AreaDef.HitboxMaxZ or a_AreaDef.ExportMaxZ) - a_AreaDef.ExportMinZ, ",\n",
 		a_Indent, "},\n",
 	}
-	if not(a_AreaDef.IsStarting) then
+	if not(g_DB:IsAreaStarting(a_AreaDef.ID)) then
 		return table.concat(res)
 	end
 

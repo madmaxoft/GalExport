@@ -886,6 +886,33 @@ end
 
 
 
+--- Returns whether the specified area has the IsStarting metadata set to 1
+-- Returns nil and optional error message on failure
+function StorageSQLite:IsAreaStarting(a_AreaID)
+	-- Check params:
+	assert(self)
+	local AreaID = tonumber(a_AreaID)
+	assert(AreaID)
+
+	local res = false
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"SELECT Value FROM Metadata WHERE AreaID = ? AND Name = 'IsStarting'",
+		{ AreaID },
+		function (a_Values)
+			res = (a_Values ~= "0")
+		end
+	)
+	if not(IsSuccess) then
+		return nil, Msg
+	end
+
+	return res
+end
+
+
+
+
+
 --- Returns an array of tables describing the approved areas in the specified range
 -- Returns false and optional error message on failure
 function StorageSQLite:LoadApprovedAreasRange(a_StartIdx, a_EndIdx)
@@ -1504,23 +1531,29 @@ function SQLite_CreateStorage(a_Params)
 	-- Create the tables, if they don't exist yet:
 	local AreasColumns =
 	{
-		{"IsApproved",      "INTEGER"},  -- Simple 0 / 1
-		{"DateApproved",    "TEXT"},     -- ISO 8601 DateTime of the approving
-		{"ApprovedBy",      "TEXT"},     -- Name of the admin who approved the area
-		{"ExportMinX",      "INTEGER"},  -- The min coords of the exported area
-		{"ExportMinY",      "INTEGER"},  -- The min coords of the exported area
-		{"ExportMinZ",      "INTEGER"},  -- The min coords of the exported area
-		{"ExportMaxX",      "INTEGER"},  -- The max coords of the exported area
-		{"ExportMaxY",      "INTEGER"},  -- The max coords of the exported area
-		{"ExportMaxZ",      "INTEGER"},  -- The max coords of the exported area
-		{"ExportGroupName", "TEXT"},     -- The name of the group to which this area belongs
-		{"ExportName",      "TEXT"},     -- The name of the area to use for export. If NULL, the ID is used
-		{"HitboxMinX",      "INTEGER"},  -- The min coords of the exported area's hitbox. If NULL, ExportMin coords are used
-		{"HitboxMinY",      "INTEGER"},  -- The min coords of the exported area's hitbox. If NULL, ExportMin coords are used
-		{"HitboxMinZ",      "INTEGER"},  -- The min coords of the exported area's hitbox. If NULL, ExportMin coords are used
-		{"HitboxMaxX",      "INTEGER"},  -- The max coords of the exported area's hitbox. If NULL, ExportMax coords are used
-		{"HitboxMaxY",      "INTEGER"},  -- The max coords of the exported area's hitbox. If NULL, ExportMax coords are used
-		{"HitboxMaxZ",      "INTEGER"},  -- The max coords of the exported area's hitbox. If NULL, ExportMax coords are used
+		{"IsApproved",       "INTEGER"},  -- Simple 0 / 1
+		{"DateApproved",     "TEXT"},     -- ISO 8601 DateTime of the approving
+		{"ApprovedBy",       "TEXT"},     -- Name of the admin who approved the area
+		{"ExportMinX",       "INTEGER"},  -- The min coords of the exported area
+		{"ExportMinY",       "INTEGER"},  -- The min coords of the exported area
+		{"ExportMinZ",       "INTEGER"},  -- The min coords of the exported area
+		{"ExportMaxX",       "INTEGER"},  -- The max coords of the exported area
+		{"ExportMaxY",       "INTEGER"},  -- The max coords of the exported area
+		{"ExportMaxZ",       "INTEGER"},  -- The max coords of the exported area
+		{"ExportGroupName",  "TEXT"},     -- The name of the group to which this area belongs
+		{"ExportName",       "TEXT"},     -- The name of the area to use for export. If NULL, the ID is used
+		{"HitboxMinX",       "INTEGER"},  -- The min coords of the exported area's hitbox. If NULL, ExportMin coords are used
+		{"HitboxMinY",       "INTEGER"},  -- The min coords of the exported area's hitbox. If NULL, ExportMin coords are used
+		{"HitboxMinZ",       "INTEGER"},  -- The min coords of the exported area's hitbox. If NULL, ExportMin coords are used
+		{"HitboxMaxX",       "INTEGER"},  -- The max coords of the exported area's hitbox. If NULL, ExportMax coords are used
+		{"HitboxMaxY",       "INTEGER"},  -- The max coords of the exported area's hitbox. If NULL, ExportMax coords are used
+		{"HitboxMaxZ",       "INTEGER"},  -- The max coords of the exported area's hitbox. If NULL, ExportMax coords are used
+		{"StructureBoxMinX", "INTEGER"},  -- The min coords of the exported area's StructureBox. If NULL, ExportMin coords are used
+		{"StructureBoxMinY", "INTEGER"},  -- The min coords of the exported area's StructureBox. If NULL, ExportMin coords are used
+		{"StructureBoxMinZ", "INTEGER"},  -- The min coords of the exported area's StructureBox. If NULL, ExportMin coords are used
+		{"StructureBoxMaxX", "INTEGER"},  -- The max coords of the exported area's StructureBox. If NULL, ExportMax coords are used
+		{"StructureBoxMaxY", "INTEGER"},  -- The max coords of the exported area's StructureBox. If NULL, ExportMax coords are used
+		{"StructureBoxMaxZ", "INTEGER"},  -- The max coords of the exported area's StructureBox. If NULL, ExportMax coords are used
 	}
 	local ExportSpongesColumns =
 	{
