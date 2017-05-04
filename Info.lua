@@ -429,6 +429,30 @@ and edited with the help of WorldEdit and its WECUI link.
 					},  -- Subcommands
 				},  -- sponge
 
+				structurebox =
+				{
+					HelpString = "Manipulates the StructureBox property of an area",
+					Alias = {"sbox", "sb"},
+					Subcommands =
+					{
+						change =
+						{
+							HelpString = "Updates the structure box of the area you're standing in to your current WE selection",
+							Permission = "galexport.sbox.change",
+							Alias = {"c", "update", "u"},
+							Handler = HandleCmdSboxChange,
+						},  -- change
+
+						show =
+						{
+							HelpString = "Sets your WE selection to the structure box of the area you're standing in",
+							Permission = "gallexport.sbox.show",
+							Alias = {"s", "view", "v"},
+							Handler = HandleCmdSboxShow,
+						},  -- show
+					},  -- Subcommands
+				},  -- structurebox
+
 				unset =
 				{
 					HelpString = "Removes metadata value for the current area",

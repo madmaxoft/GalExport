@@ -1479,6 +1479,42 @@ end
 
 
 
+--- Updates the StructureBox in the DB to the specified values
+-- Returns false and error message on failure, or true on success
+function StorageSQLite:UpdateAreaStructureBox(a_AreaID, a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ)
+	-- Check the params:
+	assert(self)
+	assert(tonumber(a_AreaID))
+	assert(tonumber(a_MinX))
+	assert(tonumber(a_MinY))
+	assert(tonumber(a_MinZ))
+	assert(tonumber(a_MaxX))
+	assert(tonumber(a_MaxY))
+	assert(tonumber(a_MaxZ))
+
+	-- Write into DB:
+	local IsSuccess, Msg = self:ExecuteStatement(
+		"UPDATE Areas SET StructureBoxMinX = ?, StructureBoxMinY = ?, StructureBoxMinZ = ?,\
+		StructureBoxMaxX = ?, StructureBoxMaxY = ?, StructureBoxMaxZ = ? WHERE ID = ?",
+		{
+			a_MinX, a_MinY, a_MinZ, a_MaxX, a_MaxY, a_MaxZ,
+			a_AreaID
+		}
+	)
+	if not(IsSuccess) then
+		return false, "Failed to update area's StructureBox in the DB: " .. (Msg or "<unknown DB error>")
+	end
+
+	-- Mark the area as changed:
+	self:MarkAreaChangedNow(a_AreaID)
+
+	return true
+end
+
+
+
+
+
 --- Updates all the sponges in the DB for the selected area, based on the area's image
 -- a_SpongedBlockArea is the area containing the sponge blocks; the sponge blocks are extracted and saved to DB
 -- Returns true on success, false and message on failure

@@ -362,7 +362,7 @@ function HandleCmdHboxChange(a_Split, a_Player)
 	if (IsSuccess) then
 		a_Player:SendMessage(cCompositeChat("Hitbox changed", mtInformation))
 	else
-		a_Player:SendMessage(cCompositeChat("Cannot change hitbox: " .. Msg, mtFailure))
+		a_Player:SendMessage(cCompositeChat("Cannot change hitbox: " .. (Msg or "<nil>"), mtFailure))
 	end
 	return true
 end
@@ -1192,6 +1192,81 @@ function HandleCmdName(a_Split, a_Player)
 	-- Rename the area:
 	g_DB:SetAreaExportName(Area.ID, AreaName)
 	a_Player:SendMessage(cCompositeChat("Area renamed to " .. AreaName, mtInfo))
+	return true
+end
+
+
+
+
+
+function HandleCmdSboxChange(a_Split, a_Player)
+	-- /ge sbox change
+
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot change structurebox, there is no gallery area here.", mtFailure))
+		return true
+	end
+
+	-- Get the selection from WE:
+	local SelCuboid = cCuboid()
+	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "GetPlayerCuboidSelection", a_Player, SelCuboid)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot get WorldEdit selection", mtFailure))
+		return true
+	end
+	SelCuboid:Sort()
+
+	-- Set the selection back to area in DB:
+	local Msg
+	IsSuccess, Msg = g_DB:UpdateAreaStructureBox(Area.ID,
+		SelCuboid.p1.x, SelCuboid.p1.y, SelCuboid.p1.z,
+		SelCuboid.p2.x, SelCuboid.p2.y, SelCuboid.p2.z
+	)
+
+	-- Send success report:
+	if (IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("StructureBox changed", mtInformation))
+	else
+		a_Player:SendMessage(cCompositeChat("Cannot change StructureBox: " .. (Msg or "<nil>"), mtFailure))
+	end
+	return true
+end
+
+
+
+
+
+function HandleCmdSboxShow(a_Split, a_Player)
+	-- /ge sbox show
+
+	-- Get the area ident:
+	local BlockX, _, BlockZ = GetPlayerPos(a_Player)
+	local Area = g_DB:GetAreaByCoords(a_Player:GetWorld():GetName(), BlockX, BlockZ)
+	if not(Area) then
+		a_Player:SendMessage(cCompositeChat("Cannot show hitbox, there is no gallery area here.", mtFailure))
+		return true
+	end
+
+	-- Check if the area is approved:
+	if (tonumber(Area.IsApproved) ~= 1) then
+		a_Player:SendMessage(cCompositeChat("Cannot show StructureBox, this area is not approved.", mtFailure))
+		return true
+	end
+
+	-- Send the selection to WE:
+	local SelCuboid = cCuboid(
+		Area.StructureBoxMinX or Area.ExportMinX, Area.StructureBoxMinY or Area.ExportMinY, Area.StructureBoxMinZ or Area.ExportMinZ,
+		Area.StructureBoxMaxX or Area.ExportMaxX, Area.StructureBoxMaxY or Area.ExportMaxY, Area.StructureBoxMaxZ or Area.ExportMaxZ
+	)
+	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_Player, SelCuboid)
+	if not(IsSuccess) then
+		a_Player:SendMessage(cCompositeChat("Cannot set WorldEdit selection to the StructureBox", mtFailure))
+	else
+		a_Player:SendMessage(cCompositeChat("WorldEdit selection set to the StructureBox", mtInformation))
+	end
 	return true
 end
 
