@@ -895,6 +895,18 @@ local function ExportCubesetGroup(a_BaseFolder, a_Areas, a_ExternalSchematic, a_
 		area.Metadata.IsStarting = tonumber(area.Metadata.IsStarting)
 	end
 
+	-- Sort the areas:
+	table.sort(a_Areas,
+		function(a_Area1, a_Area2)
+			if (a_Area1.Metadata.IsStarting ~= a_Area2.Metadata.IsStarting) then
+				-- One area is starting, the other is not, put the starting one first:
+				return a_Area1.Metadata.IsStarting > a_Area2.Metadata.IsStarting
+			end
+			-- Both areas starting, or neither area starting, sort by name:
+			return GetAreaExportName(a_Area1) < GetAreaExportName(a_Area2)
+		end
+	)
+
 	-- Store usefull stuff:
 	local GroupName = a_Areas[1].ExportGroupName
 	local FileName = a_BaseFolder .. "/" .. GroupName .. ".cubeset"
