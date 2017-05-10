@@ -136,8 +136,8 @@ end
 
 
 
-cPluginManager.AddHook(cPluginManager.HOOK_PLAYER_DESTROYED, OnPlayerDestroyed)
-cPluginManager.AddHook(cPluginManager.HOOK_PLAYER_MOVING,    OnPlayerMoving)
+cPluginManager:AddHook(cPluginManager.HOOK_PLAYER_DESTROYED, OnPlayerDestroyed)
+cPluginManager:AddHook(cPluginManager.HOOK_PLAYER_MOVING,    OnPlayerMoving)
 
 
 
