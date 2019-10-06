@@ -40,8 +40,8 @@ local function DoWithArea(a_AreaDef, a_SuccessCallback, a_FailureCallback)
 
 	-- Create a cuboid for the exported coords:
 	local Bounds = cCuboid(
-		a_AreaDef.ExportMinX, a_AreaDef.ExportMinY, a_AreaDef.ExportMinZ,
-		a_AreaDef.ExportMaxX, a_AreaDef.ExportMaxY, a_AreaDef.ExportMaxZ
+		Vector3i(a_AreaDef.ExportMinX, a_AreaDef.ExportMinY, a_AreaDef.ExportMinZ),
+		Vector3i(a_AreaDef.ExportMaxX, a_AreaDef.ExportMaxY, a_AreaDef.ExportMaxZ)
 	)
 
 	-- Initiate the ChunkStay:
