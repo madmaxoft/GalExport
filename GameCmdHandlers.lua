@@ -159,7 +159,7 @@ function HandleCmdApprove(a_Split, a_Player)
 	SelCuboid:Sort()
 
 	-- Check if the selection is all outside:
-	local AreaCuboid = cCuboid(Area.MinX, 0, Area.MinZ, Area.MaxX - 1, 255, Area.MaxZ - 1)
+	local AreaCuboid = cCuboid(Vector3i(Area.MinX, 0, Area.MinZ), Vector3i(Area.MaxX - 1, 255, Area.MaxZ - 1))
 	if not(AreaCuboid:DoesIntersect(SelCuboid)) then
 		a_Player:SendMessage(cCompositeChat("Cannot approve, your WE selection is not in this area. You need to select the export-bounds.", mtFailure))
 		return true
@@ -216,8 +216,8 @@ function HandleCmdAutoSelect(a_Split, a_Player)
 			end
 			-- Select the bounding-box:
 			local SelCuboid = cCuboid(
-				a_Area.ExportMinX, a_Area.ExportMinY, a_Area.ExportMinZ,
-				a_Area.ExportMaxX, a_Area.ExportMaxY, a_Area.ExportMaxZ
+				Vector3i(a_Area.ExportMinX, a_Area.ExportMinY, a_Area.ExportMinZ),
+				Vector3i(a_Area.ExportMaxX, a_Area.ExportMaxY, a_Area.ExportMaxZ)
 			)
 			cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_CBPlayer, SelCuboid)
 		end
@@ -232,8 +232,8 @@ function HandleCmdAutoSelect(a_Split, a_Player)
 			end
 			-- Select the hitbox:
 			local SelCuboid = cCuboid(
-				a_Area.HitboxMinX or a_Area.ExportMinX, a_Area.HitboxMinY or a_Area.ExportMinY, a_Area.HitboxMinZ or a_Area.ExportMinZ,
-				a_Area.HitboxMaxX or a_Area.ExportMaxX, a_Area.HitboxMaxY or a_Area.ExportMaxY, a_Area.HitboxMaxZ or a_Area.ExportMaxZ
+				Vector3i(a_Area.HitboxMinX or a_Area.ExportMinX, a_Area.HitboxMinY or a_Area.ExportMinY, a_Area.HitboxMinZ or a_Area.ExportMinZ),
+				Vector3i(a_Area.HitboxMaxX or a_Area.ExportMaxX, a_Area.HitboxMaxY or a_Area.ExportMaxY, a_Area.HitboxMaxZ or a_Area.ExportMaxZ)
 			)
 			cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_CBPlayer, SelCuboid)
 		end
@@ -315,8 +315,8 @@ function HandleCmdBboxShow(a_Split, a_Player)
 
 	-- Send the selection to WE:
 	local SelCuboid = cCuboid(
-		Area.ExportMinX, Area.ExportMinY, Area.ExportMinZ,
-		Area.ExportMaxX, Area.ExportMaxY, Area.ExportMaxZ
+		Vector3i(Area.ExportMinX, Area.ExportMinY, Area.ExportMinZ),
+		Vector3i(Area.ExportMaxX, Area.ExportMaxY, Area.ExportMaxZ)
 	)
 	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_Player, SelCuboid)
 	if not(IsSuccess) then
@@ -390,8 +390,8 @@ function HandleCmdHboxShow(a_Split, a_Player)
 
 	-- Send the selection to WE:
 	local SelCuboid = cCuboid(
-		Area.HitboxMinX or Area.ExportMinX, Area.HitboxMinY or Area.ExportMinY, Area.HitboxMinZ or Area.ExportMinZ,
-		Area.HitboxMaxX or Area.ExportMaxX, Area.HitboxMaxY or Area.ExportMaxY, Area.HitboxMaxZ or Area.ExportMaxZ
+		Vector3i(Area.HitboxMinX or Area.ExportMinX, Area.HitboxMinY or Area.ExportMinY, Area.HitboxMinZ or Area.ExportMinZ),
+		Vector3i(Area.HitboxMaxX or Area.ExportMaxX, Area.HitboxMaxY or Area.ExportMaxY, Area.HitboxMaxZ or Area.ExportMaxZ)
 	)
 	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_Player, SelCuboid)
 	if not(IsSuccess) then
@@ -1258,8 +1258,8 @@ function HandleCmdSboxShow(a_Split, a_Player)
 
 	-- Send the selection to WE:
 	local SelCuboid = cCuboid(
-		Area.StructureBoxMinX or Area.ExportMinX, Area.StructureBoxMinY or Area.ExportMinY, Area.StructureBoxMinZ or Area.ExportMinZ,
-		Area.StructureBoxMaxX or Area.ExportMaxX, Area.StructureBoxMaxY or Area.ExportMaxY, Area.StructureBoxMaxZ or Area.ExportMaxZ
+		Vector3i(Area.StructureBoxMinX or Area.ExportMinX, Area.StructureBoxMinY or Area.ExportMinY, Area.StructureBoxMinZ or Area.ExportMinZ),
+		Vector3i(Area.StructureBoxMaxX or Area.ExportMaxX, Area.StructureBoxMaxY or Area.ExportMaxY, Area.StructureBoxMaxZ or Area.ExportMaxZ)
 	)
 	local IsSuccess = cPluginManager:CallPlugin("WorldEdit", "SetPlayerCuboidSelection", a_Player, SelCuboid)
 	if not(IsSuccess) then
@@ -1335,8 +1335,8 @@ function HandleCmdSpongeHide(a_Split, a_Player)
 
 	-- Create a cuboid for the area coords:
 	local Bounds = cCuboid(
-		Area.MinX, 0,   Area.MinZ,
-		Area.MaxX, 255, Area.MaxZ
+		Vector3i(Area.MinX, 0,   Area.MinZ),
+		Vector3i(Area.MaxX, 255, Area.MaxZ)
 	)
 
 	-- Read the area's blocks:
@@ -1409,8 +1409,8 @@ function HandleCmdSpongeSave(a_Split, a_Player)
 
 	-- Create a cuboid for the area coords:
 	local Bounds = cCuboid(
-		Area.MinX, 0,   Area.MinZ,
-		Area.MaxX, 255, Area.MaxZ
+		Vector3i(Area.MinX, 0,   Area.MinZ),
+		Vector3i(Area.MaxX, 255, Area.MaxZ)
 	)
 
 	-- Read the area's blocks:
@@ -1462,8 +1462,8 @@ function HandleCmdSpongeShow(a_Split, a_Player)
 
 	-- Create a cuboid for the area coords:
 	local Bounds = cCuboid(
-		Area.MinX, 0,   Area.MinZ,
-		Area.MaxX, 255, Area.MaxZ
+		Vector3i(Area.MinX, 0,   Area.MinZ),
+		Vector3i(Area.MaxX, 255, Area.MaxZ)
 	)
 
 	-- Load the sponges from the DB:
